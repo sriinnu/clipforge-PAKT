@@ -1,13 +1,12 @@
 //! System tray setup for ClipForge desktop app.
 //!
-//! Creates the macOS menu bar tray icon with context menu items
+//! Creates the menu bar tray icon with context menu items
 //! for clipboard compression, decompression, history, and settings.
 
 use tauri::{
-    image::Image,
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    AppHandle, Emitter, Manager, Runtime,
 };
 
 /// Menu item identifiers for matching in the event handler.
@@ -30,7 +29,6 @@ const MENU_QUIT: &str = "quit";
 ///
 /// Left-clicking the tray icon toggles the main window visibility.
 pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
-    // Build menu items
     let open_item = MenuItem::with_id(app, MENU_OPEN, "Open ClipForge", true, None::<&str>)?;
     let compress_item = MenuItem::with_id(
         app,
@@ -56,7 +54,6 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
     let settings_item = MenuItem::with_id(app, MENU_SETTINGS, "Settings...", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, MENU_QUIT, "Quit ClipForge", true, None::<&str>)?;
 
-    // Assemble the menu with separators between logical groups
     let menu = Menu::with_items(
         app,
         &[
@@ -72,8 +69,6 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
         ],
     )?;
 
-    // Build the tray icon
-    // TODO: Replace with actual app icon path once assets are added
     let _tray = TrayIconBuilder::new()
         .menu(&menu)
         .tooltip("ClipForge - Clipboard Compressor")
@@ -107,9 +102,7 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     }
 }
 
-/// Handle tray icon click events.
-///
-/// Left click toggles the main window visibility.
+/// Handle tray icon click events — left click toggles the main window.
 fn handle_tray_event<R: Runtime>(tray: &TrayIcon<R>, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
         button: MouseButton::Left,

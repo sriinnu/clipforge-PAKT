@@ -13,8 +13,6 @@ mod history;
 mod hotkeys;
 mod tray;
 
-use tauri::Manager;
-
 /// Entry point for the Tauri application.
 ///
 /// Initialises plugins, registers IPC command handlers, sets up the
@@ -40,12 +38,10 @@ pub fn run() {
         .manage(clipboard::ClipboardState::default())
         // --- IPC Command Handlers ---
         .invoke_handler(tauri::generate_handler![
-            // Clipboard
             clipboard::read_clipboard,
             clipboard::write_clipboard,
             clipboard::start_clipboard_watch,
             clipboard::stop_clipboard_watch,
-            // History
             history::add_history_entry,
             history::get_history,
             history::search_history,

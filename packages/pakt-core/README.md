@@ -10,10 +10,12 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@yugenlab/pakt"><img src="https://img.shields.io/npm/v/@yugenlab/pakt?color=6366f1&label=npm" alt="npm version" /></a>
-  <a href="https://github.com/yugenlab/clipforge-pakt/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b5cf6" alt="license" /></a>
+  <a href="https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b5cf6" alt="license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/tests-322%20passing-22c55e" alt="tests" />
   <img src="https://img.shields.io/bundlephobia/minzip/@yugenlab/pakt?color=f59e0b&label=size" alt="bundle size" />
+  <a href="https://github.com/sriinnu/clipforge-PAKT/issues"><img src="https://img.shields.io/github/issues/sriinnu/clipforge-PAKT?color=a855f7" alt="GitHub issues" /></a>
+  <a href="https://github.com/sriinnu/clipforge-PAKT/pulls"><img src="https://img.shields.io/badge/PRs-welcome-a855f7" alt="PRs welcome" /></a>
 </p>
 
 ---
@@ -581,6 +583,14 @@ pnpm bench
 
 ---
 
+## Acknowledgments
+
+PAKT's Layer 1 pipe-delimited syntax is directly inspired by **[TOON Format v1.3](https://github.com/toon-format/spec)**, created by **[Nicholas Charlton](https://github.com/nichochar)** ([@nichochar](https://github.com/nichochar)). TOON is the original compact notation for structured data -- it proved that JSON's syntactic overhead is unnecessary for machine-readable formats. PAKT builds on TOON's core design by adding multi-format input support, an automatic dictionary compression layer, and guaranteed lossless round-tripping across a configurable pipeline. TOON has implementations in Python, TypeScript, Go, Rust, .NET, Elixir, Java, and Julia.
+
+Thank you, Nicholas, for creating TOON and making the spec open.
+
+---
+
 ## Research and References
 
 PAKT's design draws from peer-reviewed research on prompt compression and efficient LLM communication:
@@ -590,7 +600,6 @@ PAKT's design draws from peer-reviewed research on prompt compression and effici
 - **LTSC** (2024) -- LLM-driven Token-level Structured Compression for long text workflows, combining structural and token-level techniques.
 - **LiteToken** (2025) -- Lightweight token compression for efficient encoding of structured data in LLM contexts.
 - **Table Serialization Studies** -- Research on optimal formats for presenting tabular data to LLMs (pipe-delimited formats consistently outperform JSON for tables).
-- **TOON Format v1.3** by [@nichochar](https://github.com/nichochar) -- The original compact notation for structured data that inspired PAKT's pipe-delimited syntax.
 
 PAKT extends these ideas with a layered, configurable pipeline and guaranteed lossless round-tripping through L1-L3.
 
@@ -600,7 +609,7 @@ PAKT extends these ideas with a layered, configurable pipeline and guaranteed lo
 
 ```bash
 # Clone the monorepo
-git clone https://github.com/yugenlab/clipforge-pakt.git
+git clone https://github.com/sriinnu/clipforge-PAKT.git
 cd clipforge-pakt
 
 # Install dependencies

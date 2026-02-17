@@ -4,11 +4,9 @@
 //! Each shortcut emits a named event that the React frontend handles.
 
 use tauri::{AppHandle, Emitter, Runtime};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
 /// Register all global keyboard shortcuts.
-///
-/// The following shortcuts are registered:
 ///
 /// | Shortcut         | Event emitted            | Purpose                       |
 /// |------------------|--------------------------|-------------------------------|
@@ -17,8 +15,6 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 /// | Cmd+Shift+T      | `shortcut-token-count`   | Count tokens in clipboard     |
 /// | Cmd+Shift+H      | `shortcut-history`       | Open clipboard history panel  |
 /// | Cmd+Shift+D      | `shortcut-toggle-auto`   | Toggle auto-compression mode  |
-///
-/// All shortcuts emit events to the frontend; no backend logic is executed directly.
 pub fn register_shortcuts<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -36,8 +32,7 @@ pub fn register_shortcuts<R: Runtime>(
         let app_handle = app.clone();
 
         app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event_state| {
-            // Only fire on key press, not release
-            if event_state == ShortcutState::Pressed {
+            if event_state.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                 let _ = app_handle.emit(&event, ());
             }
         })?;
@@ -47,8 +42,6 @@ pub fn register_shortcuts<R: Runtime>(
 }
 
 /// Unregister all global shortcuts.
-///
-/// Should be called during application cleanup to release the key bindings.
 pub fn unregister_all<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
     app.global_shortcut().unregister_all()?;
     Ok(())
