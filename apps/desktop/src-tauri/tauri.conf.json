@@ -26,13 +26,5 @@
     "targets": "all",
     "icon": ["icons/icon.png"]
   },
-  "plugins": {
-    "clipboard-manager": { "all": true },
-    "global-shortcut": { "all": true },
-    "sql": {
-      "preload": {
-        "db": "sqlite:clipforge.db"
-      }
-    }
-  }
+  "plugins": {}
 }

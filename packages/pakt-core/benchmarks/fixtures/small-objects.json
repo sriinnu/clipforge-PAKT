@@ -1,0 +1,12 @@
+[
+  { "name": "Alice Chen", "email": "alice.chen@acme.com", "role": "engineer", "team": "platform", "status": "active" },
+  { "name": "Bob Martinez", "email": "bob.martinez@acme.com", "role": "engineer", "team": "platform", "status": "active" },
+  { "name": "Carol Davis", "email": "carol.davis@acme.com", "role": "designer", "team": "product", "status": "active" },
+  { "name": "Dan Kim", "email": "dan.kim@acme.com", "role": "manager", "team": "platform", "status": "active" },
+  { "name": "Eve Johnson", "email": "eve.johnson@acme.com", "role": "engineer", "team": "data", "status": "inactive" },
+  { "name": "Frank Liu", "email": "frank.liu@acme.com", "role": "engineer", "team": "data", "status": "active" },
+  { "name": "Grace Park", "email": "grace.park@acme.com", "role": "designer", "team": "product", "status": "active" },
+  { "name": "Hank Wilson", "email": "hank.wilson@acme.com", "role": "manager", "team": "data", "status": "active" },
+  { "name": "Ivy Thompson", "email": "ivy.thompson@acme.com", "role": "engineer", "team": "infra", "status": "active" },
+  { "name": "Jake Brown", "email": "jake.brown@acme.com", "role": "engineer", "team": "infra", "status": "inactive" }
+]

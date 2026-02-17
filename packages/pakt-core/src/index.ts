@@ -36,12 +36,19 @@ export const VERSION = '0.1.0';
 export { compress } from './compress.js';
 export { decompress } from './decompress.js';
 export { detect } from './detect.js';
+export { validate, repair } from './utils/validate.js';
 
 // ---------------------------------------------------------------------------
 // Token utilities
 // ---------------------------------------------------------------------------
 
 export { countTokens, compareSavings } from './tokens/index.js';
+
+// ---------------------------------------------------------------------------
+// LLM Integration
+// ---------------------------------------------------------------------------
+
+export { PAKT_SYSTEM_PROMPT } from './prompt.js';
 
 // ---------------------------------------------------------------------------
 // Types

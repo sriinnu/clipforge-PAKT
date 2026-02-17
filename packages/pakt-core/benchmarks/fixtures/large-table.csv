@@ -1,0 +1,101 @@
+order_id,customer_name,product,category,quantity,unit_price,region,order_date
+ORD-1001,Alice Chen,Wireless Keyboard,Electronics,2,49.99,North America,2025-11-01
+ORD-1002,Bob Martinez,Standing Desk,Furniture,1,599.00,North America,2025-11-01
+ORD-1003,Carol Davis,USB-C Hub,Electronics,3,34.99,Europe,2025-11-02
+ORD-1004,Dan Kim,Ergonomic Chair,Furniture,1,449.00,Asia Pacific,2025-11-02
+ORD-1005,Eve Johnson,Monitor Stand,Furniture,2,79.99,North America,2025-11-03
+ORD-1006,Frank Liu,Wireless Mouse,Electronics,5,29.99,Asia Pacific,2025-11-03
+ORD-1007,Grace Park,Desk Lamp,Furniture,1,89.99,North America,2025-11-04
+ORD-1008,Hank Wilson,Webcam HD,Electronics,2,59.99,Europe,2025-11-04
+ORD-1009,Ivy Thompson,Laptop Stand,Furniture,1,129.99,North America,2025-11-05
+ORD-1010,Jake Brown,Noise-Cancel Headphones,Electronics,1,249.99,Europe,2025-11-05
+ORD-1011,Karen White,Filing Cabinet,Furniture,2,199.99,North America,2025-11-06
+ORD-1012,Leo Garcia,External SSD 1TB,Electronics,3,89.99,Asia Pacific,2025-11-06
+ORD-1013,Mia Anderson,Whiteboard,Furniture,1,149.99,North America,2025-11-07
+ORD-1014,Noah Taylor,Power Strip,Electronics,4,24.99,Europe,2025-11-07
+ORD-1015,Olivia Moore,Bookshelf,Furniture,1,279.99,North America,2025-11-08
+ORD-1016,Peter Jackson,USB Microphone,Electronics,1,119.99,Asia Pacific,2025-11-08
+ORD-1017,Quinn Harris,Desk Organizer,Furniture,3,39.99,North America,2025-11-09
+ORD-1018,Rachel Clark,HDMI Cable,Electronics,10,12.99,Europe,2025-11-09
+ORD-1019,Sam Lewis,Corner Desk,Furniture,1,399.99,North America,2025-11-10
+ORD-1020,Tina Walker,Portable Charger,Electronics,2,44.99,Asia Pacific,2025-11-10
+ORD-1021,Uma Robinson,Drafting Table,Furniture,1,349.99,Europe,2025-11-11
+ORD-1022,Victor Hall,Ethernet Switch,Electronics,1,69.99,North America,2025-11-11
+ORD-1023,Wendy Allen,Task Chair,Furniture,2,199.99,Asia Pacific,2025-11-12
+ORD-1024,Xander Young,Bluetooth Speaker,Electronics,3,39.99,North America,2025-11-12
+ORD-1025,Yuki Tanaka,L-Shaped Desk,Furniture,1,549.99,Asia Pacific,2025-11-13
+ORD-1026,Zara King,Wireless Charger,Electronics,4,29.99,Europe,2025-11-13
+ORD-1027,Alice Chen,Mechanical Keyboard,Electronics,1,149.99,North America,2025-11-14
+ORD-1028,Bob Martinez,Monitor Arm,Furniture,2,89.99,North America,2025-11-14
+ORD-1029,Carol Davis,USB Flash Drive,Electronics,5,14.99,Europe,2025-11-15
+ORD-1030,Dan Kim,Footrest,Furniture,1,59.99,Asia Pacific,2025-11-15
+ORD-1031,Eve Johnson,Smart Plug,Electronics,6,19.99,North America,2025-11-16
+ORD-1032,Frank Liu,Storage Cart,Furniture,1,109.99,Asia Pacific,2025-11-16
+ORD-1033,Grace Park,Thunderbolt Cable,Electronics,2,39.99,North America,2025-11-17
+ORD-1034,Hank Wilson,Standing Mat,Furniture,1,69.99,Europe,2025-11-17
+ORD-1035,Ivy Thompson,Docking Station,Electronics,1,179.99,North America,2025-11-18
+ORD-1036,Jake Brown,Paper Shredder,Furniture,1,129.99,Europe,2025-11-18
+ORD-1037,Karen White,Portable Monitor,Electronics,1,219.99,North America,2025-11-19
+ORD-1038,Leo Garcia,Cable Management Kit,Electronics,3,24.99,Asia Pacific,2025-11-19
+ORD-1039,Mia Anderson,Coat Rack,Furniture,2,49.99,North America,2025-11-20
+ORD-1040,Noah Taylor,Network Cable Cat6,Electronics,8,9.99,Europe,2025-11-20
+ORD-1041,Olivia Moore,Plant Stand,Furniture,3,34.99,North America,2025-11-21
+ORD-1042,Peter Jackson,Webcam Light,Electronics,2,54.99,Asia Pacific,2025-11-21
+ORD-1043,Quinn Harris,Desk Pad,Furniture,1,29.99,North America,2025-11-22
+ORD-1044,Rachel Clark,Mini Projector,Electronics,1,299.99,Europe,2025-11-22
+ORD-1045,Sam Lewis,Executive Desk,Furniture,1,799.99,North America,2025-11-23
+ORD-1046,Tina Walker,Wireless Earbuds,Electronics,2,79.99,Asia Pacific,2025-11-23
+ORD-1047,Uma Robinson,Adjustable Shelf,Furniture,2,119.99,Europe,2025-11-24
+ORD-1048,Victor Hall,Smart Display,Electronics,1,159.99,North America,2025-11-24
+ORD-1049,Wendy Allen,Mesh Chair,Furniture,1,349.99,Asia Pacific,2025-11-25
+ORD-1050,Xander Young,Keyboard Wrist Rest,Electronics,3,19.99,North America,2025-11-25
+ORD-1051,Yuki Tanaka,Writing Desk,Furniture,1,249.99,Asia Pacific,2025-11-26
+ORD-1052,Zara King,USB Hub,Electronics,2,29.99,Europe,2025-11-26
+ORD-1053,Alice Chen,Drawing Tablet,Electronics,1,199.99,North America,2025-11-27
+ORD-1054,Bob Martinez,Office Partition,Furniture,3,149.99,North America,2025-11-27
+ORD-1055,Carol Davis,SD Card Reader,Electronics,4,19.99,Europe,2025-11-28
+ORD-1056,Dan Kim,File Sorter,Furniture,2,39.99,Asia Pacific,2025-11-28
+ORD-1057,Eve Johnson,Power Bank,Electronics,2,34.99,North America,2025-11-29
+ORD-1058,Frank Liu,Side Table,Furniture,1,89.99,Asia Pacific,2025-11-29
+ORD-1059,Grace Park,Laptop Cooling Pad,Electronics,1,44.99,North America,2025-11-30
+ORD-1060,Hank Wilson,Tray Table,Furniture,2,59.99,Europe,2025-11-30
+ORD-1061,Ivy Thompson,Smart Power Strip,Electronics,3,49.99,North America,2025-12-01
+ORD-1062,Jake Brown,Pedestal Fan,Furniture,1,79.99,Europe,2025-12-01
+ORD-1063,Karen White,Action Camera,Electronics,1,329.99,North America,2025-12-02
+ORD-1064,Leo Garcia,Wastebasket,Furniture,4,14.99,Asia Pacific,2025-12-02
+ORD-1065,Mia Anderson,Desk Clock,Furniture,1,39.99,North America,2025-12-03
+ORD-1066,Noah Taylor,HDMI Splitter,Electronics,2,24.99,Europe,2025-12-03
+ORD-1067,Olivia Moore,Magazine Rack,Furniture,1,49.99,North America,2025-12-04
+ORD-1068,Peter Jackson,VR Headset,Electronics,1,399.99,Asia Pacific,2025-12-04
+ORD-1069,Quinn Harris,Step Stool,Furniture,2,29.99,North America,2025-12-05
+ORD-1070,Rachel Clark,Streaming Mic,Electronics,1,149.99,Europe,2025-12-05
+ORD-1071,Sam Lewis,Reception Desk,Furniture,1,899.99,North America,2025-12-06
+ORD-1072,Tina Walker,Fitness Tracker,Electronics,2,99.99,Asia Pacific,2025-12-06
+ORD-1073,Uma Robinson,Wall Shelf,Furniture,3,44.99,Europe,2025-12-07
+ORD-1074,Victor Hall,Smart Thermostat,Electronics,1,179.99,North America,2025-12-07
+ORD-1075,Wendy Allen,Bar Stool,Furniture,4,89.99,Asia Pacific,2025-12-08
+ORD-1076,Xander Young,Ring Light,Electronics,1,59.99,North America,2025-12-08
+ORD-1077,Yuki Tanaka,Computer Desk,Furniture,1,329.99,Asia Pacific,2025-12-09
+ORD-1078,Zara King,Mouse Pad XL,Electronics,2,19.99,Europe,2025-12-09
+ORD-1079,Alice Chen,Smart Scale,Electronics,1,49.99,North America,2025-12-10
+ORD-1080,Bob Martinez,Folding Table,Furniture,1,159.99,North America,2025-12-10
+ORD-1081,Carol Davis,Surge Protector,Electronics,3,34.99,Europe,2025-12-11
+ORD-1082,Dan Kim,Drafting Chair,Furniture,1,269.99,Asia Pacific,2025-12-11
+ORD-1083,Eve Johnson,Digital Frame,Electronics,2,79.99,North America,2025-12-12
+ORD-1084,Frank Liu,Console Table,Furniture,1,199.99,Asia Pacific,2025-12-12
+ORD-1085,Grace Park,Portable SSD,Electronics,1,109.99,North America,2025-12-13
+ORD-1086,Hank Wilson,Cubicle Panel,Furniture,2,179.99,Europe,2025-12-13
+ORD-1087,Ivy Thompson,Wireless Adapter,Electronics,4,29.99,North America,2025-12-14
+ORD-1088,Jake Brown,Lectern,Furniture,1,249.99,Europe,2025-12-14
+ORD-1089,Karen White,Document Scanner,Electronics,1,289.99,North America,2025-12-15
+ORD-1090,Leo Garcia,Umbrella Stand,Furniture,2,34.99,Asia Pacific,2025-12-15
+ORD-1091,Mia Anderson,Table Lamp,Furniture,2,64.99,North America,2025-12-16
+ORD-1092,Noah Taylor,Network Tester,Electronics,1,89.99,Europe,2025-12-16
+ORD-1093,Olivia Moore,Key Cabinet,Furniture,1,59.99,North America,2025-12-17
+ORD-1094,Peter Jackson,Label Maker,Electronics,2,44.99,Asia Pacific,2025-12-17
+ORD-1095,Quinn Harris,Workbench,Furniture,1,449.99,North America,2025-12-18
+ORD-1096,Rachel Clark,USB Fan,Electronics,3,14.99,Europe,2025-12-18
+ORD-1097,Sam Lewis,Credenza,Furniture,1,699.99,North America,2025-12-19
+ORD-1098,Tina Walker,Portable Scanner,Electronics,1,169.99,Asia Pacific,2025-12-19
+ORD-1099,Uma Robinson,Display Shelf,Furniture,2,89.99,Europe,2025-12-20
+ORD-1100,Victor Hall,Wi-Fi Extender,Electronics,1,59.99,North America,2025-12-20

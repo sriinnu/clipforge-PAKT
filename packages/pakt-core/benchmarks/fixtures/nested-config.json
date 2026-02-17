@@ -1,0 +1,120 @@
+{
+  "database": {
+    "primary": {
+      "host": "db-primary.internal.acme.com",
+      "port": 5432,
+      "name": "acme_production",
+      "pool": {
+        "min": 5,
+        "max": 20,
+        "idle_timeout_ms": 30000,
+        "acquire_timeout_ms": 10000
+      },
+      "ssl": {
+        "enabled": true,
+        "ca_path": "/etc/ssl/certs/db-ca.pem",
+        "reject_unauthorized": true
+      }
+    },
+    "replica": {
+      "host": "db-replica.internal.acme.com",
+      "port": 5432,
+      "name": "acme_production",
+      "pool": {
+        "min": 2,
+        "max": 10,
+        "idle_timeout_ms": 30000,
+        "acquire_timeout_ms": 10000
+      },
+      "ssl": {
+        "enabled": true,
+        "ca_path": "/etc/ssl/certs/db-ca.pem",
+        "reject_unauthorized": true
+      }
+    },
+    "migrations": {
+      "directory": "./migrations",
+      "table_name": "schema_migrations",
+      "run_on_start": false
+    }
+  },
+  "cache": {
+    "redis": {
+      "host": "redis.internal.acme.com",
+      "port": 6379,
+      "db": 0,
+      "password_env": "REDIS_PASSWORD",
+      "tls": true,
+      "key_prefix": "acme:",
+      "ttl_seconds": 3600
+    },
+    "local": {
+      "enabled": true,
+      "max_entries": 5000,
+      "ttl_seconds": 300,
+      "eviction_policy": "lru"
+    }
+  },
+  "auth": {
+    "jwt": {
+      "secret_env": "JWT_SECRET",
+      "issuer": "acme-auth",
+      "audience": "acme-api",
+      "expiry": {
+        "access_token_minutes": 15,
+        "refresh_token_days": 30,
+        "id_token_minutes": 60
+      },
+      "algorithms": ["RS256"]
+    },
+    "oauth": {
+      "google": {
+        "client_id_env": "GOOGLE_CLIENT_ID",
+        "client_secret_env": "GOOGLE_CLIENT_SECRET",
+        "redirect_uri": "https://app.acme.com/auth/google/callback",
+        "scopes": ["openid", "email", "profile"]
+      },
+      "github": {
+        "client_id_env": "GITHUB_CLIENT_ID",
+        "client_secret_env": "GITHUB_CLIENT_SECRET",
+        "redirect_uri": "https://app.acme.com/auth/github/callback",
+        "scopes": ["user:email", "read:org"]
+      }
+    },
+    "session": {
+      "cookie_name": "acme_session",
+      "secure": true,
+      "http_only": true,
+      "same_site": "lax",
+      "max_age_hours": 24
+    }
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputs": {
+      "console": {
+        "enabled": true,
+        "colorize": false
+      },
+      "file": {
+        "enabled": true,
+        "path": "/var/log/acme/app.log",
+        "max_size_mb": 100,
+        "max_files": 10,
+        "compress": true
+      },
+      "datadog": {
+        "enabled": true,
+        "api_key_env": "DD_API_KEY",
+        "service": "acme-api",
+        "env": "production",
+        "tags": ["team:platform", "version:2.4.1"]
+      }
+    },
+    "sampling": {
+      "rate": 0.1,
+      "always_log_errors": true
+    }
+  }
+}

@@ -220,23 +220,20 @@ describe('YAML roundtrips', () => {
 // =========================== MARKDOWN ROUNDTRIPS ===========================
 
 describe('Markdown roundtrips', () => {
-  it('18. markdown with heading and paragraphs — data roundtrip', () => {
-    // Markdown is stored as { _markdown: input } internally.
-    // The round-trip preserves the data via the _markdown wrapper.
+  it('18. markdown with heading and paragraphs — returned unchanged', () => {
+    // Markdown and text formats are returned unchanged (no structural compression benefit)
     const input = '# Title\n\nSome paragraph text.\n\nAnother paragraph.';
     const result = compress(input, { fromFormat: 'markdown' });
-    const dec = decompress(result.compressed, 'json');
-    const data = JSON.parse(dec.text);
-    // Markdown compress stores as { _markdown: input }, so we get that back
-    expect(data).toHaveProperty('_markdown', input);
+    expect(result.compressed).toBe(input);
+    expect(result.savings.totalPercent).toBe(0);
+    expect(result.detectedFormat).toBe('markdown');
   });
 
-  it('19. markdown with code blocks and links — data roundtrip', () => {
+  it('19. markdown with code blocks and links — returned unchanged', () => {
     const input = '# API\n\nUse `compress()` to start.\n\nSee [docs](https://example.com).';
     const result = compress(input, { fromFormat: 'markdown' });
-    const dec = decompress(result.compressed, 'json');
-    const data = JSON.parse(dec.text);
-    expect(data).toHaveProperty('_markdown', input);
+    expect(result.compressed).toBe(input);
+    expect(result.savings.totalPercent).toBe(0);
   });
 });
 

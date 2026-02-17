@@ -1,0 +1,122 @@
+application:
+  name: acme-platform
+  version: 2.4.1
+  environment: production
+
+services:
+  - name: api-gateway
+    port: 8080
+    replicas: 3
+    health_check: /health
+    dependencies:
+      - auth-service
+      - user-service
+      - billing-service
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      MAX_CONNECTIONS: 1000
+
+  - name: auth-service
+    port: 8081
+    replicas: 2
+    health_check: /health
+    dependencies:
+      - user-service
+      - redis-cache
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      JWT_EXPIRY: 900
+
+  - name: user-service
+    port: 8082
+    replicas: 2
+    health_check: /health
+    dependencies:
+      - postgres-primary
+      - redis-cache
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DB_POOL_SIZE: 20
+
+  - name: billing-service
+    port: 8083
+    replicas: 1
+    health_check: /health
+    dependencies:
+      - postgres-primary
+      - stripe-webhook
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      STRIPE_API_VERSION: 2025-10-01
+
+infrastructure:
+  postgres-primary:
+    image: postgres:16-alpine
+    storage: 100Gi
+    backup_schedule: "0 2 * * *"
+    retention_days: 30
+    connection_limit: 200
+
+  redis-cache:
+    image: redis:7-alpine
+    memory_limit: 2Gi
+    eviction_policy: allkeys-lru
+    persistence: false
+
+  monitoring:
+    prometheus:
+      scrape_interval: 15s
+      retention: 30d
+      storage: 50Gi
+    grafana:
+      admin_password_env: GRAFANA_ADMIN_PASSWORD
+      dashboards:
+        - api-latency
+        - error-rates
+        - resource-usage
+        - business-metrics
+
+deployment:
+  strategy: rolling
+  max_surge: 1
+  max_unavailable: 0
+  readiness_probe:
+    initial_delay_seconds: 10
+    period_seconds: 5
+    failure_threshold: 3
+  liveness_probe:
+    initial_delay_seconds: 30
+    period_seconds: 10
+    failure_threshold: 5
+  description: |
+    This deployment configuration manages the ACME platform
+    microservices stack. All services are containerized and
+    orchestrated via Kubernetes. The rolling deployment strategy
+    ensures zero-downtime updates across all service replicas.
+
+alerts:
+  - name: HighErrorRate
+    condition: error_rate > 0.05
+    duration: 5m
+    severity: critical
+    channels:
+      - pagerduty
+      - slack-oncall
+
+  - name: HighLatency
+    condition: p99_latency > 2000ms
+    duration: 10m
+    severity: warning
+    channels:
+      - slack-engineering
+
+  - name: DiskSpaceLow
+    condition: disk_usage > 85%
+    duration: 15m
+    severity: warning
+    channels:
+      - slack-infra

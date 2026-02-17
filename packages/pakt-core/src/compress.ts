@@ -361,8 +361,9 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   // 2. Detect format (use user-specified if provided, else auto-detect)
   const detectedFormat: PaktFormat = fromFormat ?? detect(input).format;
 
-  // 3. Handle PAKT input -- already compressed, return early with 0% savings
-  if (detectedFormat === 'pakt') {
+  // 3. Handle formats with no structural compression benefit
+  //    PAKT: already compressed. Text/Markdown: wrapping in PAKT adds overhead.
+  if (detectedFormat === 'text' || detectedFormat === 'markdown' || detectedFormat === 'pakt') {
     const tokens = countTokens(input, targetModel);
     return {
       compressed: input,
@@ -374,7 +375,7 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
         byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
       },
       reversible: true,
-      detectedFormat: 'pakt',
+      detectedFormat,
       dictionary: [],
     };
   }
