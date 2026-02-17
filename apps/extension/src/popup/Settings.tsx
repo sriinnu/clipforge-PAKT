@@ -7,92 +7,7 @@ import {
 } from '../shared/storage';
 
 // ---------------------------------------------------------------------------
-// Brand colors (matching Popup)
-// ---------------------------------------------------------------------------
-const C = {
-  primary: '#7c3aed',
-  bg: '#1e1b2e',
-  surface: '#2d2640',
-  text: '#e2e0ea',
-  textMuted: '#9e99b0',
-  border: '#443d5a',
-} as const;
-
-const styles = {
-  container: {
-    padding: 16,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 14,
-  } as React.CSSProperties,
-  section: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 8,
-  } as React.CSSProperties,
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: C.textMuted,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  } as React.CSSProperties,
-  toggleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '8px 12px',
-    backgroundColor: C.surface,
-    borderRadius: 6,
-  } as React.CSSProperties,
-  label: {
-    fontSize: 13,
-    color: C.text,
-  } as React.CSSProperties,
-  toggle: (on: boolean) =>
-    ({
-      width: 36,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: on ? C.primary : C.border,
-      border: 'none',
-      cursor: 'pointer',
-      position: 'relative' as const,
-      transition: 'background-color 0.2s',
-    }) as React.CSSProperties,
-  toggleDot: (on: boolean) =>
-    ({
-      width: 14,
-      height: 14,
-      borderRadius: '50%',
-      backgroundColor: '#fff',
-      position: 'absolute' as const,
-      top: 3,
-      left: on ? 19 : 3,
-      transition: 'left 0.2s',
-    }) as React.CSSProperties,
-  select: {
-    padding: '8px 12px',
-    backgroundColor: C.surface,
-    color: C.text,
-    border: `1px solid ${C.border}`,
-    borderRadius: 6,
-    fontSize: 12,
-    outline: 'none',
-    width: '100%',
-  } as React.CSSProperties,
-  siteList: {
-    padding: '8px 12px',
-    backgroundColor: C.surface,
-    borderRadius: 6,
-    fontSize: 12,
-    color: C.textMuted,
-    lineHeight: 1.6,
-  } as React.CSSProperties,
-} as const;
-
-// ---------------------------------------------------------------------------
-// Toggle switch
+// Toggle switch component
 // ---------------------------------------------------------------------------
 function Toggle({
   value,
@@ -103,18 +18,72 @@ function Toggle({
 }) {
   return (
     <button
-      style={styles.toggle(value)}
+      style={{
+        width: 38,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: value ? 'var(--cf-accent)' : 'var(--cf-border)',
+        border: 'none',
+        cursor: 'pointer',
+        position: 'relative',
+        transition: 'background-color 0.2s ease',
+        flexShrink: 0,
+      }}
       onClick={() => onChange(!value)}
       role="switch"
       aria-checked={value}
     >
-      <div style={styles.toggleDot(value)} />
+      <div
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          backgroundColor: '#fff',
+          position: 'absolute',
+          top: 3,
+          left: value ? 19 : 3,
+          transition: 'left 0.2s ease',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        }}
+      />
     </button>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Segmented control component
+// ---------------------------------------------------------------------------
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div style={segmentedContainerStyle}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          style={{
+            ...segmentBtnStyle,
+            backgroundColor: value === opt.value ? 'var(--cf-accent)' : 'transparent',
+            color: value === opt.value ? '#fff' : 'var(--cf-text-muted)',
+            fontWeight: value === opt.value ? 600 : 400,
+          }}
+          onClick={() => onChange(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Settings component
 // ---------------------------------------------------------------------------
 interface SettingsProps {
   onBack: () => void;
@@ -133,32 +102,28 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
     saveSettings(partial);
   };
 
-  return (
-    <div style={styles.container}>
-      {/* Compression layers */}
-      <div style={styles.section}>
-        <span style={styles.sectionTitle}>Compression Layers</span>
-        <div style={styles.toggleRow}>
-          <span style={styles.label}>L1 - Structural</span>
-          <Toggle
-            value={settings.layerStructural}
-            onChange={(v) => update({ layerStructural: v })}
-          />
-        </div>
-        <div style={styles.toggleRow}>
-          <span style={styles.label}>L2 - Dictionary</span>
-          <Toggle
-            value={settings.layerDictionary}
-            onChange={(v) => update({ layerDictionary: v })}
-          />
-        </div>
-      </div>
+  const compressionMode = settings.layerStructural && settings.layerDictionary
+    ? 'standard'
+    : 'structure';
 
-      {/* Auto-compress */}
-      <div style={styles.section}>
-        <span style={styles.sectionTitle}>Behavior</span>
-        <div style={styles.toggleRow}>
-          <span style={styles.label}>Auto-compress on paste</span>
+  const handleCompressionChange = (mode: string) => {
+    if (mode === 'standard') {
+      update({ layerStructural: true, layerDictionary: true });
+    } else {
+      update({ layerStructural: true, layerDictionary: false });
+    }
+  };
+
+  return (
+    <div style={containerStyle}>
+      {/* Behavior section */}
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Behavior</span>
+        <div style={settingRowStyle}>
+          <div style={settingTextStyle}>
+            <span style={settingLabelStyle}>Auto-compress on paste</span>
+            <span style={settingDescStyle}>Automatically compress when pasting content</span>
+          </div>
           <Toggle
             value={settings.autoCompress}
             onChange={(v) => update({ autoCompress: v })}
@@ -166,31 +131,124 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
         </div>
       </div>
 
-      {/* Target model */}
-      <div style={styles.section}>
-        <span style={styles.sectionTitle}>Target Model</span>
-        <select
-          style={styles.select}
-          value={settings.targetModel}
-          onChange={(e) => update({ targetModel: e.target.value })}
-        >
-          <option value="gpt-4o">GPT-4o</option>
-          <option value="gpt-4o-mini">GPT-4o Mini</option>
-          <option value="claude-sonnet">Claude Sonnet</option>
-          <option value="claude-opus">Claude Opus</option>
-          <option value="claude-haiku">Claude Haiku</option>
-        </select>
+      {/* Compression section */}
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Compression Level</span>
+        <SegmentedControl
+          options={[
+            { label: 'Standard (L1+L2)', value: 'standard' },
+            { label: 'Structure only (L1)', value: 'structure' },
+          ]}
+          value={compressionMode}
+          onChange={handleCompressionChange}
+        />
+        <span style={settingDescStyle}>
+          {compressionMode === 'standard'
+            ? 'Structural + dictionary compression for maximum token savings.'
+            : 'Structural compression only. Preserves more readability.'}
+        </span>
       </div>
 
-      {/* Active sites */}
-      <div style={styles.section}>
-        <span style={styles.sectionTitle}>Active Sites</span>
-        <div style={styles.siteList}>
-          {settings.enabledSites.map((site) => (
-            <div key={site}>{site}</div>
-          ))}
-        </div>
+      {/* Theme section */}
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Theme</span>
+        <SegmentedControl
+          options={[
+            { label: 'System', value: 'system' as const },
+            { label: 'Dark', value: 'dark' as const },
+            { label: 'Light', value: 'light' as const },
+          ]}
+          value={settings.theme}
+          onChange={(v) => update({ theme: v as ExtensionSettings['theme'] })}
+        />
+      </div>
+
+      {/* Info */}
+      <div style={infoStyle}>
+        <span>Models and providers are auto-detected from the active page context.</span>
       </div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const containerStyle: React.CSSProperties = {
+  padding: '12px 14px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16,
+};
+
+const sectionStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--cf-text-dim)',
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+};
+
+const settingRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '10px 12px',
+  backgroundColor: 'var(--cf-surface)',
+  borderRadius: 'var(--cf-radius-md)',
+  gap: 12,
+};
+
+const settingTextStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  flex: 1,
+};
+
+const settingLabelStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: 'var(--cf-text)',
+  fontWeight: 500,
+};
+
+const settingDescStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: 'var(--cf-text-dim)',
+  lineHeight: 1.4,
+};
+
+const segmentedContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  backgroundColor: 'var(--cf-surface)',
+  borderRadius: 'var(--cf-radius-md)',
+  padding: 3,
+  gap: 2,
+};
+
+const segmentBtnStyle: React.CSSProperties = {
+  flex: 1,
+  padding: '7px 8px',
+  borderRadius: 'var(--cf-radius-sm)',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 12,
+  transition: 'all 0.2s ease',
+  fontFamily: 'var(--cf-font)',
+};
+
+const infoStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: 'var(--cf-text-dim)',
+  padding: '10px 12px',
+  backgroundColor: 'var(--cf-surface)',
+  borderRadius: 'var(--cf-radius-md)',
+  lineHeight: 1.5,
+};

@@ -3,7 +3,7 @@
  *
  * - Creates context menu items for quick compression
  * - Handles messages from popup and content scripts
- * - Updates badge text with token savings
+ * - Updates badge text with token savings (green when savings > 0)
  */
 
 import { compress, detect, countTokens } from '@yugenlab/pakt';
@@ -25,6 +25,9 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'Copy as PAKT',
     contexts: ['selection'],
   });
+
+  // Clear badge on install
+  chrome.action.setBadgeText({ text: '' });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -44,31 +47,36 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     });
 
     if (info.menuItemId === 'clipforge-copy-pakt') {
-      // Write compressed text to clipboard via offscreen or content script
+      // Write compressed text to clipboard via content script
       if (tab?.id) {
-        await chrome.tabs.sendMessage(tab.id, {
-          type: 'COPY_TO_CLIPBOARD',
-          text: result.compressed,
-        });
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'COPY_TO_CLIPBOARD',
+            text: result.compressed,
+          });
+        } catch {
+          // Content script might not be loaded — ignore
+        }
       }
-
-      // Update badge
-      updateBadge(result.savings.totalPercent);
+      updateBadge(result.savings.totalPercent, tab?.id);
     }
 
     if (info.menuItemId === 'clipforge-compress') {
       // Send compressed result back to content script
       if (tab?.id) {
-        await chrome.tabs.sendMessage(tab.id, {
-          type: 'SHOW_COMPRESSED',
-          compressed: result.compressed,
-          savings: result.savings.totalPercent,
-          originalTokens: result.originalTokens,
-          compressedTokens: result.compressedTokens,
-        });
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'SHOW_COMPRESSED',
+            compressed: result.compressed,
+            savings: result.savings.totalPercent,
+            originalTokens: result.originalTokens,
+            compressedTokens: result.compressedTokens,
+          });
+        } catch {
+          // Content script might not be loaded — ignore
+        }
       }
-
-      updateBadge(result.savings.totalPercent);
+      updateBadge(result.savings.totalPercent, tab?.id);
     }
   } catch (err) {
     console.error('[ClipForge] Compression failed:', err);
@@ -142,11 +150,24 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 }
 
 // ---------------------------------------------------------------------------
-// Badge
+// Badge — shows savings percentage with green bg when > 0
 // ---------------------------------------------------------------------------
 
-function updateBadge(savingsPercent: number): void {
-  const text = savingsPercent > 0 ? `${Math.round(savingsPercent)}%` : '';
-  chrome.action.setBadgeText({ text });
-  chrome.action.setBadgeBackgroundColor({ color: '#7c3aed' });
+function updateBadge(savingsPercent: number, tabId?: number): void {
+  const rounded = Math.round(savingsPercent);
+
+  if (rounded > 0) {
+    const text = `${rounded}%`;
+    const opts: chrome.action.BadgeTextDetails = { text };
+    if (tabId !== undefined) opts.tabId = tabId;
+    chrome.action.setBadgeText(opts);
+
+    const colorOpts: chrome.action.BadgeColorDetails = { color: '#22c55e' };
+    if (tabId !== undefined) colorOpts.tabId = tabId;
+    chrome.action.setBadgeBackgroundColor(colorOpts);
+  } else {
+    const opts: chrome.action.BadgeTextDetails = { text: '' };
+    if (tabId !== undefined) opts.tabId = tabId;
+    chrome.action.setBadgeText(opts);
+  }
 }

@@ -10,23 +10,15 @@ export interface ExtensionSettings {
   layerDictionary: boolean;
   /** Auto-compress pasted content */
   autoCompress: boolean;
-  /** Target model for token counting */
-  targetModel: string;
-  /** Whitelisted sites for content script */
-  enabledSites: string[];
+  /** Theme: 'system' | 'dark' | 'light' */
+  theme: 'system' | 'dark' | 'light';
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   layerStructural: true,
   layerDictionary: true,
   autoCompress: false,
-  targetModel: 'gpt-4o',
-  enabledSites: [
-    'chat.openai.com',
-    'chatgpt.com',
-    'claude.ai',
-    'gemini.google.com',
-  ],
+  theme: 'dark',
 };
 
 /**

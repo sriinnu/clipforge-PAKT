@@ -40,6 +40,7 @@ export default defineConfig({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ClipForge</title>
+  <style>body{margin:0;padding:0;background:#0f0d1a;width:350px;overflow-x:hidden}</style>
 </head>
 <body>
   <div id="root"></div>

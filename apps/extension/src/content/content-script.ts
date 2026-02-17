@@ -2,7 +2,8 @@
  * ClipForge content script.
  *
  * Injected into supported LLM sites (ChatGPT, Claude.ai, Gemini).
- * Adds a floating "Compress" button near text input areas.
+ * Adds a small floating pill-shaped compress button near text input areas.
+ * The button appears on hover near the input and fades in/out smoothly.
  */
 
 import { compress, detect } from '@yugenlab/pakt';
@@ -35,71 +36,116 @@ const SITE_SELECTORS: Record<string, string[]> = {
 };
 
 // ---------------------------------------------------------------------------
-// Brand colors
-// ---------------------------------------------------------------------------
-
-const PRIMARY = '#7c3aed';
-const PRIMARY_HOVER = '#6d28d9';
-
-// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 let compressBtn: HTMLButtonElement | null = null;
 let activeInput: HTMLElement | null = null;
+let hideTimeout: ReturnType<typeof setTimeout> | null = null;
+let isHoveringBtn = false;
 
 // ---------------------------------------------------------------------------
-// Button creation
+// Button creation — small pill with compress icon
 // ---------------------------------------------------------------------------
 
 function createCompressButton(): HTMLButtonElement {
   const btn = document.createElement('button');
-  btn.textContent = 'PAKT';
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11 3L3 11M3 11V5M3 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
   btn.title = 'Compress with ClipForge';
 
   Object.assign(btn.style, {
     position: 'absolute',
     zIndex: '10000',
-    padding: '4px 8px',
-    fontSize: '11px',
-    fontWeight: '700',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '28px',
+    height: '28px',
+    fontSize: '12px',
+    fontWeight: '600',
     fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-    backgroundColor: PRIMARY,
+    backgroundColor: '#7c3aed',
     color: '#fff',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '14px',
     cursor: 'pointer',
-    opacity: '0.85',
-    transition: 'opacity 0.2s, background-color 0.2s',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+    opacity: '0',
+    transition: 'opacity 0.25s ease, background-color 0.2s ease, transform 0.2s ease',
+    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.4)',
     lineHeight: '1',
+    pointerEvents: 'auto',
+    padding: '0',
   });
 
   btn.addEventListener('mouseenter', () => {
+    isHoveringBtn = true;
     btn.style.opacity = '1';
-    btn.style.backgroundColor = PRIMARY_HOVER;
+    btn.style.backgroundColor = '#6d28d9';
+    btn.style.transform = 'scale(1.1)';
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      hideTimeout = null;
+    }
   });
 
   btn.addEventListener('mouseleave', () => {
-    btn.style.opacity = '0.85';
-    btn.style.backgroundColor = PRIMARY;
+    isHoveringBtn = false;
+    btn.style.backgroundColor = '#7c3aed';
+    btn.style.transform = 'scale(1)';
+    scheduleHide();
   });
 
-  btn.addEventListener('click', handleCompress);
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleCompress();
+  });
 
   return btn;
 }
 
 // ---------------------------------------------------------------------------
-// Position the button near the active input
+// Show / hide with fade
+// ---------------------------------------------------------------------------
+
+function showButton(input: HTMLElement): void {
+  if (!compressBtn) {
+    compressBtn = createCompressButton();
+    document.body.appendChild(compressBtn);
+  }
+
+  if (hideTimeout) {
+    clearTimeout(hideTimeout);
+    hideTimeout = null;
+  }
+
+  positionButton(input);
+  compressBtn.style.opacity = '0.85';
+  compressBtn.style.pointerEvents = 'auto';
+}
+
+function scheduleHide(): void {
+  if (hideTimeout) clearTimeout(hideTimeout);
+  hideTimeout = setTimeout(() => {
+    if (compressBtn && !isHoveringBtn) {
+      compressBtn.style.opacity = '0';
+      compressBtn.style.pointerEvents = 'none';
+    }
+  }, 800);
+}
+
+// ---------------------------------------------------------------------------
+// Position the button near the active input (top-right corner, inside)
 // ---------------------------------------------------------------------------
 
 function positionButton(input: HTMLElement): void {
   if (!compressBtn) return;
 
   const rect = input.getBoundingClientRect();
-  compressBtn.style.top = `${window.scrollY + rect.top + 4}px`;
-  compressBtn.style.left = `${window.scrollX + rect.right - 60}px`;
+  compressBtn.style.top = `${window.scrollY + rect.top + 6}px`;
+  compressBtn.style.left = `${window.scrollX + rect.right - 36}px`;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,15 +205,18 @@ async function handleCompress(): Promise<void> {
     if (result.savings.totalPercent > 5) {
       setInputText(activeInput, result.compressed);
 
-      // Briefly show savings on the button
+      // Flash the button green briefly to confirm
       if (compressBtn) {
-        const original = compressBtn.textContent;
-        compressBtn.textContent = `-${Math.round(result.savings.totalPercent)}%`;
         compressBtn.style.backgroundColor = '#22c55e';
+        compressBtn.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.4)';
+        compressBtn.innerHTML = `<span style="font-size:11px;font-weight:700">-${Math.round(result.savings.totalPercent)}%</span>`;
         setTimeout(() => {
           if (compressBtn) {
-            compressBtn.textContent = original;
-            compressBtn.style.backgroundColor = PRIMARY;
+            compressBtn.style.backgroundColor = '#7c3aed';
+            compressBtn.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.4)';
+            compressBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 3L3 11M3 11V5M3 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`;
           }
         }, 2000);
       }
@@ -199,23 +248,22 @@ function attachToInput(input: HTMLElement): void {
   if (input.dataset['clipforgeAttached']) return;
   input.dataset['clipforgeAttached'] = 'true';
 
-  input.addEventListener('focus', () => {
+  // Show button on hover near input
+  input.addEventListener('mouseenter', () => {
     activeInput = input;
-    if (!compressBtn) {
-      compressBtn = createCompressButton();
-      document.body.appendChild(compressBtn);
-    }
-    positionButton(input);
-    compressBtn.style.display = 'block';
+    showButton(input);
   });
 
-  input.addEventListener('blur', () => {
-    // Delay hide so the button click can register
-    setTimeout(() => {
-      if (compressBtn && document.activeElement !== compressBtn) {
-        compressBtn.style.display = 'none';
-      }
-    }, 200);
+  input.addEventListener('mouseleave', () => {
+    scheduleHide();
+  });
+
+  // Also show on focus for keyboard users
+  input.addEventListener('focus', () => {
+    activeInput = input;
+    showButton(input);
+    // Auto-hide after a few seconds if not interacting with button
+    scheduleHide();
   });
 }
 

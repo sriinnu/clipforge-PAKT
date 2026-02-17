@@ -25,6 +25,8 @@ const MAX_ALIASES = 52;
 const DEFAULT_MIN_SAVINGS = 3;
 const MIN_OCCURRENCES = 3;
 const MIN_VALUE_LENGTH = 2;
+const MIN_PREFIX_LENGTH = 8;
+const MIN_PREFIX_OCCURRENCES = 3;
 
 /** Synthetic source position for generated nodes. */
 const synPos: SourcePosition = { line: 0, column: 0, offset: 0 };
@@ -57,14 +59,17 @@ function aliasForIndex(index: number): string {
 }
 
 /**
- * Collect all unquoted StringScalar nodes from body, recursively.
+ * Collect StringScalar nodes from body, recursively.
  * @param nodes - Body nodes to walk
- * @returns Unquoted StringScalar references
+ * @param includeQuoted - When true, also collect quoted strings (for prefix analysis)
+ * @returns StringScalar references
  */
-function collectStringScalars(nodes: readonly BodyNode[]): StringScalar[] {
+function collectStringScalars(
+  nodes: readonly BodyNode[], includeQuoted: boolean = false,
+): StringScalar[] {
   const result: StringScalar[] = [];
   function visitScalar(sc: ScalarNode): void {
-    if (sc.scalarType === 'string' && !sc.quoted) result.push(sc);
+    if (sc.scalarType === 'string' && (!sc.quoted || includeQuoted)) result.push(sc);
   }
   function visitBody(body: readonly BodyNode[]): void {
     for (const node of body) {
@@ -90,20 +95,56 @@ function collectStringScalars(nodes: readonly BodyNode[]): StringScalar[] {
 
 /**
  * Clone a ScalarNode, replacing string values via the map.
- * @param sc - Scalar node to clone
- * @param map - Replacement map (value -> replacement)
- * @param includeQuoted - When true, also replace quoted strings (needed for
- *   decompression, since aliases like `$a` get quoted by the serializer)
+ * Supports both exact replacement and prefix replacement:
+ * - Exact: value matches a map key entirely → replaced with the mapped value
+ * - Prefix (compress): value starts with a prefix in prefixMap → prefix replaced with ${alias}
+ * - Prefix (decompress): value contains ${alias} pattern → expanded
  */
 function cloneScalar(
   sc: ScalarNode, map: ReadonlyMap<string, string>,
   includeQuoted: boolean = false,
+  prefixMap?: ReadonlyMap<string, string>,
 ): ScalarNode {
-  if (sc.scalarType === 'string' && (!sc.quoted || includeQuoted)) {
-    const replacement = map.get(sc.value);
-    if (replacement !== undefined) {
-      return { type: 'scalar', scalarType: 'string', value: replacement,
-        quoted: false, position: sc.position };
+  if (sc.scalarType === 'string') {
+    // 1. Exact replacement (unquoted only, or all if includeQuoted)
+    if (!sc.quoted || includeQuoted) {
+      const replacement = map.get(sc.value);
+      if (replacement !== undefined) {
+        return { type: 'scalar', scalarType: 'string', value: replacement,
+          quoted: false, position: sc.position };
+      }
+    }
+    // 2. Prefix replacement (compression): works on both quoted and unquoted
+    if (prefixMap && prefixMap.size > 0) {
+      let bestPrefix = '';
+      let bestAlias = '';
+      for (const [prefix, alias] of prefixMap) {
+        if (sc.value.startsWith(prefix) && sc.value.length > prefix.length
+            && prefix.length > bestPrefix.length) {
+          bestPrefix = prefix;
+          bestAlias = alias;
+        }
+      }
+      if (bestPrefix) {
+        const suffix = sc.value.slice(bestPrefix.length);
+        return { type: 'scalar', scalarType: 'string',
+          value: `\${${bestAlias.slice(1)}}${suffix}`,
+          quoted: true, position: sc.position };
+      }
+    }
+    // 3. Prefix expansion (decompression): expand ${alias} patterns
+    if (includeQuoted && sc.value.includes('${')) {
+      const expanded = sc.value.replace(
+        /\$\{([a-z]{1,2})\}/g,
+        (match, name: string) => {
+          const exp = map.get('$' + name);
+          return exp !== undefined ? exp : match;
+        },
+      );
+      if (expanded !== sc.value) {
+        return { type: 'scalar', scalarType: 'string', value: expanded,
+          quoted: false, position: sc.position };
+      }
     }
   }
   return { ...sc } as ScalarNode;
@@ -113,8 +154,10 @@ function cloneScalar(
 function cloneRow(
   r: TabularRowNode, map: ReadonlyMap<string, string>,
   includeQuoted: boolean = false,
+  prefixMap?: ReadonlyMap<string, string>,
 ): TabularRowNode {
-  return { type: 'tabularRow', values: r.values.map(v => cloneScalar(v, map, includeQuoted)),
+  return { type: 'tabularRow',
+    values: r.values.map(v => cloneScalar(v, map, includeQuoted, prefixMap)),
     position: r.position };
 }
 
@@ -122,8 +165,10 @@ function cloneRow(
 function cloneListItem(
   li: ListItemNode, map: ReadonlyMap<string, string>,
   includeQuoted: boolean = false,
+  prefixMap?: ReadonlyMap<string, string>,
 ): ListItemNode {
-  return { type: 'listItem', children: cloneBody(li.children, map, includeQuoted),
+  return { type: 'listItem',
+    children: cloneBody(li.children, map, includeQuoted, prefixMap),
     position: li.position };
 }
 
@@ -131,31 +176,35 @@ function cloneListItem(
  * Deep-clone body nodes, replacing string values via the map.
  * Used for both compression (value->alias) and decompression (alias->value).
  * @param includeQuoted - When true, also replace quoted strings (for decompression)
+ * @param prefixMap - Optional map of prefix→alias for prefix compression
  */
 function cloneBody(
   nodes: readonly BodyNode[], map: ReadonlyMap<string, string>,
   includeQuoted: boolean = false,
+  prefixMap?: ReadonlyMap<string, string>,
 ): BodyNode[] {
   return nodes.map((node): BodyNode => {
     switch (node.type) {
       case 'keyValue':
         return { type: 'keyValue', key: node.key,
-          value: cloneScalar(node.value, map, includeQuoted), position: node.position };
+          value: cloneScalar(node.value, map, includeQuoted, prefixMap),
+          position: node.position };
       case 'object':
         return { type: 'object', key: node.key,
-          children: cloneBody(node.children, map, includeQuoted), position: node.position };
+          children: cloneBody(node.children, map, includeQuoted, prefixMap),
+          position: node.position };
       case 'tabularArray':
         return { type: 'tabularArray', key: node.key, count: node.count,
           fields: [...node.fields],
-          rows: node.rows.map(r => cloneRow(r, map, includeQuoted)),
+          rows: node.rows.map(r => cloneRow(r, map, includeQuoted, prefixMap)),
           position: node.position };
       case 'inlineArray':
         return { type: 'inlineArray', key: node.key, count: node.count,
-          values: node.values.map(v => cloneScalar(v, map, includeQuoted)),
+          values: node.values.map(v => cloneScalar(v, map, includeQuoted, prefixMap)),
           position: node.position };
       case 'listArray':
         return { type: 'listArray', key: node.key, count: node.count,
-          items: node.items.map(li => cloneListItem(li, map, includeQuoted)),
+          items: node.items.map(li => cloneListItem(li, map, includeQuoted, prefixMap)),
           position: node.position };
       case 'comment':
         return { ...node };
@@ -173,6 +222,81 @@ interface AliasCandidate {
   value: string;
   occurrences: number;
   netSavings: number;
+  isPrefix?: boolean;
+}
+
+/**
+ * Find common prefixes among string values that would benefit from aliasing.
+ * Values that already have exact-match duplicates are excluded.
+ * Uses sorted-adjacency comparison to efficiently find shared prefixes.
+ */
+function findPrefixCandidates(
+  values: string[],
+  exactDups: ReadonlySet<string>,
+  minSavings: number,
+): AliasCandidate[] {
+  // Filter out values already handled by exact dedup, and values too short
+  const unique = [...new Set(values.filter(v =>
+    !exactDups.has(v) && v.length >= MIN_PREFIX_LENGTH
+  ))];
+  if (unique.length < MIN_PREFIX_OCCURRENCES) return [];
+
+  // Sort values to bring similar strings adjacent
+  unique.sort();
+
+  // Find common prefixes between adjacent sorted values
+  const prefixCounts = new Map<string, number>();
+  for (let i = 0; i < unique.length - 1; i++) {
+    const a = unique[i]!, b = unique[i + 1]!;
+    let len = 0;
+    while (len < a.length && len < b.length && a[len] === b[len]) len++;
+    if (len >= MIN_PREFIX_LENGTH) {
+      const prefix = a.slice(0, len);
+      prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+    }
+  }
+
+  // Now count actual occurrences of each prefix across ALL values (not just unique)
+  // and pick the best (longest, most frequent)
+  const prefixOccurrences = new Map<string, number>();
+  for (const [prefix] of prefixCounts) {
+    let count = 0;
+    for (const v of values) {
+      if (!exactDups.has(v) && v.startsWith(prefix) && v.length > prefix.length) count++;
+    }
+    if (count >= MIN_PREFIX_OCCURRENCES) {
+      prefixOccurrences.set(prefix, count);
+    }
+  }
+
+  // Remove shorter prefixes that are substrings of longer ones with equal coverage
+  const sortedPrefixes = [...prefixOccurrences.entries()]
+    .sort((a, b) => b[0].length - a[0].length);
+  const kept = new Map<string, number>();
+  for (const [prefix, count] of sortedPrefixes) {
+    // Only keep if no longer prefix already covers the same values
+    let dominated = false;
+    for (const [keptPrefix] of kept) {
+      if (keptPrefix.startsWith(prefix)) { dominated = true; break; }
+    }
+    if (!dominated) kept.set(prefix, count);
+  }
+
+  // Score candidates: each occurrence saves (prefixTokens - aliasTokens) tokens
+  // Cost: dict entry line = aliasTokens + prefixTokens + ~3 tokens overhead
+  const candidates: AliasCandidate[] = [];
+  for (const [prefix, occurrences] of kept) {
+    const prefixTok = estimateTokens(prefix);
+    // Each occurrence: original value includes prefix tokens, with alias it's ~2 tokens (${a})
+    const perOccSaved = prefixTok - 1; // save prefixTok tokens, add ~1 for ${a}
+    const dictCost = prefixTok + 3; // alias definition cost
+    const netSavings = perOccSaved * occurrences - dictCost;
+    if (netSavings >= minSavings) {
+      candidates.push({ value: prefix, occurrences, netSavings, isPrefix: true });
+    }
+  }
+
+  return candidates;
 }
 
 /**
@@ -197,23 +321,31 @@ export function compressL2(
   doc: DocumentNode, minSavings: number = DEFAULT_MIN_SAVINGS,
 ): DocumentNode {
   const scalars = collectStringScalars(doc.body);
+  const allScalars = collectStringScalars(doc.body, true); // includes quoted for prefix
 
-  // Count frequencies
+  // Count frequencies for exact-match candidates (unquoted only)
   const freq = new Map<string, number>();
   for (const sc of scalars) {
     freq.set(sc.value, (freq.get(sc.value) ?? 0) + 1);
   }
 
-  // Filter and score candidates
+  // Filter and score exact-match candidates
   const candidates: AliasCandidate[] = [];
+  const exactDups = new Set<string>();
   for (const [value, occurrences] of freq) {
     if (occurrences < MIN_OCCURRENCES || value.length < MIN_VALUE_LENGTH) continue;
     const vTok = estimateTokens(value);
     const netSavings = (vTok - 1) * occurrences - (vTok + 3);
     if (netSavings >= minSavings) {
       candidates.push({ value, occurrences, netSavings });
+      exactDups.add(value);
     }
   }
+
+  // Find prefix candidates among ALL values (including quoted)
+  const allValues = allScalars.map(sc => sc.value);
+  const prefixCandidates = findPrefixCandidates(allValues, exactDups, minSavings);
+  candidates.push(...prefixCandidates);
 
   // No candidates => passthrough clone
   if (candidates.length === 0) {
@@ -226,20 +358,27 @@ export function compressL2(
   candidates.sort((a, b) => b.netSavings - a.netSavings);
   const selected = candidates.slice(0, MAX_ALIASES);
 
-  // Build value->alias map and DictBlockNode
+  // Build maps and DictBlockNode
   const valueToAlias = new Map<string, string>();
+  const prefixToAlias = new Map<string, string>();
   const entries: DictEntryNode[] = [];
   for (let i = 0; i < selected.length; i++) {
     const c = selected[i]!;
     const alias = aliasForIndex(i);
-    valueToAlias.set(c.value, alias);
+    if (c.isPrefix) {
+      prefixToAlias.set(c.value, alias);
+    } else {
+      valueToAlias.set(c.value, alias);
+    }
     entries.push({ type: 'dictEntry', alias, expansion: c.value, position: synPos });
   }
 
   const dictBlock: DictBlockNode = { type: 'dictBlock', entries, position: synPos };
 
   return { type: 'document', headers: [...doc.headers],
-    dictionary: dictBlock, body: cloneBody(doc.body, valueToAlias),
+    dictionary: dictBlock,
+    body: cloneBody(doc.body, valueToAlias, false,
+      prefixToAlias.size > 0 ? prefixToAlias : undefined),
     position: doc.position };
 }
 
