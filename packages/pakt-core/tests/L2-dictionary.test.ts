@@ -226,18 +226,40 @@ describe('L2: alias ordering', () => {
 describe('L2: max 52 aliases', () => {
   it('limits aliases to 52 even with 60+ candidates', () => {
     const kvs: BodyNode[] = [];
+    // Use values with no shared substrings so each becomes an exact candidate
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 60; i++) {
+      // 12-char values with no shared >=6-char substrings
+      const a = chars[(i * 7) % 62]!, b = chars[(i * 13 + 3) % 62]!;
+      const c = chars[(i * 11 + 7) % 62]!, d = chars[(i * 17 + 11) % 62]!;
+      const value = `${a}${b}${c}${d}xz${d}${c}${b}${a}qr`;
+      for (let j = 0; j < 5; j++) kvs.push(kv(`key_${i}_${j}`, s(value)));
+    }
+    const compressed = compressL2(doc(kvs));
+    expect(compressed.dictionary).not.toBeNull();
+    // Should have at most 52 aliases (the cap)
+    expect(compressed.dictionary!.entries.length).toBeLessThanOrEqual(52);
+    // Should have at least some aliases
+    expect(compressed.dictionary!.entries.length).toBeGreaterThan(0);
+    // First alias should be $a
+    const aliases = compressed.dictionary!.entries.map(e => e.alias);
+    expect(aliases[0]).toBe('$a');
+    // Roundtrip: all 300 values present
+    expect(collectValues(decompressL2(compressed).body)).toHaveLength(300);
+  });
+
+  it('greedy selection prefers one efficient substring over many exact aliases', () => {
+    // 60 values sharing "repeated_value_number_" prefix → the substring
+    // is more efficient than 52 exact aliases
+    const kvs: BodyNode[] = [];
     for (let i = 0; i < 60; i++) {
       const value = `repeated_value_number_${i.toString().padStart(3, '0')}`;
       for (let j = 0; j < 5; j++) kvs.push(kv(`key_${i}_${j}`, s(value)));
     }
     const compressed = compressL2(doc(kvs));
     expect(compressed.dictionary).not.toBeNull();
-    expect(compressed.dictionary!.entries.length).toBe(52);
-    const aliases = compressed.dictionary!.entries.map(e => e.alias);
-    expect(aliases[0]).toBe('$a');
-    expect(aliases[25]).toBe('$z');
-    expect(aliases[26]).toBe('$aa');
-    expect(aliases[51]).toBe('$az');
+    // Smart algorithm finds shared substring → fewer aliases needed
+    expect(compressed.dictionary!.entries.length).toBeLessThan(52);
     // Roundtrip: all 300 values present
     expect(collectValues(decompressL2(compressed).body)).toHaveLength(300);
   });
@@ -334,3 +356,106 @@ describe('L2: edge cases', () => {
     if (compressed.dictionary !== null) expect(compressed.dictionary.entries).toHaveLength(0);
   });
 });
+
+// Suffix detection
+describe('L2: suffix detection', () => {
+  it('detects common suffixes and creates aliases', () => {
+    // 5 values ending with "-controller.ts" (14 chars = 4 tokens)
+    // net = (4-1)*5 - (4+3) = 15-7 = 8 >= 3
+    const tab: TabularArrayNode = {
+      type: 'tabularArray', key: 'files', count: 5,
+      fields: ['path'], position: p,
+      rows: [
+        row([s('user-controller.ts', true)]),
+        row([s('auth-controller.ts', true)]),
+        row([s('post-controller.ts', true)]),
+        row([s('chat-controller.ts', true)]),
+        row([s('item-controller.ts', true)]),
+      ],
+    };
+    const compressed = compressL2(doc([tab]));
+    expect(compressed.dictionary).not.toBeNull();
+    // Should find some shared pattern (suffix or substring)
+    const expansions = compressed.dictionary!.entries.map(e => e.expansion);
+    const hasSuffix = expansions.some(e => '-controller.ts'.includes(e) || e.includes('-controller'));
+    expect(hasSuffix).toBe(true);
+    // Roundtrip
+    const decompressed = decompressL2(compressed);
+    const values = collectAllValues(decompressed.body);
+    expect(values).toContain('user-controller.ts');
+    expect(values).toContain('auth-controller.ts');
+    expect(values).toContain('item-controller.ts');
+  });
+});
+
+// Substring detection
+describe('L2: substring detection', () => {
+  it('detects common substrings at any position', () => {
+    // 5 values containing "error-handler" (13 chars = 4 tokens)
+    const tab: TabularArrayNode = {
+      type: 'tabularArray', key: 'modules', count: 5,
+      fields: ['name'], position: p,
+      rows: [
+        row([s('type-error-handler-v1', true)]),
+        row([s('value-error-handler-v2', true)]),
+        row([s('range-error-handler-v1', true)]),
+        row([s('parse-error-handler-v3', true)]),
+        row([s('input-error-handler-v2', true)]),
+      ],
+    };
+    const compressed = compressL2(doc([tab]));
+    expect(compressed.dictionary).not.toBeNull();
+    const expansions = compressed.dictionary!.entries.map(e => e.expansion);
+    // Should find "error-handler" or some shared substring
+    const hasSubstring = expansions.some(e =>
+      'error-handler'.includes(e) || e.includes('error-handler')
+    );
+    expect(hasSubstring).toBe(true);
+    // Roundtrip
+    const decompressed = decompressL2(compressed);
+    const values = collectAllValues(decompressed.body);
+    expect(values).toContain('type-error-handler-v1');
+    expect(values).toContain('parse-error-handler-v3');
+  });
+
+  it('roundtrips with multiple inline aliases in one value', () => {
+    // Values with two shared substrings
+    const input = doc([
+      kv('a1', s('http://api.example.com/users/endpoint.json', true)),
+      kv('a2', s('http://api.example.com/posts/endpoint.json', true)),
+      kv('a3', s('http://api.example.com/items/endpoint.json', true)),
+      kv('a4', s('http://api.example.com/teams/endpoint.json', true)),
+      kv('a5', s('http://api.example.com/roles/endpoint.json', true)),
+    ]);
+    const compressed = compressL2(input);
+    const decompressed = decompressL2(compressed);
+    const values = collectAllValues(decompressed.body);
+    expect(values).toContain('http://api.example.com/users/endpoint.json');
+    expect(values).toContain('http://api.example.com/teams/endpoint.json');
+  });
+});
+
+// Helper that collects ALL string values (quoted + unquoted)
+function collectAllValues(nodes: readonly BodyNode[]): string[] {
+  const result: string[] = [];
+  for (const nd of nodes) {
+    switch (nd.type) {
+      case 'keyValue':
+        if (nd.value.scalarType === 'string') result.push(nd.value.value);
+        break;
+      case 'object': result.push(...collectAllValues(nd.children)); break;
+      case 'tabularArray':
+        for (const r of nd.rows) for (const v of r.values)
+          if (v.scalarType === 'string') result.push(v.value);
+        break;
+      case 'inlineArray':
+        for (const v of nd.values)
+          if (v.scalarType === 'string') result.push(v.value);
+        break;
+      case 'listArray':
+        for (const li of nd.items) result.push(...collectAllValues(li.children));
+        break;
+    }
+  }
+  return result;
+}

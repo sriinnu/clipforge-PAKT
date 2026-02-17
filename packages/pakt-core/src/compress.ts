@@ -395,12 +395,20 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   const structuralSaved = originalTokens - l1Tokens;
 
   // 7. Run L2 dictionary deduplication (if enabled)
+  //    L2 uses heuristic token estimates during candidate selection, which
+  //    may overestimate savings. We verify with actual token counts and
+  //    revert if L2 made the output worse (e.g., dict overhead > savings).
   let dictionarySaved = 0;
   if (layers.dictionary) {
+    const l1Doc = doc;
     doc = compressL2(doc, dictMinSavings);
     const afterL2 = serialize(doc);
     const l2Tokens = countTokens(afterL2, targetModel);
     dictionarySaved = l1Tokens - l2Tokens;
+    if (dictionarySaved <= 0) {
+      doc = l1Doc;
+      dictionarySaved = 0;
+    }
   }
 
   // L3 and L4 are not yet implemented (gated behind layer flags).
