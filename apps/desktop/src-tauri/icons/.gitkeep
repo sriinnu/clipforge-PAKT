@@ -1,0 +1,10 @@
+Icons placeholder directory.
+
+Required icon files (generate with `pnpm tauri icon <source-image>`):
+  - 32x32.png       (small app icon)
+  - 128x128.png     (medium app icon)
+  - icon.icns        (macOS app icon bundle)
+  - tray-icon.png   (macOS menu bar tray icon, recommended 22x22 @2x)
+
+Use a template-style monochrome icon for tray-icon.png so macOS
+renders it correctly in both light and dark menu bars.

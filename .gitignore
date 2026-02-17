@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Tauri
+target/
+apps/desktop/src-tauri/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+
+# Turbo
+.turbo/
+
+# MCP config (local paths)
+.mcp.json
+
+# Internal docs (local only)
+TODO.md
+Thoughts.md
+SKILL.md
+CLIPFORGE_PAKT_VAAYU_SPEC.md
+CLAUDE.md
+
+# Extension build
+apps/extension/dist/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

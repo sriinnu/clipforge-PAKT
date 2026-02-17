@@ -1,0 +1,41 @@
+{
+  "name": "@yugenlab/pakt",
+  "version": "0.1.0",
+  "description": "PAKT compression engine — lossless format conversion for LLM token optimization",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "bin": {
+    "pakt": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "bench": "vitest bench",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["pakt", "compression", "llm", "tokens", "toon", "clipboard"],
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "gpt-tokenizer": "^2.8.0"
+  }
+}
