@@ -1,6 +1,7 @@
 {
   "name": "clipforge-pakt",
   "private": true,
+  "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "engines": {

@@ -30,7 +30,14 @@
     "clean": "rm -rf dist"
   },
   "keywords": ["pakt", "compression", "llm", "tokens", "toon", "clipboard"],
+  "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sriinnu/clipforge-PAKT.git",
+    "directory": "packages/pakt-core"
+  },
+  "homepage": "https://github.com/sriinnu/clipforge-PAKT#readme",
   "devDependencies": {
     "tsup": "^8.3.0",
     "vitest": "^3.0.0"
