@@ -307,15 +307,18 @@ function findPrefixCandidates(
     }
   }
 
-  // Remove shorter prefixes that are substrings of longer ones with equal coverage
+  // Remove shorter prefixes subsumed by longer ones with equal-or-greater coverage.
+  // A shorter prefix is only dominated if a longer prefix covers at least as many
+  // values — otherwise the shorter prefix serves the uncovered majority.
   const sortedPrefixes = [...prefixOccurrences.entries()]
     .sort((a, b) => b[0].length - a[0].length);
   const kept = new Map<string, number>();
   for (const [prefix, count] of sortedPrefixes) {
-    // Only keep if no longer prefix already covers the same values
     let dominated = false;
-    for (const [keptPrefix] of kept) {
-      if (keptPrefix.startsWith(prefix)) { dominated = true; break; }
+    for (const [keptPrefix, keptCount] of kept) {
+      if (keptPrefix.startsWith(prefix) && keptCount >= count) {
+        dominated = true; break;
+      }
     }
     if (!dominated) kept.set(prefix, count);
   }
@@ -387,14 +390,16 @@ function findSuffixCandidates(
     }
   }
 
-  // Remove dominated suffixes (shorter ones subsumed by longer ones)
+  // Remove dominated suffixes (shorter ones subsumed by longer ones with equal coverage)
   const sortedSuffixes = [...suffixOccurrences.entries()]
     .sort((a, b) => b[0].length - a[0].length);
   const kept = new Map<string, number>();
   for (const [suffix, count] of sortedSuffixes) {
     let dominated = false;
-    for (const [keptSuffix] of kept) {
-      if (keptSuffix.endsWith(suffix)) { dominated = true; break; }
+    for (const [keptSuffix, keptCount] of kept) {
+      if (keptSuffix.endsWith(suffix) && keptCount >= count) {
+        dominated = true; break;
+      }
     }
     if (!dominated) kept.set(suffix, count);
   }
