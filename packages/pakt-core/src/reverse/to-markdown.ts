@@ -14,7 +14,7 @@ import type {
   InlineArrayNode,
   ListArrayNode,
 } from '../parser/ast.js';
-import { tabularToArray, inlineToArray, listToArray } from './helpers.js';
+import { inlineToArray, listToArray } from './helpers.js';
 
 /**
  * Convert PAKT AST body nodes to a Markdown string.
