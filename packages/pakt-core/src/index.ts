@@ -70,6 +70,7 @@ export type {
   ModelPricing,
   ParserMode,
   HeaderType,
+  EnvelopeInfo,
 } from './types.js';
 
 // ---------------------------------------------------------------------------

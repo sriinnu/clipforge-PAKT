@@ -11,6 +11,7 @@ import { detect } from './detect.js';
 import { compressL1, compressL2, extractDictEntries, compressL3, revertL3, applyL3Transforms } from './layers/index.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
+import type { CommentNode } from './parser/ast.js';
 import type { PaktOptions, PaktResult, PaktFormat, PaktLayers } from './types.js';
 import { DEFAULT_OPTIONS, DEFAULT_LAYERS } from './types.js';
 
@@ -359,7 +360,16 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   const dictMinSavings = options?.dictMinSavings ?? DEFAULT_OPTIONS.dictMinSavings;
 
   // 2. Detect format (use user-specified if provided, else auto-detect)
-  const detectedFormat: PaktFormat = fromFormat ?? detect(input).format;
+  const detection = detect(input);
+  const detectedFormat: PaktFormat = fromFormat ?? detection.format;
+
+  // 2b. Handle envelope (e.g. HTTP headers wrapping a JSON body)
+  //     Strip the preamble so we only compress the body.
+  let bodyInput = input;
+  const envelopePreamble = detection.envelope?.preamble;
+  if (detection.envelope) {
+    bodyInput = input.slice(detection.envelope.bodyOffset).trim();
+  }
 
   // 3. Handle formats with no structural compression benefit
   //    PAKT: already compressed. Text/Markdown: wrapping in PAKT adds overhead.
@@ -380,14 +390,29 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
     };
   }
 
-  // 4. Parse the raw input into a JS value
-  const data = parseInput(input, detectedFormat);
+  // 4. Parse the raw input into a JS value (body only, envelope stripped)
+  const data = parseInput(bodyInput, detectedFormat);
 
   // 5. Count original tokens
   const originalTokens = countTokens(input, targetModel);
 
   // 6. Run L1 structural compression
   let doc = compressL1(data, detectedFormat);
+
+  // 6b. Inject envelope preamble as comment nodes (preserves HTTP headers etc.)
+  if (envelopePreamble && envelopePreamble.length > 0) {
+    const pos = { line: 0, column: 0, offset: 0 };
+    const envelopeComments: CommentNode[] = [
+      { type: 'comment', text: '@envelope http', inline: false, position: pos },
+      ...envelopePreamble.map((line) => ({
+        type: 'comment' as const,
+        text: line,
+        inline: false,
+        position: pos,
+      })),
+    ];
+    doc = { ...doc, body: [...envelopeComments, ...doc.body] };
+  }
 
   // Measure tokens after L1 to track per-layer savings
   const afterL1 = serialize(doc);

@@ -11,7 +11,7 @@
  * No external dependencies are used — all checks are pure string analysis.
  */
 
-import type { DetectionResult } from './types.js';
+import type { DetectionResult, EnvelopeInfo } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Known PAKT header keywords (matches the HeaderType union in types.ts)
@@ -447,6 +447,74 @@ function detectYaml(input: string, lines: string[]): Candidate | null {
 }
 
 // ---------------------------------------------------------------------------
+// HTTP envelope detection
+// ---------------------------------------------------------------------------
+
+/** HTTP status line: `HTTP/1.1 200 OK`, `HTTP/2 200`, `HTTP 200 OK` */
+const HTTP_STATUS_RE = /^HTTP(?:\/\d+(?:\.\d+)?)?\s+\d{3}(?:\s+.*)?$/;
+
+/** Standard HTTP header: `Header-Name: value` */
+const HTTP_HEADER_RE = /^[A-Za-z][A-Za-z0-9-]*:\s/;
+
+/**
+ * Detect an HTTP envelope (status line + headers) wrapping a body.
+ * Returns the preamble lines and the extracted body, or null if
+ * no HTTP envelope is detected.
+ */
+function detectEnvelope(input: string): { preamble: string[]; body: string; bodyOffset: number } | null {
+  const lines = input.split('\n');
+
+  // First non-empty line must look like an HTTP status line
+  const firstLine = lines[0]?.trim() ?? '';
+  if (!HTTP_STATUS_RE.test(firstLine)) return null;
+
+  // Scan headers until blank line or body start
+  let bodyLineIdx = -1;
+  for (let i = 1; i < lines.length; i++) {
+    const trimmed = lines[i]!.trim();
+
+    // Blank line separates headers from body
+    if (trimmed === '') {
+      bodyLineIdx = i + 1;
+      break;
+    }
+
+    // Must look like an HTTP header
+    if (HTTP_HEADER_RE.test(trimmed)) continue;
+
+    // Not a header — check if it's the body starting without blank separator
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      bodyLineIdx = i;
+      break;
+    }
+
+    // Unrecognized line — not a valid HTTP envelope
+    return null;
+  }
+
+  if (bodyLineIdx === -1 || bodyLineIdx >= lines.length) return null;
+
+  const preamble = lines.slice(0, bodyLineIdx)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const body = lines.slice(bodyLineIdx).join('\n').trim();
+
+  // Body must be non-empty
+  if (body.length === 0) return null;
+
+  // Need at least the status line + 1 header to qualify
+  if (preamble.length < 2) return null;
+
+  // Compute byte offset of body in original input
+  let bodyOffset = 0;
+  for (let i = 0; i < bodyLineIdx; i++) {
+    bodyOffset += lines[i]!.length + 1; // +1 for \n
+  }
+
+  return { preamble, body, bodyOffset };
+}
+
+// ---------------------------------------------------------------------------
 // Main detect function
 // ---------------------------------------------------------------------------
 
@@ -501,6 +569,26 @@ export function detect(input: string): DetectionResult {
   }
 
   const lines = input.split('\n');
+
+  // ---- Priority 0: Envelope detection (e.g. HTTP response wrapping JSON) ----
+  const envelope = detectEnvelope(input);
+  if (envelope) {
+    // Detect the format of the body content (recursive call on body only)
+    const bodyResult = detect(envelope.body);
+    // Only wrap in envelope if the body is a structured format worth compressing
+    if (bodyResult.format !== 'text') {
+      const envInfo: EnvelopeInfo = {
+        type: 'http',
+        preamble: envelope.preamble,
+        bodyOffset: envelope.bodyOffset,
+      };
+      return {
+        ...bodyResult,
+        reason: `HTTP envelope with ${bodyResult.format} body`,
+        envelope: envInfo,
+      };
+    }
+  }
 
   // ---- Priority 1: PAKT (always wins if detected) ----
   const pakt = detectPakt(input, lines);

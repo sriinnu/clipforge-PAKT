@@ -183,6 +183,8 @@ export interface DecompressResult {
   originalFormat: PaktFormat;
   /** Whether lossy compression (L4) was applied */
   wasLossy: boolean;
+  /** Recovered envelope preamble lines (e.g. HTTP headers), if present */
+  envelope?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +199,27 @@ export interface DecompressResult {
  * // { format: 'json', confidence: 0.99, reason: 'Valid JSON parse' }
  * ```
  */
+/**
+ * Information about a detected envelope wrapping the body content.
+ * For example, an HTTP response with headers wrapping a JSON body.
+ * @example
+ * ```ts
+ * const env: EnvelopeInfo = {
+ *   type: 'http',
+ *   preamble: ['HTTP/1.1 200 OK', 'Content-Type: application/json'],
+ *   bodyOffset: 52,
+ * };
+ * ```
+ */
+export interface EnvelopeInfo {
+  /** Type of envelope detected */
+  type: 'http';
+  /** The preamble lines (status line, headers) before the body */
+  preamble: string[];
+  /** Character offset where the body starts in the original input */
+  bodyOffset: number;
+}
+
 export interface DetectionResult {
   /** Detected format */
   format: PaktFormat;
@@ -204,6 +227,8 @@ export interface DetectionResult {
   confidence: number;
   /** Human-readable reasoning */
   reason: string;
+  /** If present, the input has an envelope (e.g. HTTP headers) wrapping the body */
+  envelope?: EnvelopeInfo;
 }
 
 // ---------------------------------------------------------------------------

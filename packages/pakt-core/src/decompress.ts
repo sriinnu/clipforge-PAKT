@@ -9,7 +9,7 @@
  */
 
 import type { DecompressResult, PaktFormat } from './types.js';
-import type { DocumentNode } from './parser/ast.js';
+import type { CommentNode, DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
 import { decompressL2, reverseL3Transforms } from './layers/index.js';
 import {
@@ -97,13 +97,48 @@ export function decompress(pakt: string, outputFormat?: PaktFormat): DecompressR
   // 6. Determine which format to serialize to
   const targetFormat: PaktFormat = outputFormat ?? originalFormat;
 
-  // 7. Convert body to formatted text
+  // 7. Extract envelope comments if present
+  const envelopeResult = extractEnvelope(expanded.body);
+
+  // 8. Convert body to formatted text (envelope comments are ignored by bodyToValue)
   const text = formatBody(expanded, targetFormat, normalizedPakt);
 
-  // 8. Get structured data from the expanded body
+  // 9. Get structured data from the expanded body
   const data: unknown = bodyToValue(expanded.body);
 
-  return { data, text, originalFormat, wasLossy };
+  const result: DecompressResult = { data, text, originalFormat, wasLossy };
+  if (envelopeResult) {
+    result.envelope = envelopeResult;
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Envelope extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract envelope preamble from leading comment nodes in the body.
+ * Looks for the `@envelope http` marker comment followed by preamble lines.
+ * Returns the preamble lines array, or null if no envelope is present.
+ */
+function extractEnvelope(body: import('./parser/ast.js').BodyNode[]): string[] | null {
+  if (body.length === 0) return null;
+
+  // First node must be a comment with `@envelope http`
+  const first = body[0]!;
+  if (first.type !== 'comment') return null;
+  if ((first as CommentNode).text !== '@envelope http') return null;
+
+  // Collect subsequent comment nodes as preamble lines
+  const preamble: string[] = [];
+  for (let i = 1; i < body.length; i++) {
+    const node = body[i]!;
+    if (node.type !== 'comment') break;
+    preamble.push((node as CommentNode).text);
+  }
+
+  return preamble.length > 0 ? preamble : null;
 }
 
 // ---------------------------------------------------------------------------
