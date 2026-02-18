@@ -11,7 +11,7 @@
 import type { DecompressResult, PaktFormat } from './types.js';
 import type { DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
-import { decompressL2 } from './layers/index.js';
+import { decompressL2, reverseL3Transforms } from './layers/index.js';
 import {
   toJson,
   toYaml,
@@ -77,27 +77,30 @@ import {
  * ```
  */
 export function decompress(pakt: string, outputFormat?: PaktFormat): DecompressResult {
-  // 1. Parse the PAKT string into an AST
-  const doc: DocumentNode = parse(pakt);
+  // 1. Reverse L3 tokenizer transforms if applied (before parsing)
+  const normalizedPakt = reverseL3Transforms(pakt);
 
-  // 2. Extract the original format from the @from header
+  // 2. Parse the PAKT string into an AST
+  const doc: DocumentNode = parse(normalizedPakt);
+
+  // 3. Extract the original format from the @from header
   const fromHeader = doc.headers.find((h) => h.headerType === 'from');
   const originalFormat = validFormat(fromHeader?.value) ?? 'text';
 
-  // 3. Check @warning header for lossy flag
+  // 4. Check @warning header for lossy flag
   const warningHeader = doc.headers.find((h) => h.headerType === 'warning');
   const wasLossy = warningHeader != null && warningHeader.value.includes('lossy');
 
-  // 4. Expand dictionary aliases in the body
+  // 5. Expand dictionary aliases in the body
   const expanded = decompressL2(doc);
 
-  // 5. Determine which format to serialize to
+  // 6. Determine which format to serialize to
   const targetFormat: PaktFormat = outputFormat ?? originalFormat;
 
-  // 6. Convert body to formatted text
-  const text = formatBody(expanded, targetFormat, pakt);
+  // 7. Convert body to formatted text
+  const text = formatBody(expanded, targetFormat, normalizedPakt);
 
-  // 7. Get structured data from the expanded body
+  // 8. Get structured data from the expanded body
   const data: unknown = bodyToValue(expanded.body);
 
   return { data, text, originalFormat, wasLossy };

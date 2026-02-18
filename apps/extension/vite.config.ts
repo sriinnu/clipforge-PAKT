@@ -31,7 +31,7 @@ export default defineConfig({
           resolve(dist, 'manifest.json'),
         );
 
-        // Write popup.html referencing the built popup.js
+        // Write popup.html with anti-flash dark bg + built popup.js
         writeFileSync(
           resolve(dist, 'popup.html'),
           `<!DOCTYPE html>
@@ -40,7 +40,7 @@ export default defineConfig({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ClipForge</title>
-  <style>body{margin:0;padding:0;background:#0f0d1a;width:350px;overflow-x:hidden}</style>
+  <style>html,body{margin:0;padding:0;background:#0f0d1a;color:#e8e6f0;width:350px;overflow-x:hidden}</style>
 </head>
 <body>
   <div id="root"></div>

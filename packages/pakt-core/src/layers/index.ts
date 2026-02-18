@@ -10,3 +10,4 @@
 
 export { compressL1, decompressL1, toScalar, buildBody, scalarToValue } from './L1-structural.js';
 export { compressL2, decompressL2, extractDictEntries } from './L2-dictionary.js';
+export { compressL3, revertL3, applyL3Transforms, reverseL3Transforms } from './L3-tokenizer.js';

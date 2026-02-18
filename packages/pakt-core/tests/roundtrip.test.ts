@@ -139,8 +139,8 @@ describe('CSV roundtrips', () => {
     const input = 'item,price,qty\nWidget,9.99,100\nGadget,19.50,50';
     const result = compress(input, { fromFormat: 'csv' });
     const dec = decompress(result.compressed, 'json');
-    const data = JSON.parse(dec.text) as Record<string, unknown>;
-    const rows = Object.values(data).find(Array.isArray) as Record<string, unknown>[];
+    const data = JSON.parse(dec.text) as unknown;
+    const rows = (Array.isArray(data) ? data : Object.values(data as Record<string, unknown>).find(Array.isArray)) as Record<string, unknown>[];
     expect(rows).toBeDefined();
     expect(rows![0]).toEqual({ item: 'Widget', price: 9.99, qty: 100 });
   });
@@ -153,8 +153,8 @@ describe('CSV roundtrips', () => {
     const input = [header, ...dataRows].join('\n');
     const result = compress(input, { fromFormat: 'csv' });
     const dec = decompress(result.compressed, 'json');
-    const data = JSON.parse(dec.text) as Record<string, unknown>;
-    const rows = Object.values(data).find(Array.isArray) as Record<string, unknown>[];
+    const data = JSON.parse(dec.text) as unknown;
+    const rows = (Array.isArray(data) ? data : Object.values(data as Record<string, unknown>).find(Array.isArray)) as Record<string, unknown>[];
     expect(rows).toHaveLength(12);
     expect(rows![0]).toHaveProperty('role', 'engineer');
     expect(rows![0]).toHaveProperty('dept', 'engineering');
@@ -164,8 +164,8 @@ describe('CSV roundtrips', () => {
     const input = 'name\tage\tactive\nAlice\t30\ttrue\nBob\t25\tfalse';
     const result = compress(input, { fromFormat: 'csv' });
     const dec = decompress(result.compressed, 'json');
-    const data = JSON.parse(dec.text) as Record<string, unknown>;
-    const rows = Object.values(data).find(Array.isArray) as Record<string, unknown>[];
+    const data = JSON.parse(dec.text) as unknown;
+    const rows = (Array.isArray(data) ? data : Object.values(data as Record<string, unknown>).find(Array.isArray)) as Record<string, unknown>[];
     expect(rows).toBeDefined();
     expect(rows![0]).toHaveProperty('name', 'Alice');
     expect(rows![0]).toHaveProperty('age', 30);

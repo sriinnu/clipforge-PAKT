@@ -197,6 +197,20 @@ export function bodyToValue(nodes: BodyNode[]): unknown {
     return {};
   }
 
+  // Special case: unwrap _root wrapper for root-level arrays
+  if (dataNodes.length === 1) {
+    const first = dataNodes[0]!;
+    if (
+      (first.type === 'tabularArray' ||
+        first.type === 'inlineArray' ||
+        first.type === 'listArray') &&
+      (first as TabularArrayNode | InlineArrayNode | ListArrayNode).key === '_root'
+    ) {
+      const entry = nodeToEntry(first);
+      if (entry) return entry[1];
+    }
+  }
+
   // All data nodes produce key-value entries -> root is an object
   return bodyToObject(nodes);
 }

@@ -8,7 +8,7 @@
  */
 
 import { detect } from './detect.js';
-import { compressL1, compressL2, extractDictEntries } from './layers/index.js';
+import { compressL1, compressL2, extractDictEntries, compressL3, revertL3, applyL3Transforms } from './layers/index.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktOptions, PaktResult, PaktFormat, PaktLayers } from './types.js';
@@ -411,19 +411,45 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
     }
   }
 
-  // L3 and L4 are not yet implemented (gated behind layer flags).
+  // 8. Run L3 tokenizer optimization (if enabled)
+  //    Adds @target header to AST, then applies text-level transforms
+  //    (1-space indent, strip trailing zeros) after serialization.
+  if (layers.tokenizerAware) {
+    doc = compressL3(doc);
+  }
 
-  // 8. Serialize the final AST
-  const compressed = serialize(doc);
+  // 9. Serialize the final AST
+  let compressed = serialize(doc);
+
+  // 9b. Apply L3 text transforms and verify savings
+  let tokenizerSaved = 0;
+  if (layers.tokenizerAware) {
+    const preL3Tokens = countTokens(compressed, targetModel);
+    const l3Text = applyL3Transforms(compressed);
+    const l3Tokens = countTokens(l3Text, targetModel);
+    tokenizerSaved = preL3Tokens - l3Tokens;
+    if (tokenizerSaved > 0) {
+      compressed = l3Text;
+    } else {
+      // Safety revert: L3 made things worse, remove @target header
+      doc = revertL3(doc);
+      compressed = serialize(doc);
+      tokenizerSaved = 0;
+    }
+  }
+
+  // L4 semantic compression is not yet implemented.
+
+  // 10. Count final tokens
   const compressedTokens = countTokens(compressed, targetModel);
 
-  // 9. Compute total savings
+  // 11. Compute total savings
   const totalTokens = originalTokens - compressedTokens;
   const totalPercent = originalTokens > 0
     ? Math.round((totalTokens / originalTokens) * 100)
     : 0;
 
-  // 10. Extract dictionary entries and return result
+  // 12. Extract dictionary entries and return result
   const dictionary = extractDictEntries(doc);
 
   return {
@@ -436,7 +462,7 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
       byLayer: {
         structural: Math.max(0, structuralSaved),
         dictionary: Math.max(0, dictionarySaved),
-        tokenizer: 0,
+        tokenizer: Math.max(0, tokenizerSaved),
         semantic: 0,
       },
     },

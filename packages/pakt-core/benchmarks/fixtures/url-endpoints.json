@@ -1,0 +1,209 @@
+{
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v2/users",
+      "description": "List all users with pagination",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/users",
+      "description": "Create a new user account",
+      "response": {
+        "status": 201,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/users/:id",
+      "description": "Get a single user by ID",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+        }
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v2/users/:id",
+      "description": "Update a user by ID",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "updated_at": { "type": "string", "format": "date-time" } }
+        }
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v2/users/:id",
+      "description": "Delete a user by ID",
+      "response": {
+        "status": 204,
+        "content_type": "application/json",
+        "schema": { "type": "null" }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/users/:id/orders",
+      "description": "List orders for a specific user",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "order_id": { "type": "integer" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/products",
+      "description": "List all products with filtering",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "price": { "type": "number" }, "category": { "type": "string" } } }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/products",
+      "description": "Create a new product listing",
+      "response": {
+        "status": 201,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "price": { "type": "number" }, "category": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/products/:id",
+      "description": "Get a single product by ID",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "price": { "type": "number" }, "category": { "type": "string" }, "description": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/orders",
+      "description": "List all orders with date range filtering",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "order_id": { "type": "integer" }, "user_id": { "type": "integer" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/orders",
+      "description": "Place a new order",
+      "response": {
+        "status": 201,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "order_id": { "type": "integer" }, "user_id": { "type": "integer" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/orders/:id",
+      "description": "Get a single order by ID",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "order_id": { "type": "integer" }, "user_id": { "type": "integer" }, "items": { "type": "array" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+        }
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v2/orders/:id/status",
+      "description": "Update order status",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "order_id": { "type": "integer" }, "status": { "type": "string" }, "updated_at": { "type": "string", "format": "date-time" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/analytics/revenue",
+      "description": "Get revenue analytics dashboard data",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "total_revenue": { "type": "number" }, "period": { "type": "string" }, "breakdown": { "type": "array" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/analytics/users",
+      "description": "Get user analytics and growth metrics",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": { "total_users": { "type": "integer" }, "active_users": { "type": "integer" }, "growth_rate": { "type": "number" } }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/categories",
+      "description": "List all product categories",
+      "response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "parent_id": { "type": "integer" } } }
+        }
+      }
+    }
+  ]
+}
