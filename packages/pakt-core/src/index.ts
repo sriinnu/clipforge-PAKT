@@ -39,6 +39,13 @@ export { detect } from './detect.js';
 export { validate, repair } from './utils/validate.js';
 
 // ---------------------------------------------------------------------------
+// Serializer
+// ---------------------------------------------------------------------------
+
+export { prettyPrint } from './serializer/index.js';
+export type { PrettyOptions } from './serializer/index.js';
+
+// ---------------------------------------------------------------------------
 // Token utilities
 // ---------------------------------------------------------------------------
 
