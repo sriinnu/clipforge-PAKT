@@ -12,7 +12,7 @@
   <a href="https://www.npmjs.com/package/@yugenlab/pakt"><img src="https://img.shields.io/npm/v/@yugenlab/pakt?color=6366f1&label=npm" alt="npm version" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b5cf6" alt="license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/tests-322%20passing-22c55e" alt="tests" />
+  <img src="https://img.shields.io/badge/tests-484%20passing-22c55e" alt="tests" />
   <img src="https://img.shields.io/bundlephobia/minzip/@yugenlab/pakt?color=f59e0b&label=size" alt="bundle size" />
   <a href="https://github.com/sriinnu/clipforge-PAKT/issues"><img src="https://img.shields.io/github/issues/sriinnu/clipforge-PAKT?color=a855f7" alt="GitHub issues" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/pulls"><img src="https://img.shields.io/badge/PRs-welcome-a855f7" alt="PRs welcome" /></a>

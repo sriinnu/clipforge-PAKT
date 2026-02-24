@@ -327,28 +327,23 @@ describe('Edge cases: special characters', () => {
     expect(roundtrip(data)).toEqual(data);
   });
 
-  it('tab characters in values cause tokenizer error (known limitation)', () => {
+  it('tab characters in values roundtrip losslessly', () => {
     /**
-     * PAKT tokenizer explicitly forbids tab characters — they are not
-     * allowed in the format. Values containing tabs will fail at
-     * decompress time. This test documents that behavior.
+     * Tab characters are escaped as \\t in quoted strings by the serializer.
+     * The tokenizer supports \\t escape sequences during parsing, so
+     * tabs survive the compress -> decompress roundtrip.
      */
     const data = { tabbed: 'col1\tcol2\tcol3' };
-    const json = JSON.stringify(data);
-    const result = compress(json, { fromFormat: 'json' });
-    expect(() => decompress(result.compressed, 'json')).toThrow(/[Tt]ab/);
+    expect(roundtrip(data)).toEqual(data);
   });
 
-  it('carriage-return in values causes tokenizer error (known limitation)', () => {
+  it('carriage-return in values roundtrips losslessly', () => {
     /**
-     * PAKT tokenizer treats \\r\\n as a line break mid-quoted-string,
-     * causing an unterminated string error. Embedded CRLF in values
-     * is not currently supported.
+     * Carriage returns are escaped as \\r in quoted strings by the serializer.
+     * CRLF sequences are preserved through the compress -> decompress roundtrip.
      */
     const data = { crlf: 'line1\r\nline2' };
-    const json = JSON.stringify(data);
-    const result = compress(json, { fromFormat: 'json' });
-    expect(() => decompress(result.compressed, 'json')).toThrow();
+    expect(roundtrip(data)).toEqual(data);
   });
 
   it('empty string values roundtrip', () => {
@@ -361,5 +356,30 @@ describe('Edge cases: special characters', () => {
     const longVal = 'x'.repeat(2000);
     const data = { payload: longVal };
     expect(roundtrip(data)).toEqual(data);
+  });
+});
+
+// ===================== 7. Empty / whitespace input =========================
+
+describe('Edge cases: empty input', () => {
+  it('compress("") returns a valid PaktResult with zero savings', () => {
+    /** Empty string should not crash — returns a minimal valid result */
+    const result = compress('');
+    expect(result.compressed).toBe('');
+    expect(result.originalTokens).toBe(result.compressedTokens);
+    expect(result.savings.totalPercent).toBe(0);
+    expect(result.savings.totalTokens).toBe(0);
+    expect(result.detectedFormat).toBe('text');
+    expect(result.dictionary).toEqual([]);
+    expect(result.reversible).toBe(true);
+  });
+
+  it('compress whitespace-only input returns valid PaktResult', () => {
+    /** Whitespace-only string is treated like empty — no structure to compress */
+    const result = compress('   \n  \n   ');
+    expect(result.compressed).toBe('   \n  \n   ');
+    expect(result.savings.totalPercent).toBe(0);
+    expect(result.detectedFormat).toBe('text');
+    expect(result.dictionary).toEqual([]);
   });
 });

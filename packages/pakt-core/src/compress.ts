@@ -94,10 +94,29 @@ function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
  * ```
  */
 export function compress(input: string, options?: Partial<PaktOptions>): PaktResult {
+  const targetModel = options?.targetModel ?? DEFAULT_OPTIONS.targetModel;
+
+  // 0. Early return for empty / whitespace-only input — no valid structure to compress
+  if (!input || input.trim().length === 0) {
+    const tokens = countTokens(input ?? '', targetModel);
+    return {
+      compressed: input ?? '',
+      originalTokens: tokens,
+      compressedTokens: tokens,
+      savings: {
+        totalPercent: 0,
+        totalTokens: 0,
+        byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
+      },
+      reversible: true,
+      detectedFormat: 'text',
+      dictionary: [],
+    };
+  }
+
   // 1. Merge options with defaults
   const layers = mergeLayers(options?.layers);
   const fromFormat = options?.fromFormat;
-  const targetModel = options?.targetModel ?? DEFAULT_OPTIONS.targetModel;
   const dictMinSavings = options?.dictMinSavings ?? DEFAULT_OPTIONS.dictMinSavings;
 
   // 2. Detect format (use user-specified if provided, else auto-detect)
@@ -207,6 +226,9 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   // L4 semantic compression — gated stub (not yet implemented)
   // When layers.semantic is true and semanticBudget > 0, L4 will apply
   // lossy transforms here. Currently a no-op.
+  if (layers.semantic) {
+    console.warn('L4 semantic compression is not yet implemented — layer ignored');
+  }
 
   // 10. Count final tokens
   const compressedTokens = countTokens(compressed, targetModel);

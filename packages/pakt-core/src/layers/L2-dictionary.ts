@@ -10,16 +10,12 @@
  * 4. **Frequent substrings** — repeated n-grams at any position -> `before${alias}after`
  *
  * Scoring and candidate detection are in L2-scoring.ts and L2-candidates.ts.
- * This module handles cloning, the greedy selection pass, and public API.
+ * Cloning utilities live in L2-clone.ts.
+ * This module handles the greedy selection pass and public API.
  */
 
 import type {
   DocumentNode,
-  BodyNode,
-  ScalarNode,
-  StringScalar,
-  TabularRowNode,
-  ListItemNode,
   DictBlockNode,
   DictEntryNode,
   SourcePosition,
@@ -33,183 +29,10 @@ import type { AliasCandidate } from './L2-candidates.js';
 import {
   findPrefixCandidates, findSuffixCandidates, findSubstringCandidates,
 } from './L2-candidates.js';
+import { cloneBody, cloneBodyIdentity, collectStringScalars } from './L2-clone.js';
 
 /** Synthetic source position for generated nodes. */
 const synPos: SourcePosition = { line: 0, column: 0, offset: 0 };
-
-// ---------------------------------------------------------------------------
-// Scalar collection
-// ---------------------------------------------------------------------------
-
-/**
- * Collect StringScalar nodes from body, recursively.
- * @param nodes - Body nodes to walk
- * @param includeQuoted - When true, also collect quoted strings (for prefix analysis)
- * @returns StringScalar references
- */
-function collectStringScalars(
-  nodes: readonly BodyNode[], includeQuoted: boolean = false,
-): StringScalar[] {
-  const result: StringScalar[] = [];
-  function visitScalar(sc: ScalarNode): void {
-    if (sc.scalarType === 'string' && (!sc.quoted || includeQuoted)) result.push(sc);
-  }
-  function visitBody(body: readonly BodyNode[]): void {
-    for (const node of body) {
-      switch (node.type) {
-        case 'keyValue': visitScalar(node.value); break;
-        case 'object': visitBody(node.children); break;
-        case 'tabularArray':
-          for (const r of node.rows) for (const v of r.values) visitScalar(v);
-          break;
-        case 'inlineArray':
-          for (const v of node.values) visitScalar(v);
-          break;
-        case 'listArray':
-          for (const li of node.items) visitBody(li.children);
-          break;
-        case 'comment': break;
-      }
-    }
-  }
-  visitBody(nodes);
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Cloning functions
-// ---------------------------------------------------------------------------
-
-/**
- * Clone a ScalarNode, replacing string values via the map.
- *
- * Compression modes (substringMap provided):
- * 1. **Exact**: value matches a map key entirely -> replaced with $alias
- * 2. **Substring** (prefix/suffix/infix): value contains a substring in
- *    substringMap -> each occurrence replaced with ${alias}. Longest
- *    substrings are replaced first to avoid partial overlaps.
- *
- * Decompression mode (includeQuoted=true, no substringMap):
- * 3. Expand all ${alias} patterns in the value.
- */
-function cloneScalar(
-  sc: ScalarNode, map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
-  substringMap?: ReadonlyMap<string, string>,
-): ScalarNode {
-  if (sc.scalarType === 'string') {
-    // 1. Exact replacement (unquoted only, or all if includeQuoted)
-    if (!sc.quoted || includeQuoted) {
-      const replacement = map.get(sc.value);
-      if (replacement !== undefined) {
-        return { type: 'scalar', scalarType: 'string', value: replacement,
-          quoted: false, position: sc.position };
-      }
-    }
-    // 2. Substring replacement (compression): handles prefix, suffix, and
-    //    infix patterns. Process longest substrings first so shorter ones
-    //    only fire on remaining (non-overlapping) text.
-    if (substringMap && substringMap.size > 0) {
-      const sorted = [...substringMap.entries()]
-        .sort((a, b) => b[0].length - a[0].length);
-      let newValue = sc.value;
-      let changed = false;
-      for (const [substr, alias] of sorted) {
-        if (newValue.includes(substr)) {
-          const placeholder = `\${${alias.slice(1)}}`;
-          newValue = newValue.split(substr).join(placeholder);
-          changed = true;
-        }
-      }
-      if (changed) {
-        return { type: 'scalar', scalarType: 'string', value: newValue,
-          quoted: true, position: sc.position };
-      }
-    }
-    // 3. Expansion (decompression): expand ${alias} patterns at any position
-    if (includeQuoted && sc.value.includes('${')) {
-      const expanded = sc.value.replace(
-        /\$\{([a-z]{1,2})\}/g,
-        (match, name: string) => {
-          const exp = map.get('$' + name);
-          return exp !== undefined ? exp : match;
-        },
-      );
-      if (expanded !== sc.value) {
-        return { type: 'scalar', scalarType: 'string', value: expanded,
-          quoted: false, position: sc.position };
-      }
-    }
-  }
-  return { ...sc } as ScalarNode;
-}
-
-/** Deep-clone a TabularRowNode, applying replacements. */
-function cloneRow(
-  r: TabularRowNode, map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
-  substringMap?: ReadonlyMap<string, string>,
-): TabularRowNode {
-  return { type: 'tabularRow',
-    values: r.values.map(v => cloneScalar(v, map, includeQuoted, substringMap)),
-    position: r.position };
-}
-
-/** Deep-clone a ListItemNode, applying replacements. */
-function cloneListItem(
-  li: ListItemNode, map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
-  substringMap?: ReadonlyMap<string, string>,
-): ListItemNode {
-  return { type: 'listItem',
-    children: cloneBody(li.children, map, includeQuoted, substringMap),
-    position: li.position };
-}
-
-/**
- * Deep-clone body nodes, replacing string values via the map.
- * Used for both compression (value->alias) and decompression (alias->value).
- * @param includeQuoted - When true, also replace quoted strings (for decompression)
- * @param substringMap - Optional map of substring->alias for inline compression
- */
-function cloneBody(
-  nodes: readonly BodyNode[], map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
-  substringMap?: ReadonlyMap<string, string>,
-): BodyNode[] {
-  return nodes.map((node): BodyNode => {
-    switch (node.type) {
-      case 'keyValue':
-        return { type: 'keyValue', key: node.key,
-          value: cloneScalar(node.value, map, includeQuoted, substringMap),
-          position: node.position };
-      case 'object':
-        return { type: 'object', key: node.key,
-          children: cloneBody(node.children, map, includeQuoted, substringMap),
-          position: node.position };
-      case 'tabularArray':
-        return { type: 'tabularArray', key: node.key, count: node.count,
-          fields: [...node.fields],
-          rows: node.rows.map(r => cloneRow(r, map, includeQuoted, substringMap)),
-          position: node.position };
-      case 'inlineArray':
-        return { type: 'inlineArray', key: node.key, count: node.count,
-          values: node.values.map(v => cloneScalar(v, map, includeQuoted, substringMap)),
-          position: node.position };
-      case 'listArray':
-        return { type: 'listArray', key: node.key, count: node.count,
-          items: node.items.map(li => cloneListItem(li, map, includeQuoted, substringMap)),
-          position: node.position };
-      case 'comment':
-        return { ...node };
-    }
-  });
-}
-
-/** Deep-clone body nodes without replacements. */
-function cloneBodyIdentity(nodes: readonly BodyNode[]): BodyNode[] {
-  return cloneBody(nodes, new Map<string, string>());
-}
 
 // ---------------------------------------------------------------------------
 // Main compression

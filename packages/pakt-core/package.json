@@ -21,7 +21,15 @@
   "bin": {
     "pakt": "./dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -29,7 +37,14 @@
     "bench": "vitest bench",
     "clean": "rm -rf dist"
   },
-  "keywords": ["pakt", "compression", "llm", "tokens", "toon", "clipboard"],
+  "keywords": [
+    "pakt",
+    "compression",
+    "llm",
+    "tokens",
+    "toon",
+    "clipboard"
+  ],
   "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "license": "MIT",
   "repository": {
@@ -39,6 +54,7 @@
   },
   "homepage": "https://github.com/sriinnu/clipforge-PAKT#readme",
   "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
     "tsup": "^8.3.0",
     "vitest": "^3.0.0"
   },

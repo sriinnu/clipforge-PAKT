@@ -49,7 +49,7 @@ function formatString(value: string, wasQuoted: boolean): string {
   return value;
 }
 
-/** Check if a string value requires quoting (`:`, `|`, `$`, `%`, whitespace, etc.). */
+/** Check if a string value requires quoting (`:`, `|`, `$`, `%`, whitespace, tabs, etc.). */
 function needsQuoting(value: string): boolean {
   if (value.length === 0) return true;
   if (value.includes(':')) return true;
@@ -58,6 +58,8 @@ function needsQuoting(value: string): boolean {
   if (value.startsWith('%')) return true;
   if (value !== value.trim()) return true;
   if (value.includes('\n')) return true;
+  if (value.includes('\t')) return true;
+  if (value.includes('\r')) return true;
   if (value.includes('"')) return true;
   if (value.includes('\\')) return true;
   return false;
@@ -65,12 +67,14 @@ function needsQuoting(value: string): boolean {
 
 /**
  * Wrap a string in double quotes, escaping special characters.
- * Escapes: `\` -> `\\`, `"` -> `\"`, newline -> `\n`.
+ * Escapes: `\` -> `\\`, `"` -> `\"`, newline -> `\n`, tab -> `\t`, CR -> `\r`.
  */
 function quoteString(value: string): string {
   const escaped = value
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n');
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t')
+    .replace(/\r/g, '\\r');
   return `"${escaped}"`;
 }

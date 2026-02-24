@@ -55,7 +55,11 @@ interface ResolvedOptions {
   alignColumns: boolean;
 }
 
-/** Fill in defaults for any omitted options. */
+/**
+ * Fill in defaults for any omitted options.
+ * @param opts - User-supplied options (may be partial or undefined)
+ * @returns Fully resolved options with every field populated
+ */
 function resolveOptions(opts?: PrettyOptions): ResolvedOptions {
   return {
     indent: opts?.indent ?? 2,
@@ -99,7 +103,12 @@ export function prettyPrint(ast: DocumentNode, options?: PrettyOptions): string 
 
 // -- Headers -----------------------------------------------------------------
 
-/** Emit pre-dict headers into `lines`, return formatted post-dict lines. */
+/**
+ * Emit pre-dict headers into `lines`, return formatted post-dict lines.
+ * @param headers - All header nodes from the AST
+ * @param lines   - Output line accumulator (mutated in place)
+ * @returns Post-dict header lines to be emitted after the @dict block
+ */
 function emitHeaders(headers: HeaderNode[], lines: string[]): string[] {
   const postDictLines: string[] = [];
   for (const ht of PRE_DICT_HEADERS) {
@@ -115,7 +124,13 @@ function emitHeaders(headers: HeaderNode[], lines: string[]): string[] {
 
 // -- Dictionary --------------------------------------------------------------
 
-/** Emit @dict...@end block (if present) followed by post-dict header lines. */
+/**
+ * Emit @dict...@end block (if present) followed by post-dict header lines.
+ * @param dict          - The dictionary AST node, or null if absent
+ * @param postDictLines - Header lines to append after the dict block
+ * @param lines         - Output line accumulator (mutated in place)
+ * @param opts          - Resolved formatting options
+ */
 function emitDictionary(
   dict: DictBlockNode | null,
   postDictLines: string[],
@@ -138,6 +153,10 @@ function emitDictionary(
 /**
  * Emit top-level body nodes with blank-line spacing between sections.
  * Adjacent comment nodes are kept tight (no spacing between them).
+ * @param nodes - Body-level AST nodes to emit
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
  */
 function emitTopLevelBody(
   nodes: BodyNode[], lines: string[], depth: number, opts: ResolvedOptions,
@@ -157,7 +176,13 @@ function emitTopLevelBody(
 
 // -- Node dispatch -----------------------------------------------------------
 
-/** Emit a single body node, dispatching by type. */
+/**
+ * Emit a single body node, dispatching by AST node type.
+ * @param node  - The body node to serialize
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitNode(
   node: BodyNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -173,7 +198,13 @@ function emitNode(
 
 // -- Key-value ---------------------------------------------------------------
 
-/** Emit `key: value`. */
+/**
+ * Emit a key-value pair as `key: value`.
+ * @param node  - The key-value AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitKeyValue(
   node: KeyValueNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -182,7 +213,13 @@ function emitKeyValue(
 
 // -- Object ------------------------------------------------------------------
 
-/** Emit object header then children at depth + 1. */
+/**
+ * Emit an object header line, then recursively emit children at depth + 1.
+ * @param node  - The object AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitObject(
   node: ObjectNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -194,7 +231,10 @@ function emitObject(
 
 /**
  * Compute the maximum display width for each column across all rows.
- * Used to pad cells so pipes align vertically.
+ * Used to pad cells so pipe characters align vertically.
+ * @param rows     - All tabular data rows to measure
+ * @param colCount - Number of columns (from the field header)
+ * @returns Array of max widths, one per column
  */
 function computeColumnWidths(rows: TabularRowNode[], colCount: number): number[] {
   const widths = new Array<number>(colCount).fill(0);
@@ -207,7 +247,14 @@ function computeColumnWidths(rows: TabularRowNode[], colCount: number): number[]
   return widths;
 }
 
-/** Emit a tabular array with optional column alignment. */
+/**
+ * Emit a tabular array with its field header and rows.
+ * Uses column-aligned output when `opts.alignColumns` is true.
+ * @param node  - The tabular array AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitTabularArray(
   node: TabularArrayNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -222,7 +269,14 @@ function emitTabularArray(
   }
 }
 
-/** Emit a padded tabular row for column alignment. */
+/**
+ * Emit a tabular row with cells padded for vertical column alignment.
+ * @param row    - The tabular row AST node
+ * @param lines  - Output line accumulator (mutated in place)
+ * @param depth  - Current indentation depth
+ * @param opts   - Resolved formatting options
+ * @param widths - Pre-computed max width per column
+ */
 function emitAlignedRow(
   row: TabularRowNode, lines: string[], depth: number,
   opts: ResolvedOptions, widths: number[],
@@ -236,7 +290,13 @@ function emitAlignedRow(
   lines.push(`${pad(depth, opts)}${cells.join(' | ')}`);
 }
 
-/** Emit a compact tabular row (no alignment). */
+/**
+ * Emit a tabular row without column padding (compact mode).
+ * @param row   - The tabular row AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitCompactRow(
   row: TabularRowNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -246,7 +306,13 @@ function emitCompactRow(
 
 // -- Inline array ------------------------------------------------------------
 
-/** Emit `key [count]: val1,val2,val3`. */
+/**
+ * Emit an inline array as `key [count]: val1,val2,val3`.
+ * @param node  - The inline array AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitInlineArray(
   node: InlineArrayNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -256,7 +322,13 @@ function emitInlineArray(
 
 // -- List array --------------------------------------------------------------
 
-/** Emit `key [count]:` header followed by dash-prefixed items. */
+/**
+ * Emit a list array: `key [count]:` header followed by dash-prefixed items.
+ * @param node  - The list array AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitListArray(
   node: ListArrayNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -264,7 +336,13 @@ function emitListArray(
   for (const listItem of node.items) emitListItem(listItem, lines, depth + 1, opts);
 }
 
-/** Emit a list item: `- ` on first child, rest indented beneath. */
+/**
+ * Emit a list item: first child prefixed with `- `, rest indented beneath.
+ * @param listItem - The list item AST node containing child nodes
+ * @param lines    - Output line accumulator (mutated in place)
+ * @param depth    - Current indentation depth
+ * @param opts     - Resolved formatting options
+ */
 function emitListItem(
   listItem: ListItemNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -279,7 +357,12 @@ function emitListItem(
   }
 }
 
-/** Format a body node inline (for first child of a list item). */
+/**
+ * Format a body node as a single inline string (for first child of a list item).
+ * Only handles keyValue, comment, and object nodes; others return empty string.
+ * @param node - The body node to format inline
+ * @returns Single-line string representation of the node
+ */
 function formatBodyNodeInline(node: BodyNode): string {
   switch (node.type) {
     case 'keyValue': return `${node.key}: ${formatScalar(node.value)}`;
@@ -291,7 +374,13 @@ function formatBodyNodeInline(node: BodyNode): string {
 
 // -- Comment -----------------------------------------------------------------
 
-/** Emit `% comment text`. */
+/**
+ * Emit a comment line as `% comment text`.
+ * @param node  - The comment AST node
+ * @param lines - Output line accumulator (mutated in place)
+ * @param depth - Current indentation depth
+ * @param opts  - Resolved formatting options
+ */
 function emitComment(
   node: CommentNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
@@ -300,7 +389,12 @@ function emitComment(
 
 // -- Indent helper -----------------------------------------------------------
 
-/** Generate indentation for `depth` levels using configured spacing. */
+/**
+ * Generate indentation whitespace for the given nesting depth.
+ * @param depth - Number of indent levels
+ * @param opts  - Resolved options (uses `indent` for spaces-per-level)
+ * @returns String of spaces for the requested indentation
+ */
 function pad(depth: number, opts: ResolvedOptions): string {
   return ' '.repeat(depth * opts.indent);
 }
