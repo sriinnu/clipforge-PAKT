@@ -1,6 +1,6 @@
 {
   "name": "@yugenlab/pakt",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "PAKT compression engine — lossless format conversion for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",
