@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { parse, PaktParseError, tokenize } from '../src/parser/index.js';
-import type { Token } from '../src/parser/index.js';
+import { describe, expect, it } from 'vitest';
 import type {
-  KeyValueNode,
-  ObjectNode,
-  TabularArrayNode,
-  InlineArrayNode,
-  ListArrayNode,
   CommentNode,
   DocumentNode,
+  InlineArrayNode,
+  KeyValueNode,
+  ListArrayNode,
+  ObjectNode,
+  TabularArrayNode,
 } from '../src/parser/ast.js';
+import { type PaktParseError, parse, tokenize } from '../src/parser/index.js';
+import type { Token } from '../src/parser/index.js';
 
 // ===========================================================================
 // Helpers
@@ -80,11 +80,7 @@ describe('parse: simple key-value pairs', () => {
 
 describe('parse: nested objects', () => {
   it('parses a 2-level nested object', () => {
-    const input = [
-      'user',
-      '  name: Alice',
-      '  role: developer',
-    ].join('\n');
+    const input = ['user', '  name: Alice', '  role: developer'].join('\n');
 
     const doc = parse(input);
     expect(doc.body).toHaveLength(1);
@@ -128,11 +124,7 @@ describe('parse: nested objects', () => {
   });
 
   it('parses nested object with colon syntax (key:)', () => {
-    const input = [
-      'user:',
-      '  name: Alice',
-      '  age: 30',
-    ].join('\n');
+    const input = ['user:', '  name: Alice', '  age: 30'].join('\n');
 
     const doc = parse(input);
     expect(doc.body).toHaveLength(1);
@@ -166,23 +158,19 @@ describe('parse: tabular arrays', () => {
     expect(arr.rows).toHaveLength(3);
 
     // Check first row values
-    expect(arr.rows[0]!.values[0]!.value).toBe('Alice');
-    expect(arr.rows[0]!.values[1]!.value).toBe('developer');
-    expect(arr.rows[0]!.values[2]!.value).toBe(true);
+    expect(arr.rows[0]?.values[0]?.value).toBe('Alice');
+    expect(arr.rows[0]?.values[1]?.value).toBe('developer');
+    expect(arr.rows[0]?.values[2]?.value).toBe(true);
   });
 
   it('parses tabular array with numeric fields', () => {
-    const input = [
-      'scores [2]{id|score}:',
-      '  1|98.5',
-      '  2|87.3',
-    ].join('\n');
+    const input = ['scores [2]{id|score}:', '  1|98.5', '  2|87.3'].join('\n');
 
     const doc = parse(input);
     const arr = doc.body[0] as TabularArrayNode;
-    expect(arr.rows[0]!.values[0]!.value).toBe(1);
-    expect(arr.rows[0]!.values[1]!.value).toBe(98.5);
-    expect(arr.rows[1]!.values[0]!.value).toBe(2);
+    expect(arr.rows[0]?.values[0]?.value).toBe(1);
+    expect(arr.rows[0]?.values[1]?.value).toBe(98.5);
+    expect(arr.rows[1]?.values[0]?.value).toBe(2);
   });
 });
 
@@ -201,9 +189,9 @@ describe('parse: inline arrays', () => {
     expect(arr.key).toBe('tags');
     expect(arr.count).toBe(3);
     expect(arr.values).toHaveLength(3);
-    expect(arr.values[0]!.value).toBe('React');
-    expect(arr.values[1]!.value).toBe('TypeScript');
-    expect(arr.values[2]!.value).toBe('Rust');
+    expect(arr.values[0]?.value).toBe('React');
+    expect(arr.values[1]?.value).toBe('TypeScript');
+    expect(arr.values[2]?.value).toBe('Rust');
   });
 
   it('parses inline array with numeric values', () => {
@@ -211,8 +199,8 @@ describe('parse: inline arrays', () => {
     const doc = parse(input);
     const arr = doc.body[0] as InlineArrayNode;
     expect(arr.values).toHaveLength(4);
-    expect(arr.values[0]!.value).toBe(1);
-    expect(arr.values[3]!.value).toBe(4);
+    expect(arr.values[0]?.value).toBe(1);
+    expect(arr.values[3]?.value).toBe(4);
   });
 });
 
@@ -247,17 +235,12 @@ describe('parse: list arrays', () => {
   });
 
   it('parses list array with single-line items', () => {
-    const input = [
-      'items [3]:',
-      '  - name: alpha',
-      '  - name: beta',
-      '  - name: gamma',
-    ].join('\n');
+    const input = ['items [3]:', '  - name: alpha', '  - name: beta', '  - name: gamma'].join('\n');
 
     const doc = parse(input);
     const arr = doc.body[0] as ListArrayNode;
     expect(arr.items).toHaveLength(3);
-    expect((arr.items[2]!.children[0] as KeyValueNode).value.value).toBe('gamma');
+    expect((arr.items[2]?.children[0] as KeyValueNode).value.value).toBe('gamma');
   });
 });
 
@@ -267,22 +250,16 @@ describe('parse: list arrays', () => {
 
 describe('parse: dictionary block', () => {
   it('parses @dict ... @end with entries', () => {
-    const input = [
-      '@dict',
-      '  $a: developer',
-      '  $b: React',
-      '@end',
-      'role: $a',
-    ].join('\n');
+    const input = ['@dict', '  $a: developer', '  $b: React', '@end', 'role: $a'].join('\n');
 
     const doc = parse(input);
     expect(doc.dictionary).not.toBeNull();
-    expect(doc.dictionary!.type).toBe('dictBlock');
-    expect(doc.dictionary!.entries).toHaveLength(2);
-    expect(doc.dictionary!.entries[0]!.alias).toBe('$a');
-    expect(doc.dictionary!.entries[0]!.expansion).toBe('developer');
-    expect(doc.dictionary!.entries[1]!.alias).toBe('$b');
-    expect(doc.dictionary!.entries[1]!.expansion).toBe('React');
+    expect(doc.dictionary?.type).toBe('dictBlock');
+    expect(doc.dictionary?.entries).toHaveLength(2);
+    expect(doc.dictionary?.entries[0]?.alias).toBe('$a');
+    expect(doc.dictionary?.entries[0]?.expansion).toBe('developer');
+    expect(doc.dictionary?.entries[1]?.alias).toBe('$b');
+    expect(doc.dictionary?.entries[1]?.expansion).toBe('React');
 
     // Body after dictionary
     expect(doc.body).toHaveLength(1);
@@ -293,7 +270,7 @@ describe('parse: dictionary block', () => {
     const input = '@dict\n@end\nname: Alice';
     const doc = parse(input);
     expect(doc.dictionary).not.toBeNull();
-    expect(doc.dictionary!.entries).toHaveLength(0);
+    expect(doc.dictionary?.entries).toHaveLength(0);
   });
 });
 
@@ -305,41 +282,41 @@ describe('parse: headers', () => {
   it('parses @from header', () => {
     const doc = parse('@from json\nname: Alice');
     expect(doc.headers).toHaveLength(1);
-    expect(doc.headers[0]!.headerType).toBe('from');
-    expect(doc.headers[0]!.value).toBe('json');
+    expect(doc.headers[0]?.headerType).toBe('from');
+    expect(doc.headers[0]?.value).toBe('json');
   });
 
   it('parses @target header', () => {
     const doc = parse('@target gpt-4o\nname: Alice');
     expect(doc.headers).toHaveLength(1);
-    expect(doc.headers[0]!.headerType).toBe('target');
-    expect(doc.headers[0]!.value).toBe('gpt-4o');
+    expect(doc.headers[0]?.headerType).toBe('target');
+    expect(doc.headers[0]?.value).toBe('gpt-4o');
   });
 
   it('parses @version header', () => {
     const doc = parse('@version 0.1.0\nname: Alice');
     expect(doc.headers).toHaveLength(1);
-    expect(doc.headers[0]!.headerType).toBe('version');
-    expect(doc.headers[0]!.value).toBe('0.1.0');
+    expect(doc.headers[0]?.headerType).toBe('version');
+    expect(doc.headers[0]?.value).toBe('0.1.0');
   });
 
   it('parses multiple headers', () => {
     const input = '@from json\n@target gpt-4o\n@version 0.1.0\nname: Alice';
     const doc = parse(input);
     expect(doc.headers).toHaveLength(3);
-    expect(doc.headers[0]!.headerType).toBe('from');
-    expect(doc.headers[1]!.headerType).toBe('target');
-    expect(doc.headers[2]!.headerType).toBe('version');
+    expect(doc.headers[0]?.headerType).toBe('from');
+    expect(doc.headers[1]?.headerType).toBe('target');
+    expect(doc.headers[2]?.headerType).toBe('version');
   });
 
   it('parses @compress and @warning headers', () => {
     const input = '@compress semantic\n@warning lossy\ndata: test';
     const doc = parse(input);
     expect(doc.headers).toHaveLength(2);
-    expect(doc.headers[0]!.headerType).toBe('compress');
-    expect(doc.headers[0]!.value).toBe('semantic');
-    expect(doc.headers[1]!.headerType).toBe('warning');
-    expect(doc.headers[1]!.value).toBe('lossy');
+    expect(doc.headers[0]?.headerType).toBe('compress');
+    expect(doc.headers[0]?.value).toBe('semantic');
+    expect(doc.headers[1]?.headerType).toBe('warning');
+    expect(doc.headers[1]?.value).toBe('lossy');
   });
 });
 
@@ -363,13 +340,13 @@ describe('parse: comments', () => {
     const tokens = tokenize('name: Alice % inline comment');
     const commentTokens = tokens.filter((t: Token) => t.type === 'COMMENT');
     expect(commentTokens).toHaveLength(1);
-    expect(commentTokens[0]!.value).toBe('inline comment');
+    expect(commentTokens[0]?.value).toBe('inline comment');
   });
 
   it('parses multiple comments', () => {
     const input = '% first comment\n% second comment\nname: Alice';
     const doc = parse(input);
-    const comments = doc.body.filter(n => n.type === 'comment');
+    const comments = doc.body.filter((n) => n.type === 'comment');
     expect(comments).toHaveLength(2);
   });
 });
@@ -383,19 +360,19 @@ describe('parse: quoted strings', () => {
     const tokens = tokenize('name: "hello \\"world\\"\\n"');
     const qTok = tokens.find((t: Token) => t.type === 'QUOTED_STRING');
     expect(qTok).toBeDefined();
-    expect(qTok!.value).toBe('hello "world"\n');
+    expect(qTok?.value).toBe('hello "world"\n');
   });
 
   it('tokenizes a quoted string with tab escape', () => {
     const tokens = tokenize('val: "col1\\tcol2"');
     const qTok = tokens.find((t: Token) => t.type === 'QUOTED_STRING');
-    expect(qTok!.value).toBe('col1\tcol2');
+    expect(qTok?.value).toBe('col1\tcol2');
   });
 
   it('tokenizes a quoted string with backslash escape', () => {
     const tokens = tokenize('path: "C:\\\\Users\\\\name"');
     const qTok = tokens.find((t: Token) => t.type === 'QUOTED_STRING');
-    expect(qTok!.value).toBe('C:\\Users\\name');
+    expect(qTok?.value).toBe('C:\\Users\\name');
   });
 });
 
@@ -449,7 +426,7 @@ describe('error: inconsistent indent', () => {
     // Should have collected errors
     const errors = (doc as DocumentNode & { errors?: PaktParseError[] }).errors;
     expect(errors).toBeDefined();
-    expect(errors!.length).toBeGreaterThan(0);
+    expect(errors?.length).toBeGreaterThan(0);
   });
 });
 
@@ -471,9 +448,9 @@ describe('error: alias handling', () => {
     const input = '@dict\n  $a: hello\n  $b: world\n@end\nval: test';
     const doc = parse(input);
     expect(doc.dictionary).not.toBeNull();
-    expect(doc.dictionary!.entries).toHaveLength(2);
-    expect(doc.dictionary!.entries[0]!.alias).toBe('$a');
-    expect(doc.dictionary!.entries[1]!.alias).toBe('$b');
+    expect(doc.dictionary?.entries).toHaveLength(2);
+    expect(doc.dictionary?.entries[0]?.alias).toBe('$a');
+    expect(doc.dictionary?.entries[1]?.alias).toBe('$b');
   });
 });
 
@@ -503,13 +480,13 @@ describe('roundtrip: full PAKT documents', () => {
 
     // Headers
     expect(doc.headers).toHaveLength(2);
-    expect(doc.headers[0]!.headerType).toBe('from');
-    expect(doc.headers[1]!.headerType).toBe('version');
+    expect(doc.headers[0]?.headerType).toBe('from');
+    expect(doc.headers[1]?.headerType).toBe('version');
 
     // Dictionary
     expect(doc.dictionary).not.toBeNull();
-    expect(doc.dictionary!.entries).toHaveLength(1);
-    expect(doc.dictionary!.entries[0]!.alias).toBe('$a');
+    expect(doc.dictionary?.entries).toHaveLength(1);
+    expect(doc.dictionary?.entries[0]?.alias).toBe('$a');
 
     // Body: 6 nodes
     expect(doc.body).toHaveLength(6);
@@ -555,7 +532,7 @@ describe('roundtrip: full PAKT documents', () => {
     const doc = parse(input);
 
     expect(doc.headers).toHaveLength(1);
-    expect(doc.headers[0]!.value).toBe('yaml');
+    expect(doc.headers[0]?.value).toBe('yaml');
 
     // Comment + server + logging = 3 body nodes
     expect(doc.body).toHaveLength(3);
@@ -617,7 +594,7 @@ describe('tokenize: basics', () => {
     const tokens = tokenize('  name: Alice');
     const indent = tokens.find((t: Token) => t.type === 'INDENT');
     expect(indent).toBeDefined();
-    expect(indent!.value).toBe('2');
+    expect(indent?.value).toBe('2');
   });
 
   it('produces KEY and VALUE tokens for key: value', () => {
@@ -625,16 +602,16 @@ describe('tokenize: basics', () => {
     const key = tokens.find((t: Token) => t.type === 'KEY');
     const value = tokens.find((t: Token) => t.type === 'VALUE');
     expect(key).toBeDefined();
-    expect(key!.value).toBe('name');
+    expect(key?.value).toBe('name');
     expect(value).toBeDefined();
-    expect(value!.value).toBe('Alice');
+    expect(value?.value).toBe('Alice');
   });
 
   it('produces HEADER token for @from', () => {
     const tokens = tokenize('@from json');
     const header = tokens.find((t: Token) => t.type === 'HEADER');
     expect(header).toBeDefined();
-    expect(header!.value).toBe('@from json');
+    expect(header?.value).toBe('@from json');
   });
 
   it('produces DICT_START and DICT_END tokens', () => {
@@ -648,14 +625,14 @@ describe('tokenize: basics', () => {
   it('produces EOF at end', () => {
     const tokens = tokenize('name: Alice');
     const last = tokens[tokens.length - 1];
-    expect(last!.type).toBe('EOF');
+    expect(last?.type).toBe('EOF');
   });
 
   it('produces NUMBER token for bare numbers', () => {
     const tokens = tokenize('42');
     const num = tokens.find((t: Token) => t.type === 'NUMBER');
     expect(num).toBeDefined();
-    expect(num!.value).toBe('42');
+    expect(num?.value).toBe('42');
   });
 
   it('produces PIPE, BRACKET, BRACE tokens', () => {
@@ -672,6 +649,6 @@ describe('tokenize: basics', () => {
     const tokens = tokenize('  - name: Alice');
     const dash = tokens.find((t: Token) => t.type === 'DASH');
     expect(dash).toBeDefined();
-    expect(dash!.value).toBe('-');
+    expect(dash?.value).toBe('-');
   });
 });

@@ -7,18 +7,18 @@
  */
 
 import type {
+  BodyNode,
+  CommentNode,
+  DictBlockNode,
   DocumentNode,
   HeaderNode,
-  DictBlockNode,
-  BodyNode,
+  InlineArrayNode,
   KeyValueNode,
+  ListArrayNode,
+  ListItemNode,
   ObjectNode,
   TabularArrayNode,
   TabularRowNode,
-  InlineArrayNode,
-  ListArrayNode,
-  ListItemNode,
-  CommentNode,
 } from '../parser/ast.js';
 import { formatScalar, formatTabularCell } from './format-scalar.js';
 
@@ -159,7 +159,10 @@ function emitDictionary(
  * @param opts  - Resolved formatting options
  */
 function emitTopLevelBody(
-  nodes: BodyNode[], lines: string[], depth: number, opts: ResolvedOptions,
+  nodes: BodyNode[],
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   for (let i = 0; i < nodes.length; i++) {
     if (i > 0 && depth === 0 && opts.sectionSpacing > 0) {
@@ -183,16 +186,26 @@ function emitTopLevelBody(
  * @param depth - Current indentation depth
  * @param opts  - Resolved formatting options
  */
-function emitNode(
-  node: BodyNode, lines: string[], depth: number, opts: ResolvedOptions,
-): void {
+function emitNode(node: BodyNode, lines: string[], depth: number, opts: ResolvedOptions): void {
   switch (node.type) {
-    case 'keyValue':    return emitKeyValue(node, lines, depth, opts);
-    case 'object':      return emitObject(node, lines, depth, opts);
-    case 'tabularArray': return emitTabularArray(node, lines, depth, opts);
-    case 'inlineArray': return emitInlineArray(node, lines, depth, opts);
-    case 'listArray':   return emitListArray(node, lines, depth, opts);
-    case 'comment':     return emitComment(node, lines, depth, opts);
+    case 'keyValue':
+      emitKeyValue(node, lines, depth, opts);
+      break;
+    case 'object':
+      emitObject(node, lines, depth, opts);
+      break;
+    case 'tabularArray':
+      emitTabularArray(node, lines, depth, opts);
+      break;
+    case 'inlineArray':
+      emitInlineArray(node, lines, depth, opts);
+      break;
+    case 'listArray':
+      emitListArray(node, lines, depth, opts);
+      break;
+    case 'comment':
+      emitComment(node, lines, depth, opts);
+      break;
   }
 }
 
@@ -206,7 +219,10 @@ function emitNode(
  * @param opts  - Resolved formatting options
  */
 function emitKeyValue(
-  node: KeyValueNode, lines: string[], depth: number, opts: ResolvedOptions,
+  node: KeyValueNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   lines.push(`${pad(depth, opts)}${node.key}: ${formatScalar(node.value)}`);
 }
@@ -220,9 +236,7 @@ function emitKeyValue(
  * @param depth - Current indentation depth
  * @param opts  - Resolved formatting options
  */
-function emitObject(
-  node: ObjectNode, lines: string[], depth: number, opts: ResolvedOptions,
-): void {
+function emitObject(node: ObjectNode, lines: string[], depth: number, opts: ResolvedOptions): void {
   lines.push(`${pad(depth, opts)}${node.key}`);
   for (const child of node.children) emitNode(child, lines, depth + 1, opts);
 }
@@ -256,7 +270,10 @@ function computeColumnWidths(rows: TabularRowNode[], colCount: number): number[]
  * @param opts  - Resolved formatting options
  */
 function emitTabularArray(
-  node: TabularArrayNode, lines: string[], depth: number, opts: ResolvedOptions,
+  node: TabularArrayNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   const prefix = pad(depth, opts);
   lines.push(`${prefix}${node.key} [${node.count}]{${node.fields.join('|')}}:`);
@@ -278,8 +295,11 @@ function emitTabularArray(
  * @param widths - Pre-computed max width per column
  */
 function emitAlignedRow(
-  row: TabularRowNode, lines: string[], depth: number,
-  opts: ResolvedOptions, widths: number[],
+  row: TabularRowNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
+  widths: number[],
 ): void {
   const cells: string[] = [];
   for (let c = 0; c < row.values.length; c++) {
@@ -298,7 +318,10 @@ function emitAlignedRow(
  * @param opts  - Resolved formatting options
  */
 function emitCompactRow(
-  row: TabularRowNode, lines: string[], depth: number, opts: ResolvedOptions,
+  row: TabularRowNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   const cells = row.values.map((v) => formatTabularCell(v));
   lines.push(`${pad(depth, opts)}${cells.join('|')}`);
@@ -314,7 +337,10 @@ function emitCompactRow(
  * @param opts  - Resolved formatting options
  */
 function emitInlineArray(
-  node: InlineArrayNode, lines: string[], depth: number, opts: ResolvedOptions,
+  node: InlineArrayNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   const values = node.values.map((v) => formatScalar(v)).join(',');
   lines.push(`${pad(depth, opts)}${node.key} [${node.count}]: ${values}`);
@@ -330,7 +356,10 @@ function emitInlineArray(
  * @param opts  - Resolved formatting options
  */
 function emitListArray(
-  node: ListArrayNode, lines: string[], depth: number, opts: ResolvedOptions,
+  node: ListArrayNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   lines.push(`${pad(depth, opts)}${node.key} [${node.count}]:`);
   for (const listItem of node.items) emitListItem(listItem, lines, depth + 1, opts);
@@ -344,7 +373,10 @@ function emitListArray(
  * @param opts     - Resolved formatting options
  */
 function emitListItem(
-  listItem: ListItemNode, lines: string[], depth: number, opts: ResolvedOptions,
+  listItem: ListItemNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   const prefix = pad(depth, opts);
 
@@ -380,10 +412,14 @@ function emitListItem(
  */
 function formatBodyNodeInline(node: BodyNode): string {
   switch (node.type) {
-    case 'keyValue': return `${node.key}: ${formatScalar(node.value)}`;
-    case 'comment':  return `% ${node.text}`;
-    case 'object':   return node.key;
-    default:         return '';
+    case 'keyValue':
+      return `${node.key}: ${formatScalar(node.value)}`;
+    case 'comment':
+      return `% ${node.text}`;
+    case 'object':
+      return node.key;
+    default:
+      return '';
   }
 }
 
@@ -397,7 +433,10 @@ function formatBodyNodeInline(node: BodyNode): string {
  * @param opts  - Resolved formatting options
  */
 function emitComment(
-  node: CommentNode, lines: string[], depth: number, opts: ResolvedOptions,
+  node: CommentNode,
+  lines: string[],
+  depth: number,
+  opts: ResolvedOptions,
 ): void {
   lines.push(`${pad(depth, opts)}% ${node.text}`);
 }

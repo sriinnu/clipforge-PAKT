@@ -21,11 +21,7 @@
   "bin": {
     "pakt": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "LICENSE",
-    "README.md"
-  ],
+  "files": ["dist", "LICENSE", "README.md"],
   "sideEffects": false,
   "engines": {
     "node": ">=18"
@@ -37,14 +33,7 @@
     "bench": "vitest bench",
     "clean": "rm -rf dist"
   },
-  "keywords": [
-    "pakt",
-    "compression",
-    "llm",
-    "tokens",
-    "toon",
-    "clipboard"
-  ],
+  "keywords": ["pakt", "compression", "llm", "tokens", "toon", "clipboard"],
   "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "license": "MIT",
   "repository": {

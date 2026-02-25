@@ -7,8 +7,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { CSS_VARS } from './styles';
 import { getSettings, onSettingsChange } from '../shared/storage';
+import { CSS_VARS } from './styles';
 
 /**
  * Map the stored theme value to a CSS class on <html>.

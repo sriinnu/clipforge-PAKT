@@ -1,7 +1,7 @@
-import type { FC } from 'react';
-import { useSettingsStore } from '../stores/settingsStore';
 import type { PaktFormat } from '@yugenlab/pakt';
 import { VERSION } from '@yugenlab/pakt';
+import type { FC } from 'react';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const OUTPUT_FORMATS: { value: PaktFormat; label: string }[] = [
   { value: 'json', label: 'JSON' },
@@ -39,6 +39,7 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
           className="rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
         >
           <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <title>Close</title>
             <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
           </svg>
         </button>
@@ -101,8 +102,8 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
         </div>
 
         {/* Theme */}
-        <label className="block">
-          <span className="text-xs font-medium text-gray-400">Theme</span>
+        <fieldset className="block border-none p-0">
+          <legend className="text-xs font-medium text-gray-400">Theme</legend>
           <div className="mt-1 flex gap-1">
             {THEMES.map((t) => (
               <button
@@ -119,7 +120,7 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
               </button>
             ))}
           </div>
-        </label>
+        </fieldset>
 
         {/* About */}
         <div className="border-t border-gray-800 pt-3">

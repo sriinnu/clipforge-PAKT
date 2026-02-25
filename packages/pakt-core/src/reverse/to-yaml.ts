@@ -7,14 +7,14 @@
 
 import type {
   BodyNode,
-  ScalarNode,
-  KeyValueNode,
-  ObjectNode,
-  TabularArrayNode,
   InlineArrayNode,
+  KeyValueNode,
   ListArrayNode,
+  ObjectNode,
+  ScalarNode,
+  TabularArrayNode,
 } from '../parser/ast.js';
-import { tabularToArray, inlineToArray, listToArray } from './helpers.js';
+import { inlineToArray, listToArray, tabularToArray } from './helpers.js';
 
 const INDENT = '  ';
 

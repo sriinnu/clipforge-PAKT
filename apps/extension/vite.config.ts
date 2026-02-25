@@ -1,12 +1,7 @@
-import { defineConfig } from 'vite';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-import {
-  copyFileSync,
-  writeFileSync,
-  mkdirSync,
-  existsSync,
-} from 'fs';
+import { defineConfig } from 'vite';
 
 /**
  * Chrome MV3 extension build config.
@@ -26,10 +21,7 @@ export default defineConfig({
         const dist = resolve(__dirname, 'dist');
 
         // Copy manifest.json
-        copyFileSync(
-          resolve(__dirname, 'manifest.json'),
-          resolve(dist, 'manifest.json'),
-        );
+        copyFileSync(resolve(__dirname, 'manifest.json'), resolve(dist, 'manifest.json'));
 
         // Write popup.html with anti-flash dark bg + built popup.js
         writeFileSync(

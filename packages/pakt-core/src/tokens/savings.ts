@@ -45,10 +45,7 @@ export function compareSavings(
   const compressedTokens = countTokens(compressed);
   const savedTokens = originalTokens - compressedTokens;
 
-  const savedPercent =
-    originalTokens === 0
-      ? 0
-      : Math.round((savedTokens / originalTokens) * 100);
+  const savedPercent = originalTokens === 0 ? 0 : Math.round((savedTokens / originalTokens) * 100);
 
   const pricing = MODEL_PRICING[resolvedModel];
 

@@ -5,11 +5,7 @@
  * Throws an error for non-tabular/non-flat data.
  */
 
-import type {
-  BodyNode,
-  TabularArrayNode,
-  KeyValueNode,
-} from '../parser/ast.js';
+import type { BodyNode, KeyValueNode, TabularArrayNode } from '../parser/ast.js';
 import { scalarToJS } from './helpers.js';
 
 /**
@@ -48,7 +44,8 @@ export function toCsv(body: BodyNode[]): string {
 
   // Strategy 2: All non-comment nodes are KeyValueNodes (flat object)
   const dataNodes = body.filter((n) => n.type !== 'comment');
-  const allKV = dataNodes.length > 0 && dataNodes.every((n): n is KeyValueNode => n.type === 'keyValue');
+  const allKV =
+    dataNodes.length > 0 && dataNodes.every((n): n is KeyValueNode => n.type === 'keyValue');
   if (allKV) {
     return flatKvToCsv(dataNodes as KeyValueNode[]);
   }
@@ -75,7 +72,7 @@ function tabularToCsv(node: TabularArrayNode): string {
     lines.push(cells.join(','));
   }
 
-  return lines.join('\r\n') + '\r\n';
+  return `${lines.join('\r\n')}\r\n`;
 }
 
 /**
@@ -89,7 +86,7 @@ function flatKvToCsv(nodes: KeyValueNode[]): string {
     return csvEscape(formatCsvValue(jsVal));
   });
 
-  return keys.join(',') + '\r\n' + values.join(',') + '\r\n';
+  return `${keys.join(',')}\r\n${values.join(',')}\r\n`;
 }
 
 /**
@@ -125,7 +122,7 @@ function formatCsvValue(value: string | number | boolean | null): string {
  */
 function csvEscape(field: string): string {
   if (field.includes(',') || field.includes('"') || field.includes('\n') || field.includes('\r')) {
-    return '"' + field.replace(/"/g, '""') + '"';
+    return `"${field.replace(/"/g, '""')}"`;
   }
   return field;
 }

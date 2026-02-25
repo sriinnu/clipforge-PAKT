@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { compress, decompress, detect, countTokens } from '@yugenlab/pakt';
-import type { PaktOptions, PaktFormat } from '@yugenlab/pakt';
+import { compress, countTokens, decompress, detect } from '@yugenlab/pakt';
+import type { PaktFormat, PaktOptions } from '@yugenlab/pakt';
+import { useCallback, useState } from 'react';
 
 export interface CompactorState {
   input: string;
@@ -69,11 +69,7 @@ export function useCompactor(): CompactorState {
         const outTokens = countTokens(result.text);
         setOriginalTokens(origTokens);
         setCompressedTokens(outTokens);
-        setSavings(
-          origTokens > 0
-            ? Math.round(((origTokens - outTokens) / origTokens) * 100)
-            : 0,
-        );
+        setSavings(origTokens > 0 ? Math.round(((origTokens - outTokens) / origTokens) * 100) : 0);
         setFormat(result.originalFormat);
       } catch (err) {
         setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);

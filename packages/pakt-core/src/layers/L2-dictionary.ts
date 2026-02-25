@@ -14,22 +14,23 @@
  * This module handles the greedy selection pass and public API.
  */
 
-import type {
-  DocumentNode,
-  DictBlockNode,
-  DictEntryNode,
-  SourcePosition,
-} from '../parser/ast.js';
+import type { DictBlockNode, DictEntryNode, DocumentNode, SourcePosition } from '../parser/ast.js';
 import type { DictEntry } from '../types.js';
-import {
-  estimateTokens, aliasForIndex,
-  MAX_ALIASES, DEFAULT_MIN_SAVINGS, MIN_OCCURRENCES, MIN_VALUE_LENGTH,
-} from './L2-scoring.js';
 import type { AliasCandidate } from './L2-candidates.js';
 import {
-  findPrefixCandidates, findSuffixCandidates, findSubstringCandidates,
+  findPrefixCandidates,
+  findSubstringCandidates,
+  findSuffixCandidates,
 } from './L2-candidates.js';
 import { cloneBody, cloneBodyIdentity, collectStringScalars } from './L2-clone.js';
+import {
+  DEFAULT_MIN_SAVINGS,
+  MAX_ALIASES,
+  MIN_OCCURRENCES,
+  MIN_VALUE_LENGTH,
+  aliasForIndex,
+  estimateTokens,
+} from './L2-scoring.js';
 
 /** Synthetic source position for generated nodes. */
 const synPos: SourcePosition = { line: 0, column: 0, offset: 0 };
@@ -51,7 +52,8 @@ const synPos: SourcePosition = { line: 0, column: 0, offset: 0 };
  * @returns A new DocumentNode with dictionary block and aliased body values
  */
 export function compressL2(
-  doc: DocumentNode, minSavings: number = DEFAULT_MIN_SAVINGS,
+  doc: DocumentNode,
+  minSavings: number = DEFAULT_MIN_SAVINGS,
 ): DocumentNode {
   const scalars = collectStringScalars(doc.body);
   const allScalars = collectStringScalars(doc.body, true);
@@ -75,30 +77,30 @@ export function compressL2(
   }
 
   // -- 2. Prefix candidates --
-  const allValues = allScalars.map(sc => sc.value);
+  const allValues = allScalars.map((sc) => sc.value);
   const prefixCandidates = findPrefixCandidates(allValues, exactDups, minSavings);
   candidates.push(...prefixCandidates);
-  const prefixValues = new Set(prefixCandidates.map(c => c.value));
+  const prefixValues = new Set(prefixCandidates.map((c) => c.value));
 
   // -- 3. Suffix candidates --
-  const suffixCandidates = findSuffixCandidates(
-    allValues, exactDups, prefixValues, minSavings,
-  );
+  const suffixCandidates = findSuffixCandidates(allValues, exactDups, prefixValues, minSavings);
   candidates.push(...suffixCandidates);
-  const suffixValues = new Set(suffixCandidates.map(c => c.value));
+  const suffixValues = new Set(suffixCandidates.map((c) => c.value));
 
   // -- 4. General substring candidates --
   const existingPatterns = new Set([...exactDups, ...prefixValues, ...suffixValues]);
-  const substringCandidates = findSubstringCandidates(
-    allValues, existingPatterns, minSavings,
-  );
+  const substringCandidates = findSubstringCandidates(allValues, existingPatterns, minSavings);
   candidates.push(...substringCandidates);
 
   // -- No candidates -> passthrough clone --
   if (candidates.length === 0) {
-    return { type: 'document', headers: [...doc.headers],
-      dictionary: doc.dictionary, body: cloneBodyIdentity(doc.body),
-      position: doc.position };
+    return {
+      type: 'document',
+      headers: [...doc.headers],
+      dictionary: doc.dictionary,
+      body: cloneBodyIdentity(doc.body),
+      position: doc.position,
+    };
   }
 
   // -- Global dedup: remove patterns subsumed by longer ones --
@@ -107,9 +109,11 @@ export function compressL2(
   for (const c of candidates) {
     let dominated = false;
     for (const longer of deduped) {
-      if (longer.value.length > c.value.length
-          && longer.value.includes(c.value)
-          && longer.occurrences >= c.occurrences) {
+      if (
+        longer.value.length > c.value.length &&
+        longer.value.includes(c.value) &&
+        longer.occurrences >= c.occurrences
+      ) {
         dominated = true;
         break;
       }
@@ -119,7 +123,7 @@ export function compressL2(
 
   // -- Greedy simulation: select aliases that actually save tokens --
   deduped.sort((a, b) => b.netSavings - a.netSavings);
-  const simValues = allValues.map(v => v);
+  const simValues = allValues.map((v) => v);
   const selected: AliasCandidate[] = [];
   for (const c of deduped) {
     if (selected.length >= MAX_ALIASES) break;
@@ -159,9 +163,13 @@ export function compressL2(
   }
 
   if (selected.length === 0) {
-    return { type: 'document', headers: [...doc.headers],
-      dictionary: doc.dictionary, body: cloneBodyIdentity(doc.body),
-      position: doc.position };
+    return {
+      type: 'document',
+      headers: [...doc.headers],
+      dictionary: doc.dictionary,
+      body: cloneBodyIdentity(doc.body),
+      position: doc.position,
+    };
   }
 
   // -- Build replacement maps --
@@ -181,11 +189,18 @@ export function compressL2(
 
   const dictBlock: DictBlockNode = { type: 'dictBlock', entries, position: synPos };
 
-  return { type: 'document', headers: [...doc.headers],
+  return {
+    type: 'document',
+    headers: [...doc.headers],
     dictionary: dictBlock,
-    body: cloneBody(doc.body, valueToAlias, false,
-      substringToAlias.size > 0 ? substringToAlias : undefined),
-    position: doc.position };
+    body: cloneBody(
+      doc.body,
+      valueToAlias,
+      false,
+      substringToAlias.size > 0 ? substringToAlias : undefined,
+    ),
+    position: doc.position,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -203,8 +218,13 @@ export function compressL2(
  */
 export function decompressL2(doc: DocumentNode): DocumentNode {
   if (doc.dictionary === null || doc.dictionary.entries.length === 0) {
-    return { type: 'document', headers: [...doc.headers], dictionary: null,
-      body: cloneBodyIdentity(doc.body), position: doc.position };
+    return {
+      type: 'document',
+      headers: [...doc.headers],
+      dictionary: null,
+      body: cloneBodyIdentity(doc.body),
+      position: doc.position,
+    };
   }
 
   const expansionMap = new Map<string, string>();
@@ -212,8 +232,13 @@ export function decompressL2(doc: DocumentNode): DocumentNode {
     expansionMap.set(entry.alias, entry.expansion);
   }
 
-  return { type: 'document', headers: [...doc.headers], dictionary: null,
-    body: cloneBody(doc.body, expansionMap, true), position: doc.position };
+  return {
+    type: 'document',
+    headers: [...doc.headers],
+    dictionary: null,
+    body: cloneBody(doc.body, expansionMap, true),
+    position: doc.position,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +268,7 @@ export function extractDictEntries(doc: DocumentNode): DictEntry[] {
     // Inline alias usage (${a}, ${b}, ... at any position)
     if (sc.value.includes('${')) {
       for (const m of sc.value.matchAll(/\$\{([a-z]{1,2})\}/g)) {
-        const alias = '$' + m[1]!;
+        const alias = `$${m[1]!}`;
         aliasCount.set(alias, (aliasCount.get(alias) ?? 0) + 1);
       }
     }
@@ -253,7 +278,11 @@ export function extractDictEntries(doc: DocumentNode): DictEntry[] {
     const occ = aliasCount.get(entry.alias) ?? 0;
     const vTok = estimateTokens(entry.expansion);
     const saved = (vTok - 1) * occ - (vTok + 3);
-    return { alias: entry.alias, expansion: entry.expansion,
-      occurrences: occ, tokensSaved: Math.max(0, saved) };
+    return {
+      alias: entry.alias,
+      expansion: entry.expansion,
+      occurrences: occ,
+      tokensSaved: Math.max(0, saved),
+    };
   });
 }

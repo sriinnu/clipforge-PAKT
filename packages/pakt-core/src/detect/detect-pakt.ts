@@ -18,14 +18,7 @@ import type { Candidate } from './types.js';
 // ---------------------------------------------------------------------------
 
 /** Set of recognised `@header` keywords that signal PAKT format */
-const PAKT_HEADERS = new Set([
-  'from',
-  'target',
-  'dict',
-  'compress',
-  'warning',
-  'version',
-]);
+const PAKT_HEADERS = new Set(['from', 'target', 'dict', 'compress', 'warning', 'version']);
 
 /**
  * Regex for PAKT tabular array headers like `name [5]{field1|field2}:`
@@ -55,7 +48,7 @@ export function detectPakt(input: string, lines: string[]): Candidate | null {
     if (trimmed.startsWith('@')) {
       // Extract the keyword after @
       const match = trimmed.match(/^@(\w+)/);
-      if (match && match[1] && PAKT_HEADERS.has(match[1])) {
+      if (match?.[1] && PAKT_HEADERS.has(match[1])) {
         return {
           format: 'pakt',
           confidence: 1.0,

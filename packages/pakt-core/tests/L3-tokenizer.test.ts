@@ -5,13 +5,9 @@
  * trailing zeros) reduce token counts while maintaining lossless
  * round-trip fidelity.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compress, decompress } from '../src/index.js';
-import {
-  applyL3Transforms,
-  reverseL3Transforms,
-  hasL3Marker,
-} from '../src/layers/L3-tokenizer.js';
+import { applyL3Transforms, hasL3Marker, reverseL3Transforms } from '../src/layers/L3-tokenizer.js';
 
 // ---------------------------------------------------------------------------
 // Unit tests for L3 text transforms
@@ -19,13 +15,9 @@ import {
 
 describe('L3 text transforms', () => {
   it('compressIndent converts 2-space to 1-space', () => {
-    const input = [
-      '@from json',
-      '',
-      'users [2]{name|role}:',
-      '  Alice|dev',
-      '  Bob|admin',
-    ].join('\n');
+    const input = ['@from json', '', 'users [2]{name|role}:', '  Alice|dev', '  Bob|admin'].join(
+      '\n',
+    );
     const result = applyL3Transforms(input);
     expect(result).toContain(' Alice|dev');
     expect(result).toContain(' Bob|admin');
@@ -34,19 +26,9 @@ describe('L3 text transforms', () => {
   });
 
   it('compressIndent handles nested indentation', () => {
-    const input = [
-      'root',
-      '  child',
-      '    grandchild: val',
-      '      deep: 42',
-    ].join('\n');
+    const input = ['root', '  child', '    grandchild: val', '      deep: 42'].join('\n');
     const result = applyL3Transforms(input);
-    expect(result).toBe([
-      'root',
-      ' child',
-      '  grandchild: val',
-      '   deep: 42',
-    ].join('\n'));
+    expect(result).toBe(['root', ' child', '  grandchild: val', '   deep: 42'].join('\n'));
   });
 
   it('preserves decimal values unchanged (no trailing zero stripping)', () => {
@@ -162,7 +144,7 @@ describe('L3 compression pipeline', () => {
   it('roundtrips losslessly with L3 — root-level array', () => {
     const data = [
       { id: 1, name: 'Widget', price: 9.99 },
-      { id: 2, name: 'Gadget', price: 19.50 },
+      { id: 2, name: 'Gadget', price: 19.5 },
       { id: 3, name: 'Doohickey', price: 4.99 },
     ];
     const compressed = compress(JSON.stringify(data), { layers: LAYERS_L3 });

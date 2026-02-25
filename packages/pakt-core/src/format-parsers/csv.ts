@@ -38,12 +38,28 @@ export function splitCsvLine(line: string, delim: string): string[] {
     const ch = line[i]!;
     if (inQuotes) {
       if (ch === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i += 2; }
-        else { inQuotes = false; i++; }
-      } else { current += ch; i++; }
-    } else if (ch === '"') { inQuotes = true; i++; }
-    else if (ch === delim) { fields.push(current.trim()); current = ''; i++; }
-    else { current += ch; i++; }
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i += 2;
+        } else {
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        current += ch;
+        i++;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+      i++;
+    } else if (ch === delim) {
+      fields.push(current.trim());
+      current = '';
+      i++;
+    } else {
+      current += ch;
+      i++;
+    }
   }
   fields.push(current.trim());
   return fields;
@@ -70,7 +86,10 @@ export function detectCsvDelimiter(lines: string[]): string {
     for (let i = 1; i < lines.length; i++)
       if (splitCsvLine(lines[i]!, delim).length === cols) consistent++;
     const score = consistent / (lines.length - 1);
-    if (score > bestScore) { bestScore = score; bestDelim = delim; }
+    if (score > bestScore) {
+      bestScore = score;
+      bestDelim = delim;
+    }
   }
   return bestDelim;
 }
@@ -120,8 +139,7 @@ export function inferCsvValue(raw: string): unknown {
  */
 export function parseCsv(input: string): Record<string, unknown>[] {
   const rawLines = input.split('\n').filter((l) => l.trim().length > 0);
-  if (rawLines.length < 2)
-    return rawLines.length === 1 ? [{ _line: rawLines[0] }] : [];
+  if (rawLines.length < 2) return rawLines.length === 1 ? [{ _line: rawLines[0] }] : [];
   const delim = detectCsvDelimiter(rawLines);
   const headers = splitCsvLine(rawLines[0]!, delim);
   const rows: Record<string, unknown>[] = [];

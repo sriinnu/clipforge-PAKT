@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 /**
  * Decompression benchmarks for @yugenlab/pakt.
  *
@@ -7,9 +10,6 @@
 import { bench, describe } from 'vitest';
 import { compress, decompress } from '../src/index.js';
 import type { PaktFormat } from '../src/index.js';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Fixture loading

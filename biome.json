@@ -6,7 +6,10 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "noExcessiveCognitiveComplexity": { "level": "warn", "options": { "maxAllowedComplexity": 15 } }
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": { "maxAllowedComplexity": 15 }
+        }
       },
       "style": {
         "useConst": "error",
@@ -31,6 +34,6 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "target", ".turbo", "coverage"]
+    "ignore": ["node_modules", "dist", "target", ".turbo", "coverage", ".claude"]
   }
 }

@@ -6,11 +6,11 @@
 
 import type {
   BodyNode,
-  ScalarNode,
-  TabularArrayNode,
   InlineArrayNode,
   ListArrayNode,
   ListItemNode,
+  ScalarNode,
+  TabularArrayNode,
 } from '../parser/ast.js';
 
 /**

@@ -1,5 +1,5 @@
-import { useState, useMemo, type FC } from 'react';
-import { useHistoryStore, type HistoryEntry } from '../stores/historyStore';
+import { type FC, useMemo, useState } from 'react';
+import { type HistoryEntry, useHistoryStore } from '../stores/historyStore';
 import FormatBadge from './FormatBadge';
 
 interface HistoryPanelProps {
@@ -66,6 +66,7 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ onSelect, onClose }) => {
             className="rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
           >
             <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <title>Close</title>
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
           </button>
@@ -100,17 +101,13 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ onSelect, onClose }) => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <FormatBadge format={entry.format} />
-                  <span className="text-[10px] text-gray-500">
-                    {formatTime(entry.timestamp)}
-                  </span>
+                  <span className="text-[10px] text-gray-500">{formatTime(entry.timestamp)}</span>
                 </div>
                 <p className="mt-0.5 truncate font-mono text-[11px] text-gray-400">
                   {snippet(entry.input)}
                 </p>
               </div>
-              <span className="shrink-0 text-[10px] text-green-500">
-                -{entry.savedTokens}
-              </span>
+              <span className="shrink-0 text-[10px] text-green-500">-{entry.savedTokens}</span>
             </button>
           ))
         )}

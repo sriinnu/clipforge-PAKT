@@ -37,9 +37,13 @@ interface ActionBarProps {
  * depending on whether the input is already in PAKT format.
  */
 export function ActionBar({
-  isPakt, hasInput, processing,
-  decompressFormat, onDecompressFormatChange,
-  onCompress, onDecompress,
+  isPakt,
+  hasInput,
+  processing,
+  decompressFormat,
+  onDecompressFormatChange,
+  onCompress,
+  onDecompress,
 }: ActionBarProps) {
   const disabled = !hasInput || processing;
 
@@ -47,6 +51,7 @@ export function ActionBar({
     return (
       <div style={{ display: 'flex', gap: 8 }}>
         <button
+          type="button"
           style={{
             ...primaryBtnStyle,
             opacity: disabled ? 0.5 : 1,
@@ -77,6 +82,7 @@ export function ActionBar({
         <option value="markdown">Markdown</option>
       </select>
       <button
+        type="button"
         style={{
           ...secondaryBtnStyle,
           opacity: disabled ? 0.5 : 1,

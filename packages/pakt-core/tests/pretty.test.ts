@@ -1,66 +1,96 @@
-import { describe, it, expect } from 'vitest';
-import { prettyPrint } from '../src/serializer/pretty.js';
-import { parse } from '../src/parser/parser.js';
-import { serialize } from '../src/serializer/serialize.js';
+import { describe, expect, it } from 'vitest';
 import type {
-  DocumentNode,
-  KeyValueNode,
-  TabularArrayNode,
-  InlineArrayNode,
-  ListArrayNode,
-  ObjectNode,
-  CommentNode,
-  ScalarNode,
   BodyNode,
-  HeaderNode,
+  CommentNode,
   DictBlockNode,
-  TabularRowNode,
+  DocumentNode,
+  HeaderNode,
+  InlineArrayNode,
+  KeyValueNode,
+  ListArrayNode,
   ListItemNode,
+  ObjectNode,
+  ScalarNode,
+  TabularArrayNode,
+  TabularRowNode,
 } from '../src/parser/ast.js';
 import { createPosition } from '../src/parser/ast.js';
+import { parse } from '../src/parser/parser.js';
+import { prettyPrint } from '../src/serializer/pretty.js';
+import { serialize } from '../src/serializer/serialize.js';
 
 // -- Helpers (same factory pattern as serializer.test.ts) --------------------
 
 const p = createPosition(1, 1, 0);
-const s = (v: string, q = false): ScalarNode =>
-  ({ type: 'scalar', scalarType: 'string', value: v, quoted: q, position: p });
-const n = (v: number, r?: string): ScalarNode =>
-  ({ type: 'scalar', scalarType: 'number', value: v, raw: r ?? String(v), position: p });
-const b = (v: boolean): ScalarNode =>
-  ({ type: 'scalar', scalarType: 'boolean', value: v, position: p });
-const nil = (): ScalarNode =>
-  ({ type: 'scalar', scalarType: 'null', value: null, position: p });
-const kv = (key: string, val: ScalarNode): KeyValueNode =>
-  ({ type: 'keyValue', key, value: val, position: p });
-const obj = (key: string, children: BodyNode[]): ObjectNode =>
-  ({ type: 'object', key, children, position: p });
-const cmt = (text: string): CommentNode =>
-  ({ type: 'comment', text, inline: false, position: p });
-const row = (vals: ScalarNode[]): TabularRowNode =>
-  ({ type: 'tabularRow', values: vals, position: p });
-const item = (children: BodyNode[]): ListItemNode =>
-  ({ type: 'listItem', children, position: p });
+const s = (v: string, q = false): ScalarNode => ({
+  type: 'scalar',
+  scalarType: 'string',
+  value: v,
+  quoted: q,
+  position: p,
+});
+const n = (v: number, r?: string): ScalarNode => ({
+  type: 'scalar',
+  scalarType: 'number',
+  value: v,
+  raw: r ?? String(v),
+  position: p,
+});
+const b = (v: boolean): ScalarNode => ({
+  type: 'scalar',
+  scalarType: 'boolean',
+  value: v,
+  position: p,
+});
+const nil = (): ScalarNode => ({ type: 'scalar', scalarType: 'null', value: null, position: p });
+const kv = (key: string, val: ScalarNode): KeyValueNode => ({
+  type: 'keyValue',
+  key,
+  value: val,
+  position: p,
+});
+const obj = (key: string, children: BodyNode[]): ObjectNode => ({
+  type: 'object',
+  key,
+  children,
+  position: p,
+});
+const cmt = (text: string): CommentNode => ({ type: 'comment', text, inline: false, position: p });
+const row = (vals: ScalarNode[]): TabularRowNode => ({
+  type: 'tabularRow',
+  values: vals,
+  position: p,
+});
+const item = (children: BodyNode[]): ListItemNode => ({ type: 'listItem', children, position: p });
 const hdr = (ht: HeaderNode['headerType'], v: string): HeaderNode =>
-  ({ type: 'header', headerType: ht, value: v, position: p } as HeaderNode);
-const dict = (entries: Array<[string, string]>): DictBlockNode =>
-  ({
-    type: 'dictBlock', position: p,
-    entries: entries.map(([a, e]) =>
-      ({ type: 'dictEntry' as const, alias: a, expansion: e, position: p })),
-  });
+  ({ type: 'header', headerType: ht, value: v, position: p }) as HeaderNode;
+const dict = (entries: Array<[string, string]>): DictBlockNode => ({
+  type: 'dictBlock',
+  position: p,
+  entries: entries.map(([a, e]) => ({
+    type: 'dictEntry' as const,
+    alias: a,
+    expansion: e,
+    position: p,
+  })),
+});
 const doc = (
   body: BodyNode[],
   headers: HeaderNode[] = [],
   d: DictBlockNode | null = null,
-): DocumentNode =>
-  ({ type: 'document', headers, dictionary: d, body, position: p });
+): DocumentNode => ({ type: 'document', headers, dictionary: d, body, position: p });
 
 // -- Tests -------------------------------------------------------------------
 
 describe('prettyPrint', () => {
   describe('basic key-value pairs', () => {
     it('should pretty-print string, number, boolean, null', () => {
-      const ast = doc([kv('name', s('Alice')), kv('age', n(28)), kv('on', b(true)), kv('x', nil())]);
+      const ast = doc([
+        kv('name', s('Alice')),
+        kv('age', n(28)),
+        kv('on', b(true)),
+        kv('x', nil()),
+      ]);
       const output = prettyPrint(ast);
       expect(output).toContain('name: Alice');
       expect(output).toContain('age: 28');
@@ -81,8 +111,11 @@ describe('prettyPrint', () => {
   describe('column alignment in tabular arrays', () => {
     it('should align columns with space-padded pipes', () => {
       const tab: TabularArrayNode = {
-        type: 'tabularArray', key: 'users', count: 3,
-        fields: ['name', 'role', 'city'], position: p,
+        type: 'tabularArray',
+        key: 'users',
+        count: 3,
+        fields: ['name', 'role', 'city'],
+        position: p,
         rows: [
           row([s('Alice'), s('developer'), s('New York')]),
           row([s('Bob'), s('designer'), s('London')]),
@@ -94,7 +127,7 @@ describe('prettyPrint', () => {
       // Header line
       expect(lines[0]).toBe('users [3]{name|role|city}:');
       // All pipe characters in rows should be vertically aligned
-      const pipePositions = lines.slice(1).map(line => {
+      const pipePositions = lines.slice(1).map((line) => {
         const positions: number[] = [];
         for (let i = 0; i < line.length; i++) {
           if (line[i] === '|') positions.push(i);
@@ -108,12 +141,12 @@ describe('prettyPrint', () => {
 
     it('should disable alignment when alignColumns is false', () => {
       const tab: TabularArrayNode = {
-        type: 'tabularArray', key: 'data', count: 2,
-        fields: ['id', 'name'], position: p,
-        rows: [
-          row([n(1), s('Alice')]),
-          row([n(2), s('Bob')]),
-        ],
+        type: 'tabularArray',
+        key: 'data',
+        count: 2,
+        fields: ['id', 'name'],
+        position: p,
+        rows: [row([n(1), s('Alice')]), row([n(2), s('Bob')])],
       };
       const output = prettyPrint(doc([tab]), { alignColumns: false });
       // Without alignment, rows use compact pipe-delimited format
@@ -173,12 +206,7 @@ describe('prettyPrint', () => {
   describe('nested object indentation', () => {
     it('should indent nested objects correctly', () => {
       const ast = doc([
-        obj('config', [
-          obj('db', [
-            kv('host', s('localhost')),
-            kv('port', n(5432)),
-          ]),
-        ]),
+        obj('config', [obj('db', [kv('host', s('localhost')), kv('port', n(5432))])]),
       ]);
       const output = prettyPrint(ast);
       const lines = output.trim().split('\n');
@@ -202,7 +230,10 @@ describe('prettyPrint', () => {
   describe('list arrays with dash items', () => {
     it('should serialize list array items with dash prefix', () => {
       const list: ListArrayNode = {
-        type: 'listArray', key: 'events', count: 2, position: p,
+        type: 'listArray',
+        key: 'events',
+        count: 2,
+        position: p,
         items: [
           item([kv('type', s('deploy')), kv('success', b(true))]),
           item([kv('type', s('alert')), kv('message', s('CPU spike'))]),
@@ -220,7 +251,10 @@ describe('prettyPrint', () => {
   describe('inline arrays', () => {
     it('should serialize inline arrays as comma-separated values', () => {
       const arr: InlineArrayNode = {
-        type: 'inlineArray', key: 'tags', count: 3, position: p,
+        type: 'inlineArray',
+        key: 'tags',
+        count: 3,
+        position: p,
         values: [s('React'), s('TypeScript'), s('Rust')],
       };
       const output = prettyPrint(doc([arr]));
@@ -247,7 +281,10 @@ describe('prettyPrint', () => {
       const ast = doc(
         [kv('dept', s('Engineering'))],
         [],
-        dict([['$a', 'Engineering'], ['$b', 'in-progress']]),
+        dict([
+          ['$a', 'Engineering'],
+          ['$b', 'in-progress'],
+        ]),
       );
       const output = prettyPrint(ast);
       expect(output).toContain('@dict');
@@ -318,12 +355,12 @@ describe('prettyPrint', () => {
 
     it('should round-trip a tabular array with alignment', () => {
       const tab: TabularArrayNode = {
-        type: 'tabularArray', key: 'users', count: 2,
-        fields: ['name', 'role'], position: p,
-        rows: [
-          row([s('Alice'), s('developer')]),
-          row([s('Bob'), s('designer')]),
-        ],
+        type: 'tabularArray',
+        key: 'users',
+        count: 2,
+        fields: ['name', 'role'],
+        position: p,
+        rows: [row([s('Alice'), s('developer')]), row([s('Bob'), s('designer')])],
       };
       const pretty = prettyPrint(doc([tab]), { sectionSpacing: 0 });
       const reparsed = parse(pretty);
@@ -331,16 +368,19 @@ describe('prettyPrint', () => {
       expect(arr.type).toBe('tabularArray');
       expect(arr.fields).toEqual(['name', 'role']);
       expect(arr.rows).toHaveLength(2);
-      expect(arr.rows[0]!.values[0]!.value).toBe('Alice');
-      expect(arr.rows[1]!.values[0]!.value).toBe('Bob');
+      expect(arr.rows[0]?.values[0]?.value).toBe('Alice');
+      expect(arr.rows[1]?.values[0]?.value).toBe('Bob');
     });
 
     it('should round-trip a full document with headers, dict, and body', () => {
       const headers = [hdr('version', '1.0.0'), hdr('from', 'json')];
       const d = dict([['$a', 'Engineering']]);
       const tab: TabularArrayNode = {
-        type: 'tabularArray', key: 'projects', count: 2,
-        fields: ['id', 'name'], position: p,
+        type: 'tabularArray',
+        key: 'projects',
+        count: 2,
+        fields: ['id', 'name'],
+        position: p,
         rows: [row([n(1), s('VAAYU')]), row([n(2), s('ClipForge')])],
       };
       const body: BodyNode[] = [kv('org', s('YugenLab')), tab];
@@ -353,10 +393,11 @@ describe('prettyPrint', () => {
     });
 
     it('should round-trip comments and nested objects', () => {
-      const ast = doc([
-        cmt('config section'),
-        obj('server', [kv('host', s('localhost')), kv('port', n(8080))]),
-      ], [], null);
+      const ast = doc(
+        [cmt('config section'), obj('server', [kv('host', s('localhost')), kv('port', n(8080))])],
+        [],
+        null,
+      );
       const pretty = prettyPrint(ast, { sectionSpacing: 0 });
       const reparsed = parse(pretty);
       expect(reparsed.body).toHaveLength(2);

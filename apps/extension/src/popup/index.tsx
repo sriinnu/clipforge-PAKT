@@ -6,8 +6,8 @@
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Popup } from './Popup';
 import { ErrorBoundary } from './ErrorBoundary';
+import { Popup } from './Popup';
 
 const root = document.getElementById('root');
 if (root) {

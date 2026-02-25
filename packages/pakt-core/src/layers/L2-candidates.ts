@@ -12,12 +12,12 @@
  */
 
 import {
-  estimateTokens,
   MIN_PREFIX_LENGTH,
   MIN_PREFIX_OCCURRENCES,
   MIN_SUFFIX_LENGTH,
   MIN_SUFFIX_OCCURRENCES,
   SUBSTRING_WINDOW_SIZES,
+  estimateTokens,
 } from './L2-scoring.js';
 
 // ---------------------------------------------------------------------------
@@ -63,9 +63,9 @@ export function findPrefixCandidates(
   minSavings: number,
 ): AliasCandidate[] {
   // Filter out values already handled by exact dedup, and values too short
-  const unique = [...new Set(values.filter(v =>
-    !exactDups.has(v) && v.length >= MIN_PREFIX_LENGTH
-  ))];
+  const unique = [
+    ...new Set(values.filter((v) => !exactDups.has(v) && v.length >= MIN_PREFIX_LENGTH)),
+  ];
   if (unique.length < MIN_PREFIX_OCCURRENCES) return [];
 
   // Sort values to bring similar strings adjacent
@@ -74,7 +74,8 @@ export function findPrefixCandidates(
   // Find common prefixes between adjacent sorted values
   const prefixCounts = new Map<string, number>();
   for (let i = 0; i < unique.length - 1; i++) {
-    const a = unique[i]!, b = unique[i + 1]!;
+    const a = unique[i]!;
+    const b = unique[i + 1]!;
     let len = 0;
     while (len < a.length && len < b.length && a[len] === b[len]) len++;
     if (len >= MIN_PREFIX_LENGTH) {
@@ -99,14 +100,14 @@ export function findPrefixCandidates(
   // Remove shorter prefixes subsumed by longer ones with equal-or-greater coverage.
   // A shorter prefix is only dominated if a longer prefix covers at least as many
   // values — otherwise the shorter prefix serves the uncovered majority.
-  const sortedPrefixes = [...prefixOccurrences.entries()]
-    .sort((a, b) => b[0].length - a[0].length);
+  const sortedPrefixes = [...prefixOccurrences.entries()].sort((a, b) => b[0].length - a[0].length);
   const kept = new Map<string, number>();
   for (const [prefix, count] of sortedPrefixes) {
     let dominated = false;
     for (const [keptPrefix, keptCount] of kept) {
       if (keptPrefix.startsWith(prefix) && keptCount >= count) {
-        dominated = true; break;
+        dominated = true;
+        break;
       }
     }
     if (!dominated) kept.set(prefix, count);
@@ -150,19 +151,20 @@ export function findSuffixCandidates(
   otherPatterns: ReadonlySet<string>,
   minSavings: number,
 ): AliasCandidate[] {
-  const unique = [...new Set(values.filter(v =>
-    !exactDups.has(v) && v.length >= MIN_SUFFIX_LENGTH
-  ))];
+  const unique = [
+    ...new Set(values.filter((v) => !exactDups.has(v) && v.length >= MIN_SUFFIX_LENGTH)),
+  ];
   if (unique.length < MIN_SUFFIX_OCCURRENCES) return [];
 
   // Reverse strings and sort to bring shared suffixes adjacent
-  const reversed = unique.map(v => ({ original: v, rev: [...v].reverse().join('') }));
+  const reversed = unique.map((v) => ({ original: v, rev: [...v].reverse().join('') }));
   reversed.sort((a, b) => a.rev.localeCompare(b.rev));
 
   // Find common suffixes (= common prefixes of reversed strings)
   const suffixCounts = new Map<string, number>();
   for (let i = 0; i < reversed.length - 1; i++) {
-    const a = reversed[i]!.rev, b = reversed[i + 1]!.rev;
+    const a = reversed[i]?.rev;
+    const b = reversed[i + 1]?.rev;
     let len = 0;
     while (len < a.length && len < b.length && a[len] === b[len]) len++;
     if (len >= MIN_SUFFIX_LENGTH) {
@@ -185,14 +187,14 @@ export function findSuffixCandidates(
   }
 
   // Remove dominated suffixes (shorter ones subsumed by longer ones with equal coverage)
-  const sortedSuffixes = [...suffixOccurrences.entries()]
-    .sort((a, b) => b[0].length - a[0].length);
+  const sortedSuffixes = [...suffixOccurrences.entries()].sort((a, b) => b[0].length - a[0].length);
   const kept = new Map<string, number>();
   for (const [suffix, count] of sortedSuffixes) {
     let dominated = false;
     for (const [keptSuffix, keptCount] of kept) {
       if (keptSuffix.endsWith(suffix) && keptCount >= count) {
-        dominated = true; break;
+        dominated = true;
+        break;
       }
     }
     if (!dominated) kept.set(suffix, count);
@@ -286,8 +288,7 @@ export function findSubstringCandidates(
   for (const candidate of viable) {
     let dominated = false;
     for (const longer of kept) {
-      if (longer.value.includes(candidate.value)
-          && longer.occurrences >= candidate.occurrences) {
+      if (longer.value.includes(candidate.value) && longer.occurrences >= candidate.occurrences) {
         dominated = true;
         break;
       }

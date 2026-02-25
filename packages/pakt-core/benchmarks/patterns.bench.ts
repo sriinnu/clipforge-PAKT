@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 /**
  * Pattern detection benchmarks for @yugenlab/pakt.
  *
@@ -16,9 +19,6 @@
 import { bench, describe } from 'vitest';
 import { compress } from '../src/index.js';
 import type { PaktResult } from '../src/index.js';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Fixture loading
@@ -106,12 +106,36 @@ const substringData = JSON.stringify({
  */
 const mixedPatternData = JSON.stringify({
   services: [
-    { endpoint: 'https://api.example.com/v2/users', log: 'logs/users.service.ts.log', env: 'svc_production_us_east' },
-    { endpoint: 'https://api.example.com/v2/orders', log: 'logs/orders.service.ts.log', env: 'svc_production_us_east' },
-    { endpoint: 'https://api.example.com/v2/products', log: 'logs/products.service.ts.log', env: 'svc_production_us_east' },
-    { endpoint: 'https://api.example.com/v2/analytics', log: 'logs/analytics.service.ts.log', env: 'svc_production_us_west' },
-    { endpoint: 'https://api.example.com/v2/billing', log: 'logs/billing.service.ts.log', env: 'svc_production_us_west' },
-    { endpoint: 'https://api.example.com/v2/search', log: 'logs/search.service.ts.log', env: 'svc_production_eu_west' },
+    {
+      endpoint: 'https://api.example.com/v2/users',
+      log: 'logs/users.service.ts.log',
+      env: 'svc_production_us_east',
+    },
+    {
+      endpoint: 'https://api.example.com/v2/orders',
+      log: 'logs/orders.service.ts.log',
+      env: 'svc_production_us_east',
+    },
+    {
+      endpoint: 'https://api.example.com/v2/products',
+      log: 'logs/products.service.ts.log',
+      env: 'svc_production_us_east',
+    },
+    {
+      endpoint: 'https://api.example.com/v2/analytics',
+      log: 'logs/analytics.service.ts.log',
+      env: 'svc_production_us_west',
+    },
+    {
+      endpoint: 'https://api.example.com/v2/billing',
+      log: 'logs/billing.service.ts.log',
+      env: 'svc_production_us_west',
+    },
+    {
+      endpoint: 'https://api.example.com/v2/search',
+      log: 'logs/search.service.ts.log',
+      env: 'svc_production_eu_west',
+    },
   ],
 });
 
@@ -127,11 +151,7 @@ const mixedPatternData = JSON.stringify({
  * @param data - Raw JSON string to compress
  * @param expectedPattern - Substring expected in at least one dictionary entry
  */
-function reportPatternDetection(
-  label: string,
-  data: string,
-  expectedPattern: string,
-): void {
+function reportPatternDetection(label: string, data: string, expectedPattern: string): void {
   /** Full L1+L2 compression result. */
   const full: PaktResult = compress(data, {
     layers: { structural: true, dictionary: true },
@@ -144,14 +164,13 @@ function reportPatternDetection(
   });
 
   const dictSavings = l1Only.compressedTokens - full.compressedTokens;
-  const dictPercent = l1Only.compressedTokens > 0
-    ? ((dictSavings / l1Only.compressedTokens) * 100).toFixed(1)
-    : '0.0';
+  const dictPercent =
+    l1Only.compressedTokens > 0
+      ? ((dictSavings / l1Only.compressedTokens) * 100).toFixed(1)
+      : '0.0';
 
   /** Check whether the expected pattern appears in any dictionary expansion. */
-  const patternDetected = full.dictionary.some(
-    (e) => e.expansion.includes(expectedPattern),
-  );
+  const patternDetected = full.dictionary.some((e) => e.expansion.includes(expectedPattern));
 
   console.log(`--- ${label} ---`);
   console.log(`  Original tokens     : ${full.originalTokens}`);
@@ -161,11 +180,15 @@ function reportPatternDetection(
   console.log(`  L1 savings          : ${full.savings.byLayer.structural} tokens`);
   console.log(`  L2 savings          : ${dictSavings} tokens (${dictPercent}% of L1 output)`);
   console.log(`  Dictionary entries  : ${full.dictionary.length}`);
-  console.log(`  Pattern detected    : ${patternDetected ? 'YES' : 'NO'} (looking for "${expectedPattern}")`);
+  console.log(
+    `  Pattern detected    : ${patternDetected ? 'YES' : 'NO'} (looking for "${expectedPattern}")`,
+  );
   if (full.dictionary.length > 0) {
     console.log('  Entries:');
     for (const e of full.dictionary) {
-      console.log(`    ${e.alias} -> "${e.expansion}" (${e.occurrences}x, saved ${e.tokensSaved} tokens)`);
+      console.log(
+        `    ${e.alias} -> "${e.expansion}" (${e.occurrences}x, saved ${e.tokensSaved} tokens)`,
+      );
     }
   }
   console.log('');
@@ -175,23 +198,11 @@ function reportPatternDetection(
 // Print pattern detection reports (executed once during bench setup)
 // ---------------------------------------------------------------------------
 
-reportPatternDetection(
-  'Prefix detection (API URLs)',
-  prefixData,
-  'https://api.example.com/v2/',
-);
+reportPatternDetection('Prefix detection (API URLs)', prefixData, 'https://api.example.com/v2/');
 
-reportPatternDetection(
-  'Suffix detection (file extensions)',
-  suffixData,
-  '.component.tsx',
-);
+reportPatternDetection('Suffix detection (file extensions)', suffixData, '.component.tsx');
 
-reportPatternDetection(
-  'Substring detection (infixes)',
-  substringData,
-  'internal.acme.com',
-);
+reportPatternDetection('Substring detection (infixes)', substringData, 'internal.acme.com');
 
 reportPatternDetection(
   'Mixed patterns (prefix + suffix + substring)',

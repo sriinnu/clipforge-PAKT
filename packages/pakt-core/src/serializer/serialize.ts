@@ -6,18 +6,18 @@
  */
 
 import type {
+  BodyNode,
+  CommentNode,
+  DictBlockNode,
   DocumentNode,
   HeaderNode,
-  DictBlockNode,
-  BodyNode,
+  InlineArrayNode,
   KeyValueNode,
+  ListArrayNode,
+  ListItemNode,
   ObjectNode,
   TabularArrayNode,
   TabularRowNode,
-  InlineArrayNode,
-  ListArrayNode,
-  ListItemNode,
-  CommentNode,
 } from '../parser/ast.js';
 import { formatScalar, formatTabularCell } from './format-scalar.js';
 
@@ -64,10 +64,7 @@ export function serialize(ast: DocumentNode): string {
  * Emit pre-dict headers (@version, @from, @target) into `lines` and return
  * formatted post-dict header lines (@compress, @warning) for later emission.
  */
-function emitHeaders(
-  headers: HeaderNode[],
-  lines: string[],
-): string[] {
+function emitHeaders(headers: HeaderNode[], lines: string[]): string[] {
   const postDictLines: string[] = [];
 
   for (const ht of PRE_DICT_HEADERS) {
@@ -141,11 +138,7 @@ function emitNode(node: BodyNode, lines: string[], depth: number): void {
 }
 
 /** Emit a key-value pair: `key: value`. */
-function emitKeyValue(
-  node: KeyValueNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitKeyValue(node: KeyValueNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const value = formatScalar(node.value);
   lines.push(`${prefix}${node.key}: ${value}`);
@@ -159,11 +152,7 @@ function emitObject(node: ObjectNode, lines: string[], depth: number): void {
 }
 
 /** Emit a tabular array: `key [count]{f1|f2|...}:` with pipe-delimited rows. */
-function emitTabularArray(
-  node: TabularArrayNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const fieldList = node.fields.join('|');
   lines.push(`${prefix}${node.key} [${node.count}]{${fieldList}}:`);
@@ -173,33 +162,21 @@ function emitTabularArray(
 }
 
 /** Emit a single tabular row as pipe-delimited values. */
-function emitTabularRow(
-  row: TabularRowNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitTabularRow(row: TabularRowNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const cells = row.values.map((v) => formatTabularCell(v));
   lines.push(`${prefix}${cells.join('|')}`);
 }
 
 /** Emit an inline array: `key [count]: val1,val2,val3`. */
-function emitInlineArray(
-  node: InlineArrayNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitInlineArray(node: InlineArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const values = node.values.map((v) => formatScalar(v)).join(',');
   lines.push(`${prefix}${node.key} [${node.count}]: ${values}`);
 }
 
 /** Emit a list array: `key [count]:` followed by dash-prefixed items. */
-function emitListArray(
-  node: ListArrayNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitListArray(node: ListArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   lines.push(`${prefix}${node.key} [${node.count}]:`);
   for (const item of node.items) {
@@ -208,11 +185,7 @@ function emitListArray(
 }
 
 /** Emit a list item: `- ` prefix on first child, rest indented under it. */
-function emitListItem(
-  item: ListItemNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitListItem(item: ListItemNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
 
   for (let i = 0; i < item.children.length; i++) {
@@ -243,11 +216,7 @@ function formatBodyNodeInline(node: BodyNode): string {
 }
 
 /** Emit a comment line: `% comment text`. */
-function emitComment(
-  node: CommentNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitComment(node: CommentNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   lines.push(`${prefix}% ${node.text}`);
 }

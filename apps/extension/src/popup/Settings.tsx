@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  DEFAULT_SETTINGS,
+  type ExtensionSettings,
   getSettings,
   saveSettings,
-  type ExtensionSettings,
-  DEFAULT_SETTINGS,
 } from '../shared/storage';
 
 // ---------------------------------------------------------------------------
@@ -18,6 +18,7 @@ function Toggle({
 }) {
   return (
     <button
+      type="button"
       style={{
         width: 38,
         height: 22,
@@ -66,6 +67,7 @@ function SegmentedControl<T extends string>({
     <div style={segmentedContainerStyle}>
       {options.map((opt) => (
         <button
+          type="button"
           key={opt.value}
           style={{
             ...segmentBtnStyle,
@@ -102,9 +104,8 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
     saveSettings(partial);
   };
 
-  const compressionMode = settings.layerStructural && settings.layerDictionary
-    ? 'standard'
-    : 'structure';
+  const compressionMode =
+    settings.layerStructural && settings.layerDictionary ? 'standard' : 'structure';
 
   const handleCompressionChange = (mode: string) => {
     if (mode === 'standard') {
@@ -124,10 +125,7 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
             <span style={settingLabelStyle}>Auto-compress on paste</span>
             <span style={settingDescStyle}>Automatically compress when pasting content</span>
           </div>
-          <Toggle
-            value={settings.autoCompress}
-            onChange={(v) => update({ autoCompress: v })}
-          />
+          <Toggle value={settings.autoCompress} onChange={(v) => update({ autoCompress: v })} />
         </div>
       </div>
 
