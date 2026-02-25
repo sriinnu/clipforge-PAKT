@@ -19,10 +19,10 @@
 
 import type {
   BodyNode,
+  ListItemNode,
   ScalarNode,
   StringScalar,
   TabularRowNode,
-  ListItemNode,
 } from '../parser/ast.js';
 
 // ---------------------------------------------------------------------------
@@ -42,7 +42,8 @@ import type {
  * @returns Array of StringScalar references found in the tree
  */
 export function collectStringScalars(
-  nodes: readonly BodyNode[], includeQuoted: boolean = false,
+  nodes: readonly BodyNode[],
+  includeQuoted = false,
 ): StringScalar[] {
   const result: StringScalar[] = [];
 
@@ -55,8 +56,12 @@ export function collectStringScalars(
   function visitBody(body: readonly BodyNode[]): void {
     for (const node of body) {
       switch (node.type) {
-        case 'keyValue': visitScalar(node.value); break;
-        case 'object': visitBody(node.children); break;
+        case 'keyValue':
+          visitScalar(node.value);
+          break;
+        case 'object':
+          visitBody(node.children);
+          break;
         case 'tabularArray':
           for (const r of node.rows) for (const v of r.values) visitScalar(v);
           break;
@@ -66,7 +71,8 @@ export function collectStringScalars(
         case 'listArray':
           for (const li of node.items) visitBody(li.children);
           break;
-        case 'comment': break;
+        case 'comment':
+          break;
       }
     }
   }
@@ -103,8 +109,9 @@ export function collectStringScalars(
  * @returns A fresh ScalarNode (never the same reference)
  */
 export function cloneScalar(
-  sc: ScalarNode, map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
+  sc: ScalarNode,
+  map: ReadonlyMap<string, string>,
+  includeQuoted = false,
   substringMap?: ReadonlyMap<string, string>,
 ): ScalarNode {
   if (sc.scalarType === 'string') {
@@ -112,16 +119,20 @@ export function cloneScalar(
     if (!sc.quoted || includeQuoted) {
       const replacement = map.get(sc.value);
       if (replacement !== undefined) {
-        return { type: 'scalar', scalarType: 'string', value: replacement,
-          quoted: false, position: sc.position };
+        return {
+          type: 'scalar',
+          scalarType: 'string',
+          value: replacement,
+          quoted: false,
+          position: sc.position,
+        };
       }
     }
 
     /* Mode 2: Substring replacement (compression). Process longest
        substrings first so shorter ones only fire on remaining text. */
     if (substringMap && substringMap.size > 0) {
-      const sorted = [...substringMap.entries()]
-        .sort((a, b) => b[0].length - a[0].length);
+      const sorted = [...substringMap.entries()].sort((a, b) => b[0].length - a[0].length);
       let newValue = sc.value;
       let changed = false;
       for (const [substr, alias] of sorted) {
@@ -132,23 +143,30 @@ export function cloneScalar(
         }
       }
       if (changed) {
-        return { type: 'scalar', scalarType: 'string', value: newValue,
-          quoted: true, position: sc.position };
+        return {
+          type: 'scalar',
+          scalarType: 'string',
+          value: newValue,
+          quoted: true,
+          position: sc.position,
+        };
       }
     }
 
     /* Mode 3: Expansion (decompression) — expand ${alias} patterns */
     if (includeQuoted && sc.value.includes('${')) {
-      const expanded = sc.value.replace(
-        /\$\{([a-z]{1,2})\}/g,
-        (match, name: string) => {
-          const exp = map.get('$' + name);
-          return exp !== undefined ? exp : match;
-        },
-      );
+      const expanded = sc.value.replace(/\$\{([a-z]{1,2})\}/g, (match, name: string) => {
+        const exp = map.get(`$${name}`);
+        return exp !== undefined ? exp : match;
+      });
       if (expanded !== sc.value) {
-        return { type: 'scalar', scalarType: 'string', value: expanded,
-          quoted: false, position: sc.position };
+        return {
+          type: 'scalar',
+          scalarType: 'string',
+          value: expanded,
+          quoted: false,
+          position: sc.position,
+        };
       }
     }
   }
@@ -169,13 +187,16 @@ export function cloneScalar(
  * @returns A fresh TabularRowNode with cloned values
  */
 export function cloneRow(
-  r: TabularRowNode, map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
+  r: TabularRowNode,
+  map: ReadonlyMap<string, string>,
+  includeQuoted = false,
   substringMap?: ReadonlyMap<string, string>,
 ): TabularRowNode {
-  return { type: 'tabularRow',
-    values: r.values.map(v => cloneScalar(v, map, includeQuoted, substringMap)),
-    position: r.position };
+  return {
+    type: 'tabularRow',
+    values: r.values.map((v) => cloneScalar(v, map, includeQuoted, substringMap)),
+    position: r.position,
+  };
 }
 
 /**
@@ -190,13 +211,16 @@ export function cloneRow(
  * @returns A fresh ListItemNode with cloned children
  */
 export function cloneListItem(
-  li: ListItemNode, map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
+  li: ListItemNode,
+  map: ReadonlyMap<string, string>,
+  includeQuoted = false,
   substringMap?: ReadonlyMap<string, string>,
 ): ListItemNode {
-  return { type: 'listItem',
+  return {
+    type: 'listItem',
     children: cloneBody(li.children, map, includeQuoted, substringMap),
-    position: li.position };
+    position: li.position,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -224,33 +248,52 @@ export function cloneListItem(
  * @returns A fresh array of cloned BodyNode
  */
 export function cloneBody(
-  nodes: readonly BodyNode[], map: ReadonlyMap<string, string>,
-  includeQuoted: boolean = false,
+  nodes: readonly BodyNode[],
+  map: ReadonlyMap<string, string>,
+  includeQuoted = false,
   substringMap?: ReadonlyMap<string, string>,
 ): BodyNode[] {
   return nodes.map((node): BodyNode => {
     switch (node.type) {
       case 'keyValue':
-        return { type: 'keyValue', key: node.key,
+        return {
+          type: 'keyValue',
+          key: node.key,
           value: cloneScalar(node.value, map, includeQuoted, substringMap),
-          position: node.position };
+          position: node.position,
+        };
       case 'object':
-        return { type: 'object', key: node.key,
+        return {
+          type: 'object',
+          key: node.key,
           children: cloneBody(node.children, map, includeQuoted, substringMap),
-          position: node.position };
+          position: node.position,
+        };
       case 'tabularArray':
-        return { type: 'tabularArray', key: node.key, count: node.count,
+        return {
+          type: 'tabularArray',
+          key: node.key,
+          count: node.count,
           fields: [...node.fields],
-          rows: node.rows.map(r => cloneRow(r, map, includeQuoted, substringMap)),
-          position: node.position };
+          rows: node.rows.map((r) => cloneRow(r, map, includeQuoted, substringMap)),
+          position: node.position,
+        };
       case 'inlineArray':
-        return { type: 'inlineArray', key: node.key, count: node.count,
-          values: node.values.map(v => cloneScalar(v, map, includeQuoted, substringMap)),
-          position: node.position };
+        return {
+          type: 'inlineArray',
+          key: node.key,
+          count: node.count,
+          values: node.values.map((v) => cloneScalar(v, map, includeQuoted, substringMap)),
+          position: node.position,
+        };
       case 'listArray':
-        return { type: 'listArray', key: node.key, count: node.count,
-          items: node.items.map(li => cloneListItem(li, map, includeQuoted, substringMap)),
-          position: node.position };
+        return {
+          type: 'listArray',
+          key: node.key,
+          count: node.count,
+          items: node.items.map((li) => cloneListItem(li, map, includeQuoted, substringMap)),
+          position: node.position,
+        };
       case 'comment':
         return { ...node };
     }

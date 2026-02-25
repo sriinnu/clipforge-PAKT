@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 /**
  * Compression benchmarks for @yugenlab/pakt.
  *
@@ -7,9 +10,6 @@
  */
 import { bench, describe } from 'vitest';
 import { compress } from '../src/index.js';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Fixture loading
@@ -107,8 +107,8 @@ for (const [name, data, opts] of fixtures) {
   const byteRatio = ((1 - compLen / origLen) * 100).toFixed(1);
   console.log(
     `  ${name.padEnd(22)} ` +
-    `tokens: ${String(result.originalTokens).padStart(5)} -> ${String(result.compressedTokens).padStart(5)} ` +
-    `(${result.savings.totalPercent}% token savings, ${byteRatio}% byte savings)`
+      `tokens: ${String(result.originalTokens).padStart(5)} -> ${String(result.compressedTokens).padStart(5)} ` +
+      `(${result.savings.totalPercent}% token savings, ${byteRatio}% byte savings)`,
   );
 }
 console.log('');

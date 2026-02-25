@@ -6,9 +6,9 @@
  * is {@link parseInput}, which routes by detected format.
  */
 
-import { parseYaml } from './yaml.js';
-import { parseCsv } from './csv.js';
 import type { PaktFormat } from '../types.js';
+import { parseCsv } from './csv.js';
+import { parseYaml } from './yaml.js';
 
 // Re-exports for direct use
 export { parseYaml, yamlScalar, indentOf } from './yaml.js';
@@ -28,19 +28,22 @@ export function stripJsonComments(text: string): string {
   let result = '';
   let i = 0;
   let inString = false;
-  let escape = false;
+  let escaped = false;
   while (i < text.length) {
     const ch = text[i]!;
     if (inString) {
       result += ch;
-      if (escape) escape = false;
-      else if (ch === '\\') escape = true;
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
       else if (ch === '"') inString = false;
       i++;
       continue;
     }
-    if (ch === '"') { inString = true; result += ch; i++; }
-    else if (ch === '/' && i + 1 < text.length) {
+    if (ch === '"') {
+      inString = true;
+      result += ch;
+      i++;
+    } else if (ch === '/' && i + 1 < text.length) {
       if (text[i + 1] === '/') {
         i += 2;
         while (i < text.length && text[i] !== '\n') i++;
@@ -48,8 +51,14 @@ export function stripJsonComments(text: string): string {
         i += 2;
         while (i + 1 < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++;
         i += 2;
-      } else { result += ch; i++; }
-    } else { result += ch; i++; }
+      } else {
+        result += ch;
+        i++;
+      }
+    } else {
+      result += ch;
+      i++;
+    }
   }
   return result;
 }
@@ -71,14 +80,22 @@ export function stripJsonComments(text: string): string {
 export function parseInput(input: string, format: PaktFormat): unknown {
   switch (format) {
     case 'json': {
-      try { return JSON.parse(input) as unknown; }
-      catch { /* JSONC fallback */ }
+      try {
+        return JSON.parse(input) as unknown;
+      } catch {
+        /* JSONC fallback */
+      }
       return JSON.parse(stripJsonComments(input)) as unknown;
     }
-    case 'yaml': return parseYaml(input);
-    case 'csv': return parseCsv(input);
-    case 'markdown': return { _markdown: input };
-    case 'text': return { _text: input };
-    case 'pakt': return { _pakt: input };
+    case 'yaml':
+      return parseYaml(input);
+    case 'csv':
+      return parseCsv(input);
+    case 'markdown':
+      return { _markdown: input };
+    case 'text':
+      return { _text: input };
+    case 'pakt':
+      return { _pakt: input };
   }
 }

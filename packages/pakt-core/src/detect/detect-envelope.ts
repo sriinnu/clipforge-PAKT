@@ -65,7 +65,7 @@ export function detectEnvelope(input: string): EnvelopeDetection | null {
   // Scan headers until blank line or body start
   let bodyLineIdx = -1;
   for (let i = 1; i < lines.length; i++) {
-    const trimmed = lines[i]!.trim();
+    const trimmed = lines[i]?.trim();
 
     // Blank line separates headers from body
     if (trimmed === '') {
@@ -88,7 +88,8 @@ export function detectEnvelope(input: string): EnvelopeDetection | null {
 
   if (bodyLineIdx === -1 || bodyLineIdx >= lines.length) return null;
 
-  const preamble = lines.slice(0, bodyLineIdx)
+  const preamble = lines
+    .slice(0, bodyLineIdx)
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
   const body = lines.slice(bodyLineIdx).join('\n').trim();
@@ -102,7 +103,7 @@ export function detectEnvelope(input: string): EnvelopeDetection | null {
   // Compute byte offset of body in original input
   let bodyOffset = 0;
   for (let i = 0; i < bodyLineIdx; i++) {
-    bodyOffset += lines[i]!.length + 1; // +1 for \n
+    bodyOffset += lines[i]?.length + 1; // +1 for \n
   }
 
   return { preamble, body, bodyOffset };

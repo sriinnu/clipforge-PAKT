@@ -12,7 +12,7 @@
  * Every test follows the pattern:
  *   compress(JSON.stringify(data)) -> decompress(result, 'json') -> deepEqual(original)
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compress, decompress } from '../src/index.js';
 
 // ---------------------------------------------------------------------------

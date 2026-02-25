@@ -95,12 +95,14 @@ export function parseYaml(input: string): unknown {
  * Delegates to parseYamlList or parseYamlObject based on first-line content.
  */
 export function parseYamlBlock(
-  lines: YamlLine[], start: number, end: number, baseIndent: number,
+  lines: YamlLine[],
+  start: number,
+  end: number,
+  baseIndent: number,
 ): unknown {
   if (start >= end) return null;
   const firstLine = lines[start]!;
-  if (firstLine.trimmed.startsWith('- '))
-    return parseYamlList(lines, start, end, baseIndent);
+  if (firstLine.trimmed.startsWith('- ')) return parseYamlList(lines, start, end, baseIndent);
   return parseYamlObject(lines, start, end, baseIndent);
 }
 
@@ -109,14 +111,20 @@ export function parseYamlBlock(
  * Handles nested objects under list items at increased indent.
  */
 export function parseYamlList(
-  lines: YamlLine[], start: number, end: number, baseIndent: number,
+  lines: YamlLine[],
+  start: number,
+  end: number,
+  baseIndent: number,
 ): unknown[] {
   const result: unknown[] = [];
   let i = start;
   while (i < end) {
     const line = lines[i]!;
     if (line.indent < baseIndent) break;
-    if (!line.trimmed.startsWith('- ')) { i++; continue; }
+    if (!line.trimmed.startsWith('- ')) {
+      i++;
+      continue;
+    }
     const content = line.trimmed.slice(2).trim();
     const kvMatch = content.match(/^([a-zA-Z_][a-zA-Z0-9_.\-]*):\s+(.*)/);
     if (kvMatch) {
@@ -124,7 +132,7 @@ export function parseYamlList(
       obj[kvMatch[1]!] = yamlScalar(kvMatch[2]!);
       const itemIndent = line.indent + 2;
       let j = i + 1;
-      while (j < end && lines[j]!.indent >= itemIndent) j++;
+      while (j < end && lines[j]?.indent >= itemIndent) j++;
       if (j > i + 1) {
         const nested = parseYamlObject(lines, i + 1, j, itemIndent);
         if (typeof nested === 'object' && nested !== null && !Array.isArray(nested))
@@ -139,7 +147,7 @@ export function parseYamlList(
       if (key && !val) {
         const itemIndent = line.indent + 2;
         let j = i + 1;
-        while (j < end && lines[j]!.indent >= itemIndent) j++;
+        while (j < end && lines[j]?.indent >= itemIndent) j++;
         const nested = parseYamlBlock(lines, i + 1, j, itemIndent);
         result.push({ [key]: nested });
         i = j;
@@ -160,18 +168,25 @@ export function parseYamlList(
  * Handles nested blocks for keys without inline values.
  */
 export function parseYamlObject(
-  lines: YamlLine[], start: number, end: number, baseIndent: number,
+  lines: YamlLine[],
+  start: number,
+  end: number,
+  baseIndent: number,
 ): unknown {
   const obj: Record<string, unknown> = {};
   let i = start;
   while (i < end) {
     const line = lines[i]!;
     if (line.indent < baseIndent) break;
-    if (line.indent > baseIndent) { i++; continue; }
+    if (line.indent > baseIndent) {
+      i++;
+      continue;
+    }
     const colonIdx = line.trimmed.indexOf(':');
     if (colonIdx === -1) {
       if (start === end - 1) return yamlScalar(line.trimmed);
-      i++; continue;
+      i++;
+      continue;
     }
     const key = line.trimmed.slice(0, colonIdx).trim();
     const rest = line.trimmed.slice(colonIdx + 1).trim();
@@ -181,7 +196,7 @@ export function parseYamlObject(
     } else {
       const childIndent = baseIndent + 2;
       let j = i + 1;
-      while (j < end && lines[j]!.indent >= childIndent) j++;
+      while (j < end && lines[j]?.indent >= childIndent) j++;
       obj[key] = j > i + 1 ? parseYamlBlock(lines, i + 1, j, childIndent) : null;
       i = j;
     }

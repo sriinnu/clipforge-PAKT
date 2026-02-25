@@ -177,10 +177,5 @@ PAKT's core pipe-delimited syntax (Layer 1) is directly inspired by **[TOON Form
 
 ## License
 
-[MIT](./LICENSE) -- YugenLab
+[MIT](./LICENSE) -- Srinivas Pendela
 
----
-
-<p align="center">
-  <sub>Built by <b>YugenLab</b></sub>
-</p>

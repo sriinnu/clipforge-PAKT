@@ -89,8 +89,11 @@ export function detectMarkdown(input: string, lines: string[]): Candidate | null
   return {
     format: 'markdown',
     confidence: Math.round(confidence * 100) / 100,
-    reason: reasons.length > 1
-      ? `Multiple markdown signals: ${reasons.join(', ')}`
-      : reasons[0] ? `Contains ${reasons[0]}` : 'Markdown patterns detected',
+    reason:
+      reasons.length > 1
+        ? `Multiple markdown signals: ${reasons.join(', ')}`
+        : reasons[0]
+          ? `Contains ${reasons[0]}`
+          : 'Markdown patterns detected',
   };
 }

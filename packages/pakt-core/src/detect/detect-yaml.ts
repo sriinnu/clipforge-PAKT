@@ -35,7 +35,7 @@ export function detectYaml(input: string, lines: string[]): Candidate | null {
 
   let confidence = 0;
   const reasons: string[] = [];
-  const trimmedFirst = nonEmptyLines[0]!.trim();
+  const trimmedFirst = nonEmptyLines[0]?.trim();
 
   // Starts with --- (YAML document separator)
   if (trimmedFirst === '---') {

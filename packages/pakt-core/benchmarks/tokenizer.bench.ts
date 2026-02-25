@@ -1,3 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { encode } from 'gpt-tokenizer';
+import { encode as encodeO200k } from 'gpt-tokenizer/model/gpt-4o';
 /**
  * L3 Tokenizer-Aware Compression — benchmark gate.
  *
@@ -10,11 +15,6 @@
  */
 import { bench, describe } from 'vitest';
 import { compress } from '../src/index.js';
-import { encode } from 'gpt-tokenizer';
-import { encode as encodeO200k } from 'gpt-tokenizer/model/gpt-4o';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Fixture loading
@@ -61,19 +61,22 @@ const FIXTURES: FixtureDef[] = [
  * Skips header annotations like {field1|field2} and dictionary lines.
  */
 function swapDelimiter(pakt: string, from: string, to: string): string {
-  return pakt.split('\n').map((line) => {
-    const trimmed = line.trim();
-    // Skip headers, dict blocks, comments, annotations
-    if (trimmed.startsWith('@') || trimmed.startsWith('%')) return line;
-    if (trimmed === '') return line;
-    // Skip field-header lines (contain {…}:)
-    if (/\{[^}]*\}:/.test(trimmed)) return line;
-    // Only swap in data rows (indented, containing the delimiter)
-    if (line.startsWith('  ') && trimmed.includes(from)) {
-      return line.replaceAll(from, to);
-    }
-    return line;
-  }).join('\n');
+  return pakt
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      // Skip headers, dict blocks, comments, annotations
+      if (trimmed.startsWith('@') || trimmed.startsWith('%')) return line;
+      if (trimmed === '') return line;
+      // Skip field-header lines (contain {…}:)
+      if (/\{[^}]*\}:/.test(trimmed)) return line;
+      // Only swap in data rows (indented, containing the delimiter)
+      if (line.startsWith('  ') && trimmed.includes(from)) {
+        return line.replaceAll(from, to);
+      }
+      return line;
+    })
+    .join('\n');
 }
 
 /**
@@ -81,9 +84,7 @@ function swapDelimiter(pakt: string, from: string, to: string): string {
  * Only replaces standalone tokens (word-boundary match).
  */
 function swapBooleans(pakt: string, trueVal: string, falseVal: string): string {
-  return pakt
-    .replace(/\btrue\b/g, trueVal)
-    .replace(/\bfalse\b/g, falseVal);
+  return pakt.replace(/\btrue\b/g, trueVal).replace(/\bfalse\b/g, falseVal);
 }
 
 /**
@@ -91,16 +92,19 @@ function swapBooleans(pakt: string, trueVal: string, falseVal: string): string {
  * Preserves the indentation depth (number of levels).
  */
 function swapIndent(pakt: string, newIndent: string): string {
-  return pakt.split('\n').map((line) => {
-    let depth = 0;
-    let i = 0;
-    while (i + 1 < line.length && line[i] === ' ' && line[i + 1] === ' ') {
-      depth++;
-      i += 2;
-    }
-    if (depth === 0) return line;
-    return newIndent.repeat(depth) + line.slice(depth * 2);
-  }).join('\n');
+  return pakt
+    .split('\n')
+    .map((line) => {
+      let depth = 0;
+      let i = 0;
+      while (i + 1 < line.length && line[i] === ' ' && line[i + 1] === ' ') {
+        depth++;
+        i += 2;
+      }
+      if (depth === 0) return line;
+      return newIndent.repeat(depth) + line.slice(depth * 2);
+    })
+    .join('\n');
 }
 
 /**
@@ -219,15 +223,13 @@ function evaluateCategory(
   }
 
   // Compute % difference from baseline
-  const baseCl100k = variantResults[baselineIdx]!.avgCl100k;
-  const baseO200k = variantResults[baselineIdx]!.avgO200k;
+  const baseCl100k = variantResults[baselineIdx]?.avgCl100k;
+  const baseO200k = variantResults[baselineIdx]?.avgO200k;
   let bestSavings = 0;
 
   for (const vr of variantResults) {
-    vr.pctDiffCl100k = baseCl100k > 0
-      ? ((baseCl100k - vr.avgCl100k) / baseCl100k) * 100 : 0;
-    vr.pctDiffO200k = baseO200k > 0
-      ? ((baseO200k - vr.avgO200k) / baseO200k) * 100 : 0;
+    vr.pctDiffCl100k = baseCl100k > 0 ? ((baseCl100k - vr.avgCl100k) / baseCl100k) * 100 : 0;
+    vr.pctDiffO200k = baseO200k > 0 ? ((baseO200k - vr.avgO200k) / baseO200k) * 100 : 0;
     const avgSavings = (vr.pctDiffCl100k + vr.pctDiffO200k) / 2;
     if (avgSavings > bestSavings) bestSavings = avgSavings;
   }
@@ -271,22 +273,12 @@ for (const cat of results) {
   console.log('');
   console.log(`--- ${cat.category} ---`);
   console.log(
-    '  ' +
-    'Variant'.padEnd(28) +
-    'cl100k avg'.padStart(14) +
-    'o200k avg'.padStart(14) +
-    'cl100k diff'.padStart(14) +
-    'o200k diff'.padStart(14),
+    `  ${'Variant'.padEnd(28)}${'cl100k avg'.padStart(14)}${'o200k avg'.padStart(14)}${'cl100k diff'.padStart(14)}${'o200k diff'.padStart(14)}`,
   );
 
   for (const v of cat.variants) {
     console.log(
-      '  ' +
-      v.label.padEnd(28) +
-      v.avgCl100k.toFixed(1).padStart(14) +
-      v.avgO200k.toFixed(1).padStart(14) +
-      fmtPct(v.pctDiffCl100k).padStart(14) +
-      fmtPct(v.pctDiffO200k).padStart(14),
+      `  ${v.label.padEnd(28)}${v.avgCl100k.toFixed(1).padStart(14)}${v.avgO200k.toFixed(1).padStart(14)}${fmtPct(v.pctDiffCl100k).padStart(14)}${fmtPct(v.pctDiffO200k).padStart(14)}`,
     );
   }
 
@@ -315,8 +307,8 @@ for (const fixture of FIXTURES) {
 
   console.log(
     `  ${fixture.label.padEnd(24)} ` +
-    `cl100k: ${String(baseline).padStart(5)} -> ${String(optTokens).padStart(5)} (${fmtPct(diffCl)})  ` +
-    `o200k: ${String(baselineO).padStart(5)} -> ${String(optTokensO).padStart(5)} (${fmtPct(diffO)})`,
+      `cl100k: ${String(baseline).padStart(5)} -> ${String(optTokens).padStart(5)} (${fmtPct(diffCl)})  ` +
+      `o200k: ${String(baselineO).padStart(5)} -> ${String(optTokensO).padStart(5)} (${fmtPct(diffO)})`,
   );
 }
 
@@ -342,10 +334,8 @@ const combinedSavings = (() => {
     totalOptO += countO200k(opt);
   }
 
-  const savCl = totalBaseCl > 0
-    ? ((totalBaseCl - totalOptCl) / totalBaseCl) * 100 : 0;
-  const savO = totalBaseO > 0
-    ? ((totalBaseO - totalOptO) / totalBaseO) * 100 : 0;
+  const savCl = totalBaseCl > 0 ? ((totalBaseCl - totalOptCl) / totalBaseCl) * 100 : 0;
+  const savO = totalBaseO > 0 ? ((totalBaseO - totalOptO) / totalBaseO) * 100 : 0;
   return (savCl + savO) / 2;
 })();
 

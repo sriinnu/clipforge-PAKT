@@ -5,19 +5,15 @@
  * pass-throughs and that enabling the `semantic` layer in the
  * compression pipeline does not break existing functionality.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compress, decompress } from '../src/index.js';
-import {
-  compressL4,
-  decompressL4,
-  applyL4Transforms,
-} from '../src/layers/L4-semantic.js';
+import { applyL4Transforms, compressL4, decompressL4 } from '../src/layers/L4-semantic.js';
 import type {
-  DocumentNode,
   BodyNode,
-  ScalarNode,
-  KeyValueNode,
+  DocumentNode,
   HeaderNode,
+  KeyValueNode,
+  ScalarNode,
   SourcePosition,
 } from '../src/parser/ast.js';
 
@@ -27,16 +23,30 @@ import type {
 const p: SourcePosition = { line: 0, column: 0, offset: 0 };
 
 /** Create a string scalar node. */
-const s = (v: string, q = false): ScalarNode =>
-  ({ type: 'scalar', scalarType: 'string', value: v, quoted: q, position: p });
+const s = (v: string, q = false): ScalarNode => ({
+  type: 'scalar',
+  scalarType: 'string',
+  value: v,
+  quoted: q,
+  position: p,
+});
 
 /** Create a key-value node. */
-const kv = (key: string, val: ScalarNode): KeyValueNode =>
-  ({ type: 'keyValue', key, value: val, position: p });
+const kv = (key: string, val: ScalarNode): KeyValueNode => ({
+  type: 'keyValue',
+  key,
+  value: val,
+  position: p,
+});
 
 /** Create a document node with optional headers. */
-const doc = (body: BodyNode[], headers: HeaderNode[] = []): DocumentNode =>
-  ({ type: 'document', headers, dictionary: null, body, position: p });
+const doc = (body: BodyNode[], headers: HeaderNode[] = []): DocumentNode => ({
+  type: 'document',
+  headers,
+  dictionary: null,
+  body,
+  position: p,
+});
 
 // ---------------------------------------------------------------------------
 // Unit tests: compressL4 stub
@@ -56,11 +66,7 @@ describe('compressL4 (stub)', () => {
   });
 
   it('preserves all body nodes', () => {
-    const body: BodyNode[] = [
-      kv('a', s('1')),
-      kv('b', s('2')),
-      kv('c', s('3')),
-    ];
+    const body: BodyNode[] = [kv('a', s('1')), kv('b', s('2')), kv('c', s('3'))];
     const d = doc(body);
     const result = compressL4(d, 100);
     expect(result.body).toHaveLength(3);

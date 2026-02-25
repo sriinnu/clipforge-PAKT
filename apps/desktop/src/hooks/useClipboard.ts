@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 /**
  * Try to import the Tauri clipboard plugin at runtime.

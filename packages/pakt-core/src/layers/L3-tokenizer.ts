@@ -39,10 +39,7 @@ export function compressL3(doc: DocumentNode): DocumentNode {
   };
   return {
     ...doc,
-    headers: [
-      ...doc.headers.filter((h) => h.headerType !== 'target'),
-      header,
-    ],
+    headers: [...doc.headers.filter((h) => h.headerType !== 'target'), header],
   };
 }
 
@@ -145,4 +142,3 @@ function expandIndent(text: string): string {
     })
     .join('\n');
 }
-

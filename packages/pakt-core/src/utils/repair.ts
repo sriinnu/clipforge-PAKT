@@ -37,7 +37,7 @@ export function repair(malformed: string): string | null {
   let lines = text.split('\n');
 
   // Pass 1: Strip trailing whitespace
-  lines = lines.map(l => l.trimEnd());
+  lines = lines.map((l) => l.trimEnd());
 
   // Pass 2: Normalize indentation to 2-space
   lines = normalizeIndentation(lines);
@@ -74,7 +74,7 @@ function looksLikePakt(text: string): boolean {
 
 /** Normalize indentation to multiples of 2 spaces. Tabs become 2 spaces. */
 function normalizeIndentation(lines: string[]): string[] {
-  return lines.map(line => {
+  return lines.map((line) => {
     if (line.length === 0) return line;
     const processed = line.replace(/\t/g, '  ');
     const content = processed.trimStart();
@@ -135,8 +135,9 @@ function fixCountMismatches(lines: string[]): string[] {
   const result = [...lines];
 
   for (let i = 0; i < result.length; i++) {
-    const trimmed = result[i]!.trim();
-    const indent = result[i]!.length - result[i]!.trimStart().length;
+    const line = result[i]!;
+    const trimmed = line.trim();
+    const indent = line.length - line.trimStart().length;
     const prefix = ' '.repeat(indent);
 
     // Tabular array: key [N]{fields}:
@@ -150,7 +151,7 @@ function fixCountMismatches(lines: string[]): string[] {
     // Inline array: key [N]: val1,val2,...
     const inlineMatch = trimmed.match(/^(\w[\w.]*)\s*\[\d+\]\s*:\s*(.+)$/);
     if (inlineMatch && !inlineMatch[2]!.match(/^\s*$/)) {
-      const items = inlineMatch[2]!.split(',').map(v => v.trim());
+      const items = inlineMatch[2]!.split(',').map((v) => v.trim());
       result[i] = `${prefix}${inlineMatch[1]} [${items.length}]: ${inlineMatch[2]}`;
       continue;
     }
@@ -201,7 +202,7 @@ function countListItems(lines: string[], startIdx: number, parentIndent: number)
 /** Find the index of the next non-empty line. */
 function findNextContentLine(lines: string[], startIdx: number): number | null {
   for (let i = startIdx; i < lines.length; i++) {
-    if (lines[i]!.trim() !== '') return i;
+    if (lines[i]?.trim() !== '') return i;
   }
   return null;
 }
@@ -214,8 +215,9 @@ function fixMixedDelimiters(lines: string[]): string[] {
   let tabularIndent = -1;
 
   for (let i = 0; i < result.length; i++) {
-    const trimmed = result[i]!.trim();
-    const indent = result[i]!.length - result[i]!.trimStart().length;
+    const rl = result[i]!;
+    const trimmed = rl.trim();
+    const indent = rl.length - rl.trimStart().length;
 
     if (inTabular && (trimmed === '' || indent <= tabularIndent)) {
       inTabular = false;

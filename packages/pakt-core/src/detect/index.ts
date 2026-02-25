@@ -23,13 +23,13 @@
  */
 
 import type { DetectionResult, EnvelopeInfo } from '../types.js';
-import type { Candidate } from './types.js';
-import { detectPakt } from './detect-pakt.js';
-import { detectJson } from './detect-json.js';
 import { detectCsv } from './detect-csv.js';
-import { detectMarkdown } from './detect-markdown.js';
-import { detectYaml } from './detect-yaml.js';
 import { detectEnvelope } from './detect-envelope.js';
+import { detectJson } from './detect-json.js';
+import { detectMarkdown } from './detect-markdown.js';
+import { detectPakt } from './detect-pakt.js';
+import { detectYaml } from './detect-yaml.js';
+import type { Candidate } from './types.js';
 
 // Re-export the Candidate type for consumers that need it
 export type { Candidate } from './types.js';

@@ -4,10 +4,16 @@
  * YAML parser (scalars, objects, lists, nested), and CSV parser
  * (delimiter detection, quoted fields, type inference).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  stripJsonComments, parseInput, parseYaml, yamlScalar,
-  parseCsv, splitCsvLine, detectCsvDelimiter, inferCsvValue,
+  detectCsvDelimiter,
+  inferCsvValue,
+  parseCsv,
+  parseInput,
+  parseYaml,
+  splitCsvLine,
+  stripJsonComments,
+  yamlScalar,
 } from '../src/format-parsers/index.js';
 
 // ── 1. stripJsonComments ────────────────────────────────────────────────────
@@ -71,8 +77,9 @@ describe('parseInput — JSON', () => {
   });
 
   it('parses JSONC with // and block comments via fallback', () => {
-    expect(parseInput('{\n  // greeting\n  "hello": "world"\n}', 'json'))
-      .toEqual({ hello: 'world' });
+    expect(parseInput('{\n  // greeting\n  "hello": "world"\n}', 'json')).toEqual({
+      hello: 'world',
+    });
     expect(parseInput('{"a": /* val */ 1}', 'json')).toEqual({ a: 1 });
   });
 
@@ -90,18 +97,24 @@ describe('parseInput — YAML', () => {
   });
 
   it('parses nested objects', () => {
-    expect(parseInput('user:\n  name: Bob\n  role: admin', 'yaml'))
-      .toEqual({ user: { name: 'Bob', role: 'admin' } });
+    expect(parseInput('user:\n  name: Bob\n  role: admin', 'yaml')).toEqual({
+      user: { name: 'Bob', role: 'admin' },
+    });
   });
 
   it('parses a simple list', () => {
-    expect(parseInput('- apple\n- banana\n- cherry', 'yaml'))
-      .toEqual(['apple', 'banana', 'cherry']);
+    expect(parseInput('- apple\n- banana\n- cherry', 'yaml')).toEqual([
+      'apple',
+      'banana',
+      'cherry',
+    ]);
   });
 
   it('parses mixed structures (list of objects)', () => {
-    expect(parseInput('- name: Alice\n  age: 30\n- name: Bob\n  age: 25', 'yaml'))
-      .toEqual([{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]);
+    expect(parseInput('- name: Alice\n  age: 30\n- name: Bob\n  age: 25', 'yaml')).toEqual([
+      { name: 'Alice', age: 30 },
+      { name: 'Bob', age: 25 },
+    ]);
   });
 });
 
@@ -109,18 +122,24 @@ describe('parseInput — YAML', () => {
 
 describe('parseInput — CSV', () => {
   it('parses headers + data rows with comma delimiter', () => {
-    expect(parseInput('name,age\nAlice,30\nBob,25', 'csv'))
-      .toEqual([{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]);
+    expect(parseInput('name,age\nAlice,30\nBob,25', 'csv')).toEqual([
+      { name: 'Alice', age: 30 },
+      { name: 'Bob', age: 25 },
+    ]);
   });
 
   it('auto-detects tab delimiter', () => {
-    expect(parseInput('name\tage\nAlice\t30\nBob\t25', 'csv'))
-      .toEqual([{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]);
+    expect(parseInput('name\tage\nAlice\t30\nBob\t25', 'csv')).toEqual([
+      { name: 'Alice', age: 30 },
+      { name: 'Bob', age: 25 },
+    ]);
   });
 
   it('auto-detects semicolon delimiter', () => {
-    expect(parseInput('name;age\nAlice;30\nBob;25', 'csv'))
-      .toEqual([{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]);
+    expect(parseInput('name;age\nAlice;30\nBob;25', 'csv')).toEqual([
+      { name: 'Alice', age: 30 },
+      { name: 'Bob', age: 25 },
+    ]);
   });
 });
 
@@ -161,8 +180,9 @@ describe('YAML edge cases', () => {
   });
 
   it('parses nested lists under object keys', () => {
-    expect(parseYaml('fruits:\n  - apple\n  - banana\n  - cherry'))
-      .toEqual({ fruits: ['apple', 'banana', 'cherry'] });
+    expect(parseYaml('fruits:\n  - apple\n  - banana\n  - cherry')).toEqual({
+      fruits: ['apple', 'banana', 'cherry'],
+    });
   });
 
   it('parses deeply nested structures', () => {
@@ -173,8 +193,10 @@ describe('YAML edge cases', () => {
   });
 
   it('handles list items with nested objects (kv on item line)', () => {
-    expect(parseYaml('- id: 1\n  name: Alice\n- id: 2\n  name: Bob'))
-      .toEqual([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]);
+    expect(parseYaml('- id: 1\n  name: Alice\n- id: 2\n  name: Bob')).toEqual([
+      { id: 1, name: 'Alice' },
+      { id: 2, name: 'Bob' },
+    ]);
   });
 });
 
@@ -234,18 +256,22 @@ describe('CSV edge cases', () => {
   });
 
   it('handles quoted fields with commas inside', () => {
-    expect(parseCsv('name,city\n"Smith, John","New York, NY"'))
-      .toEqual([{ name: 'Smith, John', city: 'New York, NY' }]);
+    expect(parseCsv('name,city\n"Smith, John","New York, NY"')).toEqual([
+      { name: 'Smith, John', city: 'New York, NY' },
+    ]);
   });
 
   it('handles quoted fields with escaped double quotes', () => {
-    expect(parseCsv('name,quote\nAlice,"She said ""hello"""\n'))
-      .toEqual([{ name: 'Alice', quote: 'She said "hello"' }]);
+    expect(parseCsv('name,quote\nAlice,"She said ""hello"""\n')).toEqual([
+      { name: 'Alice', quote: 'She said "hello"' },
+    ]);
   });
 
   it('handles blank lines in input (filtered out)', () => {
-    expect(parseCsv('name,age\n\nAlice,30\n\nBob,25\n'))
-      .toEqual([{ name: 'Alice', age: 30 }, { name: 'Bob', age: 25 }]);
+    expect(parseCsv('name,age\n\nAlice,30\n\nBob,25\n')).toEqual([
+      { name: 'Alice', age: 30 },
+      { name: 'Bob', age: 25 },
+    ]);
   });
 });
 

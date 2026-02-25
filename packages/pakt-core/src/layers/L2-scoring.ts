@@ -78,6 +78,6 @@ export function estimateTokens(value: string): number {
  * ```
  */
 export function aliasForIndex(index: number): string {
-  if (index < 26) return '$' + String.fromCharCode(97 + index);
-  return '$a' + String.fromCharCode(97 + (index - 26));
+  if (index < 26) return `$${String.fromCharCode(97 + index)}`;
+  return `$a${String.fromCharCode(97 + (index - 26))}`;
 }

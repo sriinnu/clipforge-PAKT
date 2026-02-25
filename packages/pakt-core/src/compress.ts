@@ -8,13 +8,20 @@
  */
 
 import { detect } from './detect.js';
-import { compressL1, compressL2, extractDictEntries, compressL3, revertL3, applyL3Transforms } from './layers/index.js';
+import { parseInput } from './format-parsers/index.js';
+import {
+  applyL3Transforms,
+  compressL1,
+  compressL2,
+  compressL3,
+  extractDictEntries,
+  revertL3,
+} from './layers/index.js';
+import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
-import { parseInput } from './format-parsers/index.js';
-import type { CommentNode } from './parser/ast.js';
-import type { PaktOptions, PaktResult, PaktFormat, PaktLayers } from './types.js';
-import { DEFAULT_OPTIONS, DEFAULT_LAYERS } from './types.js';
+import type { PaktFormat, PaktLayers, PaktOptions, PaktResult } from './types.js';
+import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Merge helpers
@@ -227,7 +234,7 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   // When layers.semantic is true and semanticBudget > 0, L4 will apply
   // lossy transforms here. Currently a no-op.
   if (layers.semantic && (options?.semanticBudget ?? 0) > 0) {
-    options?.logger?.warn?.('L4 semantic compression is not yet implemented — layer ignored');
+    console.warn('L4 semantic compression is not yet implemented — layer ignored');
   }
 
   // 10. Count final tokens
@@ -235,9 +242,7 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
 
   // 11. Compute total savings
   const totalTokens = originalTokens - compressedTokens;
-  const totalPercent = originalTokens > 0
-    ? Math.round((totalTokens / originalTokens) * 100)
-    : 0;
+  const totalPercent = originalTokens > 0 ? Math.round((totalTokens / originalTokens) * 100) : 0;
 
   // 12. Extract dictionary entries and return result
   const dictionary = extractDictEntries(doc);

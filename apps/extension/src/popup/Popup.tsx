@@ -6,22 +6,36 @@
  * Sub-components: ActionBar, StatsCard, Settings, icons, styles.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { compress, decompress, detect, countTokens } from '@yugenlab/pakt';
-import type { PaktFormat, PaktResult, DecompressResult } from '@yugenlab/pakt';
+import { compress, countTokens, decompress, detect } from '@yugenlab/pakt';
+import type { DecompressResult, PaktFormat, PaktResult } from '@yugenlab/pakt';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ExtensionSettings, getSettings } from '../shared/storage';
+import { ActionBar } from './ActionBar';
 import { Settings } from './Settings';
 import { StatsCard } from './StatsCard';
-import { ActionBar } from './ActionBar';
-import { GearIcon, CopyIcon, CheckIcon, BackIcon } from './icons';
-import { useTheme } from './useTheme';
-import { getSettings, type ExtensionSettings } from '../shared/storage';
+import { BackIcon, CheckIcon, CopyIcon, GearIcon } from './icons';
 import {
-  containerStyle, headerStyle, logoStyle, versionBadgeStyle,
-  gearBtnStyle, backBtnStyle, bodyStyle, topBarStyle,
-  formatBadgeStyle, clearBtnStyle, textareaStyle, copyBtnStyle,
-  outputLabelStyle, statusMsgStyle, footerStyle, footerLinkStyle,
-  FORMAT_COLORS, FORMAT_LABELS, FORMAT_TOOLTIPS,
+  FORMAT_COLORS,
+  FORMAT_LABELS,
+  FORMAT_TOOLTIPS,
+  backBtnStyle,
+  bodyStyle,
+  clearBtnStyle,
+  containerStyle,
+  copyBtnStyle,
+  footerLinkStyle,
+  footerStyle,
+  formatBadgeStyle,
+  gearBtnStyle,
+  headerStyle,
+  logoStyle,
+  outputLabelStyle,
+  statusMsgStyle,
+  textareaStyle,
+  topBarStyle,
+  versionBadgeStyle,
 } from './styles';
+import { useTheme } from './useTheme';
 
 /** Detect macOS for keyboard shortcut display. */
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
@@ -30,11 +44,7 @@ const MOD = IS_MAC ? '\u2318' : 'Ctrl';
 
 /** Auto-compress notification banner. */
 function AutoCompressNotice() {
-  return (
-    <div style={autoNoticeStyle}>
-      Auto-compressed on paste
-    </div>
-  );
+  return <div style={autoNoticeStyle}>Auto-compressed on paste</div>;
 }
 
 /** Main popup UI entry point. */
@@ -45,10 +55,13 @@ export function Popup() {
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<ExtensionSettings | null>(null);
   const [stats, setStats] = useState<{
-    before: number; after: number; savings: number;
+    before: number;
+    after: number;
+    savings: number;
   } | null>(null);
   const [statusMsg, setStatusMsg] = useState<{
-    text: string; type: 'success' | 'error';
+    text: string;
+    type: 'success' | 'error';
   } | null>(null);
   const [decompressFormat, setDecompressFormat] = useState<PaktFormat>('json');
   const [copied, setCopied] = useState(false);
@@ -68,14 +81,22 @@ export function Popup() {
 
   /* Auto-paste from clipboard on open */
   useEffect(() => {
-    navigator.clipboard.readText().then((text) => {
-      if (text && text.trim()) setInput(text);
-    }).catch(() => { /* clipboard access denied */ });
+    navigator.clipboard
+      .readText()
+      .then((text) => {
+        if (text?.trim()) setInput(text);
+      })
+      .catch(() => {
+        /* clipboard access denied */
+      });
   }, []);
 
   /* Auto-detect format when input changes */
   useEffect(() => {
-    if (!input.trim()) { setDetectedFormat('text'); return; }
+    if (!input.trim()) {
+      setDetectedFormat('text');
+      return;
+    }
     try {
       setDetectedFormat(detect(input).format);
     } catch {
@@ -84,38 +105,41 @@ export function Popup() {
   }, [input]);
 
   /* ---- Core compression handler ---- */
-  const runCompress = useCallback((text: string, isAuto = false) => {
-    if (!text.trim() || processing) return;
-    setStatusMsg(null);
-    setProcessing(true);
-    try {
-      const result: PaktResult = compress(text, {
-        layers: {
-          structural: settings?.layerStructural ?? true,
-          dictionary: settings?.layerDictionary ?? true,
-          tokenizerAware: false,
-          semantic: false,
-        },
-      });
-      setOutput(result.compressed);
-      setStats({
-        before: result.originalTokens,
-        after: result.compressedTokens,
-        savings: result.savings.totalPercent,
-      });
-      if (isAuto) {
-        setAutoNotice(true);
-        setTimeout(() => setAutoNotice(false), 2500);
+  const runCompress = useCallback(
+    (text: string, isAuto = false) => {
+      if (!text.trim() || processing) return;
+      setStatusMsg(null);
+      setProcessing(true);
+      try {
+        const result: PaktResult = compress(text, {
+          layers: {
+            structural: settings?.layerStructural ?? true,
+            dictionary: settings?.layerDictionary ?? true,
+            tokenizerAware: false,
+            semantic: false,
+          },
+        });
+        setOutput(result.compressed);
+        setStats({
+          before: result.originalTokens,
+          after: result.compressedTokens,
+          savings: result.savings.totalPercent,
+        });
+        if (isAuto) {
+          setAutoNotice(true);
+          setTimeout(() => setAutoNotice(false), 2500);
+        }
+      } catch (err) {
+        setStatusMsg({
+          text: err instanceof Error ? err.message : 'Compression failed',
+          type: 'error',
+        });
+      } finally {
+        setProcessing(false);
       }
-    } catch (err) {
-      setStatusMsg({
-        text: err instanceof Error ? err.message : 'Compression failed',
-        type: 'error',
-      });
-    } finally {
-      setProcessing(false);
-    }
-  }, [settings, processing]);
+    },
+    [settings, processing],
+  );
 
   /** Compress button click handler. */
   const handleCompress = useCallback(() => {
@@ -157,8 +181,11 @@ export function Popup() {
 
   /** Clear all state and refocus input. */
   const handleClear = useCallback(() => {
-    setInput(''); setOutput(''); setStats(null);
-    setStatusMsg(null); setCopied(false);
+    setInput('');
+    setOutput('');
+    setStats(null);
+    setStatusMsg(null);
+    setCopied(false);
     autoCompressedRef.current = false;
     inputRef.current?.focus();
   }, []);
@@ -166,10 +193,17 @@ export function Popup() {
   /* ---- Auto-compress when enabled and text is pasted/loaded ---- */
   useEffect(() => {
     if (!settings?.autoCompress) return;
-    if (!input.trim()) { autoCompressedRef.current = false; return; }
+    if (!input.trim()) {
+      autoCompressedRef.current = false;
+      return;
+    }
     if (autoCompressedRef.current) return;
     /* Skip if already PAKT */
-    try { if (detect(input).format === 'pakt') return; } catch { /* ignore */ }
+    try {
+      if (detect(input).format === 'pakt') return;
+    } catch {
+      /* ignore */
+    }
     autoCompressedRef.current = true;
     /* Small delay so the UI shows the pasted text first */
     const timer = setTimeout(() => runCompress(input, true), 150);
@@ -177,25 +211,37 @@ export function Popup() {
   }, [input, settings?.autoCompress, runCompress]);
 
   /* ---- Keyboard shortcuts ---- */
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = IS_MAC ? e.metaKey : e.ctrlKey;
-      if (!mod) return;
-      /* Ctrl/Cmd + Enter -> compress or decompress */
+
+  /** Check whether the platform modifier key (Cmd on Mac, Ctrl otherwise) is held. */
+  const hasMod = useCallback((e: KeyboardEvent) => (IS_MAC ? e.metaKey : e.ctrlKey), []);
+
+  /** Handle a single keyboard shortcut event, returning true if handled. */
+  const handleShortcut = useCallback(
+    (e: KeyboardEvent): boolean => {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (detectedFormat === 'pakt') handleDecompress();
         else handleCompress();
+        return true;
       }
-      /* Ctrl/Cmd + Shift + C -> copy result */
       if (e.key === 'C' && e.shiftKey) {
         e.preventDefault();
         handleCopy();
+        return true;
       }
+      return false;
+    },
+    [detectedFormat, handleCompress, handleDecompress, handleCopy],
+  );
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!hasMod(e)) return;
+      handleShortcut(e);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [detectedFormat, handleCompress, handleDecompress, handleCopy]);
+  }, [hasMod, handleShortcut]);
 
   /* ---- Derived values ---- */
   const isPakt = detectedFormat === 'pakt';
@@ -209,7 +255,12 @@ export function Popup() {
       <div style={containerStyle}>
         <div style={headerStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button style={backBtnStyle} onClick={() => setShowSettings(false)} title="Back">
+            <button
+              type="button"
+              style={backBtnStyle}
+              onClick={() => setShowSettings(false)}
+              title="Back"
+            >
               <BackIcon />
             </button>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Settings</span>
@@ -232,7 +283,12 @@ export function Popup() {
           <span style={logoStyle}>ClipForge</span>
           <span style={versionBadgeStyle}>v0.1.0</span>
         </div>
-        <button style={gearBtnStyle} onClick={() => setShowSettings(true)} title="Settings">
+        <button
+          type="button"
+          style={gearBtnStyle}
+          onClick={() => setShowSettings(true)}
+          title="Settings"
+        >
           <GearIcon />
         </button>
       </div>
@@ -252,14 +308,21 @@ export function Popup() {
             }}
             title={formatTooltip}
           >
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              backgroundColor: formatColor, display: 'inline-block',
-            }} />
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: formatColor,
+                display: 'inline-block',
+              }}
+            />
             {formatLabel}
           </div>
           {input.trim() && (
-            <button style={clearBtnStyle} onClick={handleClear} title="Clear">Clear</button>
+            <button type="button" style={clearBtnStyle} onClick={handleClear} title="Clear">
+              Clear
+            </button>
           )}
         </div>
 
@@ -289,7 +352,14 @@ export function Popup() {
 
         {/* Output section */}
         {output && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: 'fadeIn 0.2s ease' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
             <span style={outputLabelStyle}>Output</span>
             <textarea
               style={{ ...textareaStyle, minHeight: 80, backgroundColor: 'var(--cf-surface)' }}
@@ -297,6 +367,7 @@ export function Popup() {
               readOnly
             />
             <button
+              type="button"
               style={{
                 ...copyBtnStyle,
                 backgroundColor: copied ? 'var(--cf-success)' : 'var(--cf-accent)',
@@ -312,11 +383,14 @@ export function Popup() {
 
         {/* Status message */}
         {statusMsg && (
-          <div style={{
-            ...statusMsgStyle,
-            backgroundColor: statusMsg.type === 'success' ? 'var(--cf-success-glow)' : 'var(--cf-error-glow)',
-            color: statusMsg.type === 'success' ? 'var(--cf-success)' : 'var(--cf-error)',
-          }}>
+          <div
+            style={{
+              ...statusMsgStyle,
+              backgroundColor:
+                statusMsg.type === 'success' ? 'var(--cf-success-glow)' : 'var(--cf-error-glow)',
+              color: statusMsg.type === 'success' ? 'var(--cf-success)' : 'var(--cf-error)',
+            }}
+          >
             {statusMsg.text}
           </div>
         )}
@@ -324,9 +398,7 @@ export function Popup() {
 
       {/* Footer with keyboard shortcut hints */}
       <div style={footerStyle}>
-        <span style={{ color: 'var(--cf-text-dim)', fontSize: 11 }}>
-          {MOD}+Enter to compress
-        </span>
+        <span style={{ color: 'var(--cf-text-dim)', fontSize: 11 }}>{MOD}+Enter to compress</span>
         <a
           href="https://github.com/yugenlab/clipforge"
           target="_blank"
@@ -344,8 +416,12 @@ export function Popup() {
 
 /** Slide-down notification banner for auto-compress events. */
 const autoNoticeStyle: React.CSSProperties = {
-  padding: '6px 12px', borderRadius: 'var(--cf-radius-md)',
-  backgroundColor: 'var(--cf-accent-glow)', color: 'var(--cf-accent)',
-  fontSize: 11, fontWeight: 500, textAlign: 'center',
+  padding: '6px 12px',
+  borderRadius: 'var(--cf-radius-md)',
+  backgroundColor: 'var(--cf-accent-glow)',
+  color: 'var(--cf-accent)',
+  fontSize: 11,
+  fontWeight: 500,
+  textAlign: 'center',
   animation: 'notificationSlide 2.5s ease forwards',
 };

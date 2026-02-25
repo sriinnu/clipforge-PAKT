@@ -33,17 +33,17 @@ function stripJsonComments(text: string): string {
   let result = '';
   let i = 0;
   let inString = false;
-  let escape = false;
+  let escaped = false;
 
   while (i < text.length) {
     const ch = text[i];
 
     if (inString) {
       result += ch;
-      if (escape) {
-        escape = false;
+      if (escaped) {
+        escaped = false;
       } else if (ch === '\\') {
-        escape = true;
+        escaped = true;
       } else if (ch === '"') {
         inString = false;
       }

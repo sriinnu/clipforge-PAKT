@@ -8,18 +8,11 @@
  * requested format.
  */
 
-import type { DecompressResult, PaktFormat } from './types.js';
+import { decompressL2, reverseL3Transforms } from './layers/index.js';
 import type { CommentNode, DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
-import { decompressL2, reverseL3Transforms } from './layers/index.js';
-import {
-  toJson,
-  toYaml,
-  toCsv,
-  toMarkdown,
-  toText,
-  bodyToValue,
-} from './reverse/index.js';
+import { bodyToValue, toCsv, toJson, toMarkdown, toText, toYaml } from './reverse/index.js';
+import type { DecompressResult, PaktFormat } from './types.js';
 
 /**
  * Decompress a PAKT string back to the original or requested format.
@@ -89,7 +82,7 @@ export function decompress(pakt: string, outputFormat?: PaktFormat): DecompressR
 
   // 4. Check @warning header for lossy flag
   const warningHeader = doc.headers.find((h) => h.headerType === 'warning');
-  const wasLossy = warningHeader != null && warningHeader.value.includes('lossy');
+  const wasLossy = warningHeader?.value.includes('lossy') ?? false;
 
   // 5. Expand dictionary aliases in the body
   const expanded = decompressL2(doc);
