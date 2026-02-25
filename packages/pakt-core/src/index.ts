@@ -46,6 +46,12 @@ export { prettyPrint } from './serializer/index.js';
 export type { PrettyOptions } from './serializer/index.js';
 
 // ---------------------------------------------------------------------------
+// Layer functions (advanced)
+// ---------------------------------------------------------------------------
+
+export { compressL4, decompressL4, applyL4Transforms } from './layers/index.js';
+
+// ---------------------------------------------------------------------------
 // Token utilities
 // ---------------------------------------------------------------------------
 
