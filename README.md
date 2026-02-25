@@ -5,7 +5,8 @@
 <h3 align="center">ClipForge PAKT</h3>
 
 <p align="center">
-  Lossless prompt compression for LLMs. 30-50% fewer tokens. Perfect round-tripping.
+  Lossless prompt compression for LLMs. 30-50% fewer tokens. Perfect round-tripping.<br/>
+  <i>Stop paying for syntax. Every token should carry meaning.</i>
 </p>
 
 <p align="center">

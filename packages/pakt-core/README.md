@@ -12,7 +12,7 @@
   <a href="https://www.npmjs.com/package/@yugenlab/pakt"><img src="https://img.shields.io/npm/v/@yugenlab/pakt?color=6366f1&label=npm" alt="npm version" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b5cf6" alt="license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/tests-484%20passing-22c55e" alt="tests" />
+  <img src="https://img.shields.io/badge/tests-540%20passing-22c55e" alt="tests" />
   <img src="https://img.shields.io/bundlephobia/minzip/@yugenlab/pakt?color=f59e0b&label=size" alt="bundle size" />
   <a href="https://github.com/sriinnu/clipforge-PAKT/issues"><img src="https://img.shields.io/github/issues/sriinnu/clipforge-PAKT?color=a855f7" alt="GitHub issues" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/pulls"><img src="https://img.shields.io/badge/PRs-welcome-a855f7" alt="PRs welcome" /></a>
@@ -288,7 +288,7 @@ A PAKT document consists of an optional preamble (headers + dictionary) followed
 Headers are prefixed with `@` and declare metadata about the document:
 
 ```
-@version 0.1.0           Version of the PAKT spec
+@version 0.2.0           Version of the PAKT spec
 @from json               Original input format
 @target gpt-4o           Target model for L3 optimization
 @compress semantic        Active compression mode
@@ -480,6 +480,51 @@ Known model pricings: `gpt-4o`, `gpt-4o-mini`, `claude-sonnet`, `claude-opus`, `
 
 ---
 
+### `prettyPrint(ast, options?)`
+
+Formats a PAKT AST into human-readable PAKT with column-aligned tabular rows.
+
+```ts
+import { prettyPrint } from '@yugenlab/pakt';
+import type { PrettyOptions } from '@yugenlab/pakt';
+
+const options: PrettyOptions = {
+  indent: 2,            // spaces per indent level (default: 2)
+  maxLineLength: 120,   // max line length before wrapping (default: 120)
+  sectionSpacing: 1,    // blank lines between top-level sections (default: 1)
+  alignColumns: true,   // align tabular columns with padding (default: true)
+};
+
+const pretty = prettyPrint(documentNode, options);
+```
+
+When `alignColumns` is enabled, tabular arrays are formatted with padded cells:
+
+```
+users [3]{name|role|city}:
+  Alice | developer | New York
+  Bob   | designer  | London
+  Carol | manager   | Tokyo
+```
+
+---
+
+### `validate(pakt)` / `repair(pakt)`
+
+Validate PAKT syntax and auto-repair common issues.
+
+```ts
+import { validate, repair } from '@yugenlab/pakt';
+
+const result = validate(paktString);
+// { valid: true, errors: [], warnings: [{ line: 3, message: '...', code: 'W001' }] }
+
+const { text, applied } = repair(paktString);
+// text: fixed PAKT string, applied: list of repairs made
+```
+
+---
+
 ## Supported Formats
 
 PAKT auto-detects the input format and can decompress to any supported output format, enabling cross-format conversion through the PAKT intermediate representation.
@@ -560,6 +605,8 @@ import type {
   ModelPricing,
   ParserMode,
   HeaderType,
+  EnvelopeInfo,
+  PrettyOptions,
 } from '@yugenlab/pakt';
 ```
 
@@ -625,7 +672,7 @@ pnpm test
 pnpm bench
 ```
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for detailed guidelines.
+PRs welcome. Please run `pnpm build && pnpm test` before submitting.
 
 ---
 
