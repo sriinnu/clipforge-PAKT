@@ -226,8 +226,8 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   // L4 semantic compression — gated stub (not yet implemented)
   // When layers.semantic is true and semanticBudget > 0, L4 will apply
   // lossy transforms here. Currently a no-op.
-  if (layers.semantic) {
-    console.warn('L4 semantic compression is not yet implemented — layer ignored');
+  if (layers.semantic && (options?.semanticBudget ?? 0) > 0) {
+    options?.logger?.warn?.('L4 semantic compression is not yet implemented — layer ignored');
   }
 
   // 10. Count final tokens
