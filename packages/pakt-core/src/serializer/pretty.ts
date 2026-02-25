@@ -347,10 +347,25 @@ function emitListItem(
   listItem: ListItemNode, lines: string[], depth: number, opts: ResolvedOptions,
 ): void {
   const prefix = pad(depth, opts);
+
+  // If the list item has no children, emit a bare dash at the current depth.
+  if (listItem.children.length === 0) {
+    lines.push(`${prefix}-`);
+    return;
+  }
+
   for (let i = 0; i < listItem.children.length; i++) {
     const child = listItem.children[i]!;
     if (i === 0) {
-      lines.push(`${prefix}- ${formatBodyNodeInline(child)}`);
+      const inline = formatBodyNodeInline(child);
+      if (inline) {
+        // Supported inline-first child: emit on the same line after "- ".
+        lines.push(`${prefix}- ${inline}`);
+      } else {
+        // Unsupported type: emit bare "-" line, then child on the next indented line.
+        lines.push(`${prefix}-`);
+        emitNode(child, lines, depth + 1, opts);
+      }
     } else {
       emitNode(child, lines, depth + 1, opts);
     }
