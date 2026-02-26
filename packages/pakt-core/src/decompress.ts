@@ -38,7 +38,7 @@ import type { DecompressResult, PaktFormat } from './types.js';
  *
  * @example
  * ```ts
- * import { decompress } from '@yugenlab/pakt';
+ * import { decompress } from '@sriinnu/pakt';
  *
  * const pakt = `@from json
  * users [2]{name|role}:
@@ -58,7 +58,7 @@ import type { DecompressResult, PaktFormat } from './types.js';
  * @example
  * ```ts
  * // Convert PAKT to YAML instead of the original format
- * import { decompress } from '@yugenlab/pakt';
+ * import { decompress } from '@sriinnu/pakt';
  *
  * const result = decompress(paktString, 'yaml');
  * console.log(result.text);

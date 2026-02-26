@@ -23,6 +23,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@sriinnu/pakt':
+        specifier: workspace:*
+        version: link:../../packages/pakt-core
       '@tauri-apps/api':
         specifier: ^2.0.0
         version: 2.10.1
@@ -35,9 +38,6 @@ importers:
       '@tauri-apps/plugin-sql':
         specifier: ^2.0.0
         version: 2.3.2
-      '@yugenlab/pakt':
-        specifier: workspace:*
-        version: link:../../packages/pakt-core
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -81,7 +81,7 @@ importers:
 
   apps/extension:
     dependencies:
-      '@yugenlab/pakt':
+      '@sriinnu/pakt':
         specifier: workspace:*
         version: link:../../packages/pakt-core
       react:

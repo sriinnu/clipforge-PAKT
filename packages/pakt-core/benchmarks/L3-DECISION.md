@@ -41,7 +41,7 @@ be well below the 3% threshold. The complexity of implementing L3
 (tokenizer profiles, model-specific transforms, `@target` header
 handling, decompression normalization) is not justified by sub-3% gains.
 
-Run `pnpm --filter @yugenlab/pakt bench` to verify with actual numbers.
+Run `pnpm --filter @sriinnu/pakt bench` to verify with actual numbers.
 
 ## Threshold
 

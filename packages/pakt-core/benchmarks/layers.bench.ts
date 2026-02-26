@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 /**
- * Per-layer benchmarks for @yugenlab/pakt.
+ * Per-layer benchmarks for @sriinnu/pakt.
  *
  * Compares L1-only (structural) versus L1+L2 (structural + dictionary)
  * compression on the 50-row tabular data to show per-layer contribution.

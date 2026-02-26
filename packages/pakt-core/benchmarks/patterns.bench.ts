@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 /**
- * Pattern detection benchmarks for @yugenlab/pakt.
+ * Pattern detection benchmarks for @sriinnu/pakt.
  *
  * Benchmarks the L2 dictionary layer's four pattern detection modes:
  * 1. **Prefix detection** — shared URL/path prefixes (e.g. `/api/v2/`)

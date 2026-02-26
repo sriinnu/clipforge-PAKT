@@ -22,7 +22,7 @@ import { countTokens } from './counter.js';
  *
  * @example
  * ```ts
- * import { compareSavings } from '@yugenlab/pakt';
+ * import { compareSavings } from '@sriinnu/pakt';
  *
  * const report = compareSavings(
  *   '{"users": [{"name": "Alice", "role": "dev"}]}',

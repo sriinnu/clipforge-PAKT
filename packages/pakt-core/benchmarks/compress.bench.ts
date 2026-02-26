@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 /**
- * Compression benchmarks for @yugenlab/pakt.
+ * Compression benchmarks for @sriinnu/pakt.
  *
  * Measures compress() throughput across all supported input formats
  * (JSON, YAML, CSV) and varying data shapes (small, tabular, nested,

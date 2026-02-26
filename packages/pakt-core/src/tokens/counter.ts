@@ -21,7 +21,7 @@ import { encode } from 'gpt-tokenizer';
  *
  * @example
  * ```ts
- * import { countTokens } from '@yugenlab/pakt';
+ * import { countTokens } from '@sriinnu/pakt';
  *
  * const tokens = countTokens('Hello, world!');
  * console.log(tokens); // 4

@@ -40,7 +40,7 @@ const KNOWN_FORMATS = new Set(['json', 'yaml', 'csv', 'markdown', 'pakt', 'text'
  *
  * @example
  * ```ts
- * import { validate } from '@yugenlab/pakt';
+ * import { validate } from '@sriinnu/pakt';
  * const result = validate('@from json\nname: Alice');
  * console.log(result.valid); // true
  * ```

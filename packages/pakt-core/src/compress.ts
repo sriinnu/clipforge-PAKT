@@ -70,7 +70,7 @@ function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
  *
  * @example
  * ```ts
- * import { compress } from '@yugenlab/pakt';
+ * import { compress } from '@sriinnu/pakt';
  *
  * const json = '{"users": [{"name": "Alice", "role": "dev"}, {"name": "Bob", "role": "dev"}]}';
  * const result = compress(json);
@@ -90,7 +90,7 @@ function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
  * @example
  * ```ts
  * // With custom options
- * import { compress } from '@yugenlab/pakt';
+ * import { compress } from '@sriinnu/pakt';
  *
  * const csv = 'name,role\nAlice,dev\nBob,dev';
  * const result = compress(csv, {

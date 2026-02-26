@@ -4,7 +4,7 @@
  *
  * @example
  * ```ts
- * import { countTokens, compareSavings } from '@yugenlab/pakt';
+ * import { countTokens, compareSavings } from '@sriinnu/pakt';
  *
  * const tokens = countTokens('Hello, world!');
  * const report = compareSavings(original, compressed, 'gpt-4o');

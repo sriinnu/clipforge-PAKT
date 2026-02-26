@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 /**
- * Dictionary (L2) benchmarks for @yugenlab/pakt.
+ * Dictionary (L2) benchmarks for @sriinnu/pakt.
  *
  * Isolates the L2 dictionary layer performance by comparing:
  * - High-repetition data (50-row tabular: many repeated departments, statuses)

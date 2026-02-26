@@ -60,7 +60,7 @@ export type { Candidate } from './types.js';
  *
  * @example
  * ```ts
- * import { detect } from '@yugenlab/pakt';
+ * import { detect } from '@sriinnu/pakt';
  *
  * detect('{"key": "value"}');
  * // { format: 'json', confidence: 0.99, reason: 'Starts with { and valid JSON parse' }

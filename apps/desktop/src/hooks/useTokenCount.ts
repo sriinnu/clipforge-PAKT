@@ -1,4 +1,4 @@
-import { countTokens } from '@yugenlab/pakt';
+import { countTokens } from '@sriinnu/pakt';
 import { useMemo } from 'react';
 
 /**
