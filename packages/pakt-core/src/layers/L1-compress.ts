@@ -15,18 +15,18 @@
  */
 
 import type {
-  DocumentNode,
   BodyNode,
-  KeyValueNode,
-  ObjectNode,
-  TabularArrayNode,
-  TabularRowNode,
+  DocumentNode,
+  FromHeaderNode,
   InlineArrayNode,
+  KeyValueNode,
   ListArrayNode,
   ListItemNode,
+  ObjectNode,
   ScalarNode,
   SourcePosition,
-  FromHeaderNode,
+  TabularArrayNode,
+  TabularRowNode,
 } from '../parser/ast.js';
 import { createPosition } from '../parser/ast.js';
 import type { PaktFormat } from '../types.js';
@@ -97,10 +97,7 @@ export function toScalar(v: unknown): ScalarNode {
   const s = String(v);
 
   const mustQuote =
-    looksLikeNonString(s) ||
-    NEEDS_QUOTE_RE.test(s) ||
-    needsEscape(s) ||
-    s.includes(','); // commas need quoting for inline-array safety
+    looksLikeNonString(s) || NEEDS_QUOTE_RE.test(s) || needsEscape(s) || s.includes(','); // commas need quoting for inline-array safety
 
   return {
     type: 'scalar',
@@ -175,10 +172,7 @@ function buildObjectNode(key: string, data: Record<string, unknown>): ObjectNode
   };
 }
 
-function buildTabularArray(
-  key: string,
-  arr: Array<Record<string, unknown>>,
-): TabularArrayNode {
+function buildTabularArray(key: string, arr: Array<Record<string, unknown>>): TabularArrayNode {
   const fields = Object.keys(arr[0]!);
   const rows: TabularRowNode[] = arr.map((obj) => ({
     type: 'tabularRow' as const,

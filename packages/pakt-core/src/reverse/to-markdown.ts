@@ -7,12 +7,12 @@
 
 import type {
   BodyNode,
+  InlineArrayNode,
+  KeyValueNode,
+  ListArrayNode,
+  ObjectNode,
   ScalarNode,
   TabularArrayNode,
-  KeyValueNode,
-  ObjectNode,
-  InlineArrayNode,
-  ListArrayNode,
 } from '../parser/ast.js';
 import { inlineToArray, listToArray } from './helpers.js';
 
@@ -73,18 +73,18 @@ function tabularToMarkdownTable(node: TabularArrayNode): string {
   const lines: string[] = [];
 
   // Header row
-  lines.push('| ' + node.fields.join(' | ') + ' |');
+  lines.push(`| ${node.fields.join(' | ')} |`);
 
   // Separator row
-  lines.push('| ' + node.fields.map(() => '---').join(' | ') + ' |');
+  lines.push(`| ${node.fields.map(() => '---').join(' | ')} |`);
 
   // Data rows
   for (const row of node.rows) {
     const cells = row.values.map((v) => escapeMdPipe(formatMdScalar(v)));
-    lines.push('| ' + cells.join(' | ') + ' |');
+    lines.push(`| ${cells.join(' | ')} |`);
   }
 
-  return lines.join('\n') + '\n';
+  return `${lines.join('\n')}\n`;
 }
 
 /**
@@ -101,7 +101,7 @@ function kvToMarkdownTable(nodes: KeyValueNode[]): string {
     lines.push(`| ${node.key} | ${value} |`);
   }
 
-  return lines.join('\n') + '\n';
+  return `${lines.join('\n')}\n`;
 }
 
 /**
@@ -133,7 +133,7 @@ function mixedToMarkdown(nodes: BodyNode[]): string {
     }
   }
 
-  return parts.join('\n\n') + '\n';
+  return `${parts.join('\n\n')}\n`;
 }
 
 /**

@@ -22,7 +22,7 @@ import { countTokens } from './counter.js';
  *
  * @example
  * ```ts
- * import { compareSavings } from '@yugenlab/pakt';
+ * import { compareSavings } from '@sriinnu/pakt';
  *
  * const report = compareSavings(
  *   '{"users": [{"name": "Alice", "role": "dev"}]}',
@@ -45,10 +45,7 @@ export function compareSavings(
   const compressedTokens = countTokens(compressed);
   const savedTokens = originalTokens - compressedTokens;
 
-  const savedPercent =
-    originalTokens === 0
-      ? 0
-      : Math.round((savedTokens / originalTokens) * 100);
+  const savedPercent = originalTokens === 0 ? 0 : Math.round((savedTokens / originalTokens) * 100);
 
   const pricing = MODEL_PRICING[resolvedModel];
 

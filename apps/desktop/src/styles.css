@@ -20,12 +20,7 @@ body,
   overflow: hidden;
   background-color: #1a1a2e;
   color: #e0e0e0;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;

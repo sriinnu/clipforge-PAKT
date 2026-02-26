@@ -1,6 +1,6 @@
 {
-  "name": "@yugenlab/pakt",
-  "version": "0.1.0",
+  "name": "@sriinnu/pakt",
+  "version": "0.2.0",
   "description": "PAKT compression engine — lossless format conversion for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -21,7 +21,11 @@
   "bin": {
     "pakt": "./dist/cli.js"
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE", "README.md"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -39,6 +43,7 @@
   },
   "homepage": "https://github.com/sriinnu/clipforge-PAKT#readme",
   "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
     "tsup": "^8.3.0",
     "vitest": "^3.0.0"
   },

@@ -1,5 +1,5 @@
 /**
- * @yugenlab/pakt — PAKT compression engine
+ * @sriinnu/pakt — PAKT compression engine
  *
  * Lossless format conversion for LLM token optimization.
  * Compresses JSON, YAML, CSV, and Markdown into a compact
@@ -9,7 +9,7 @@
  *
  * @example
  * ```ts
- * import { compress, decompress, detect } from '@yugenlab/pakt';
+ * import { compress, decompress, detect } from '@sriinnu/pakt';
  *
  * // Compress JSON to PAKT
  * const result = compress('{"users": [{"name": "Alice"}, {"name": "Bob"}]}');
@@ -27,7 +27,7 @@
  */
 
 /** Library version */
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 // ---------------------------------------------------------------------------
 // Core functions
@@ -37,6 +37,19 @@ export { compress } from './compress.js';
 export { decompress } from './decompress.js';
 export { detect } from './detect.js';
 export { validate, repair } from './utils/validate.js';
+
+// ---------------------------------------------------------------------------
+// Serializer
+// ---------------------------------------------------------------------------
+
+export { prettyPrint } from './serializer/index.js';
+export type { PrettyOptions } from './serializer/index.js';
+
+// ---------------------------------------------------------------------------
+// Layer functions (advanced)
+// ---------------------------------------------------------------------------
+
+export { compressL4, decompressL4, applyL4Transforms } from './layers/index.js';
 
 // ---------------------------------------------------------------------------
 // Token utilities

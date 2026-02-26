@@ -1,5 +1,5 @@
-import type { FC } from "react";
-import MenuBarPanel from "./components/MenuBarPanel";
+import type { FC } from 'react';
+import MenuBarPanel from './components/MenuBarPanel';
 
 const App: FC = () => {
   return <MenuBarPanel />;

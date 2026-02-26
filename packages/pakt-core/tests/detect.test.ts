@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { detect } from '../src/detect.js';
 
 // ---------------------------------------------------------------------------
@@ -156,7 +156,8 @@ describe('CSV detection', () => {
   });
 
   it('detects CSV with quoted fields', () => {
-    const input = 'name,description,price\n"Widget A","A nice, shiny widget",9.99\n"Widget B","Another widget",19.99';
+    const input =
+      'name,description,price\n"Widget A","A nice, shiny widget",9.99\n"Widget B","Another widget",19.99';
     expectFormat(input, 'csv', 0.85);
   });
 
@@ -271,7 +272,8 @@ describe('Markdown detection', () => {
   });
 
   it('detects multiple markdown signals with higher confidence', () => {
-    const input = '# Title\n\nSome **bold** text with [a link](http://example.com).\n\n```\ncode\n```';
+    const input =
+      '# Title\n\nSome **bold** text with [a link](http://example.com).\n\n```\ncode\n```';
     const result = detect(input);
     expect(result.format).toBe('markdown');
     expect(result.confidence).toBeGreaterThanOrEqual(0.8);

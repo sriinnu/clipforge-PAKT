@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { PAKT_SYSTEM_PROMPT, compress } from '@yugenlab/pakt';
+ * import { PAKT_SYSTEM_PROMPT, compress } from '@sriinnu/pakt';
  *
  * const messages = [
  *   { role: 'system', content: `You are a helpful assistant.\n\n${PAKT_SYSTEM_PROMPT}` },
@@ -22,7 +22,7 @@
  *
  * @example
  * ```ts
- * import { PAKT_SYSTEM_PROMPT, compress } from '@yugenlab/pakt';
+ * import { PAKT_SYSTEM_PROMPT, compress } from '@sriinnu/pakt';
  *
  * const messages = [
  *   { role: 'system', content: `You are a helpful assistant.\n\n${PAKT_SYSTEM_PROMPT}` },

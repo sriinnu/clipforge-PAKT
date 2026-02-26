@@ -5,9 +5,20 @@
  */
 
 import type {
-  BodyNode, CommentNode, DictBlockNode, DictEntryNode, DocumentNode,
-  HeaderNode, InlineArrayNode, ListArrayNode, ListItemNode, ObjectNode,
-  ScalarNode, SourcePosition, TabularArrayNode, TabularRowNode,
+  BodyNode,
+  CommentNode,
+  DictBlockNode,
+  DictEntryNode,
+  DocumentNode,
+  HeaderNode,
+  InlineArrayNode,
+  ListArrayNode,
+  ListItemNode,
+  ObjectNode,
+  ScalarNode,
+  SourcePosition,
+  TabularArrayNode,
+  TabularRowNode,
 } from './ast.js';
 import { createPosition, inferScalar } from './ast.js';
 import type { Token, TokenType } from './tokenizer.js';
@@ -65,7 +76,7 @@ function skipNewlines(s: ParserState): void {
 /** Read the indentation level from the current position (0 if none). */
 function currentIndent(s: ParserState): number {
   const t = peek(s);
-  return t.type === 'INDENT' ? parseInt(t.value, 10) : 0;
+  return t.type === 'INDENT' ? Number.parseInt(t.value, 10) : 0;
 }
 
 /** Expect a specific token type, or raise / collect an error. */
@@ -73,7 +84,9 @@ function expect(s: ParserState, type: TokenType, context: string): Token {
   const t = peek(s);
   if (t.type === type) return advance(s);
   const err = new PaktParseError(
-    `Expected ${type} (${context}), got ${t.type} "${t.value}"`, t.line, t.column,
+    `Expected ${type} (${context}), got ${t.type} "${t.value}"`,
+    t.line,
+    t.column,
   );
   if (s.mode === 'strict') throw err;
   s.errors.push(err);
@@ -88,13 +101,20 @@ function reportError(s: ParserState, msg: string, line: number, col: number): vo
 }
 
 /** Build a SourcePosition from a token. */
-function posOf(t: Token): SourcePosition { return createPosition(t.line, t.column, t.offset); }
+function posOf(t: Token): SourcePosition {
+  return createPosition(t.line, t.column, t.offset);
+}
 
 /** Skip newlines and return the indent level of the next content line. */
-function skipToContent(s: ParserState): number { skipNewlines(s); return currentIndent(s); }
+function skipToContent(s: ParserState): number {
+  skipNewlines(s);
+  return currentIndent(s);
+}
 
 /** Consume an inline COMMENT token if present. */
-function eatComment(s: ParserState): void { if (peek(s).type === 'COMMENT') advance(s); }
+function eatComment(s: ParserState): void {
+  if (peek(s).type === 'COMMENT') advance(s);
+}
 
 // ---------------------------------------------------------------------------
 // Top-level
@@ -111,7 +131,7 @@ function eatComment(s: ParserState): void { if (peek(s).type === 'COMMENT') adva
  *
  * @example
  * ```ts
- * import { parse } from '@yugenlab/pakt';
+ * import { parse } from '@sriinnu/pakt';
  * const doc = parse('@from json\nname: Alice');
  * ```
  */
@@ -124,7 +144,13 @@ export function parse(input: string, mode: 'strict' | 'lenient' = 'strict'): Doc
   const dictionary = parseDictBlock(s);
   skipToContent(s);
   const body = parseBody(s, 0);
-  const doc: DocumentNode = { type: 'document', headers, dictionary, body, position: posOf(firstTok) };
+  const doc: DocumentNode = {
+    type: 'document',
+    headers,
+    dictionary,
+    body,
+    position: posOf(firstTok),
+  };
   if (s.mode === 'lenient' && s.errors.length > 0) {
     (doc as DocumentNode & { errors: PaktParseError[] }).errors = s.errors;
   }
@@ -162,7 +188,10 @@ function parseDictBlock(s: ParserState): DictBlockNode | null {
   while (true) {
     skipNewlines(s);
     const cur = peek(s);
-    if (cur.type === 'DICT_END') { advance(s); break; }
+    if (cur.type === 'DICT_END') {
+      advance(s);
+      break;
+    }
     if (cur.type === 'EOF') {
       reportError(s, 'Unterminated @dict block — expected @end', cur.line, cur.column);
       break;
@@ -185,8 +214,12 @@ function parseDictEntry(s: ParserState): DictEntryNode | null {
   expect(s, 'COLON', 'dict entry colon');
   const valTok = peek(s);
   let expansion = '';
-  if (valTok.type === 'VALUE' || valTok.type === 'KEY' ||
-      valTok.type === 'QUOTED_STRING' || valTok.type === 'NUMBER') {
+  if (
+    valTok.type === 'VALUE' ||
+    valTok.type === 'KEY' ||
+    valTok.type === 'QUOTED_STRING' ||
+    valTok.type === 'NUMBER'
+  ) {
     expansion = advance(s).value;
   }
   return { type: 'dictEntry', alias, expansion, position: posOf(keyTok) };
@@ -210,16 +243,25 @@ function parseBody(s: ParserState, indent: number): BodyNode[] {
 
     const indentTok = peek(s);
     if (indentTok.type === 'INDENT') {
-      if (parseInt(indentTok.value, 10) > indent && indent > 0) {
-        reportError(s, `Unexpected indent: expected ${indent} spaces, got ${indentTok.value}`,
-          indentTok.line, indentTok.column);
+      if (Number.parseInt(indentTok.value, 10) > indent && indent > 0) {
+        reportError(
+          s,
+          `Unexpected indent: expected ${indent} spaces, got ${indentTok.value}`,
+          indentTok.line,
+          indentTok.column,
+        );
       }
       advance(s);
     }
     const cur = peek(s);
     if (cur.type === 'COMMENT') {
       const ct = advance(s);
-      nodes.push({ type: 'comment', text: ct.value, inline: false, position: posOf(ct) } as CommentNode);
+      nodes.push({
+        type: 'comment',
+        text: ct.value,
+        inline: false,
+        position: posOf(ct),
+      } as CommentNode);
       continue;
     }
     if (cur.type === 'DICT_START' || cur.type === 'DICT_END' || cur.type === 'DASH') break;
@@ -268,7 +310,12 @@ function parseKeyedNode(s: ParserState, currentIndentLevel: number): BodyNode | 
       s.pos = saved;
       return mkEmptyKV(key, startPos);
     }
-    return { type: 'keyValue', key, value: inferScalar(advance(s).value, posOf(next)), position: startPos };
+    return {
+      type: 'keyValue',
+      key,
+      value: inferScalar(advance(s).value, posOf(next)),
+      position: startPos,
+    };
   }
 
   // Bare key -> nested object header
@@ -277,7 +324,8 @@ function parseKeyedNode(s: ParserState, currentIndentLevel: number): BodyNode | 
   const childIndent = currentIndent(s);
   if (childIndent > currentIndentLevel) {
     const children = parseBody(s, childIndent);
-    if (children.length > 0) return { type: 'object', key, children, position: startPos } as ObjectNode;
+    if (children.length > 0)
+      return { type: 'object', key, children, position: startPos } as ObjectNode;
   }
   s.pos = saved;
   return mkEmptyKV(key, startPos);
@@ -285,7 +333,13 @@ function parseKeyedNode(s: ParserState, currentIndentLevel: number): BodyNode | 
 
 /** Create an empty-string KeyValueNode. */
 function mkEmptyKV(key: string, pos: SourcePosition) {
-  const empty: ScalarNode = { type: 'scalar', scalarType: 'string', value: '', quoted: false, position: pos };
+  const empty: ScalarNode = {
+    type: 'scalar',
+    scalarType: 'string',
+    value: '',
+    quoted: false,
+    position: pos,
+  };
   return { type: 'keyValue' as const, key, value: empty, position: pos };
 }
 
@@ -294,10 +348,13 @@ function mkEmptyKV(key: string, pos: SourcePosition) {
 // ---------------------------------------------------------------------------
 
 function parseArrayNode(
-  s: ParserState, key: string, startPos: SourcePosition, indent: number,
+  s: ParserState,
+  key: string,
+  startPos: SourcePosition,
+  indent: number,
 ): TabularArrayNode | InlineArrayNode | ListArrayNode | null {
   advance(s); // '['
-  const count = parseInt(expect(s, 'NUMBER', 'array count').value, 10) || 0;
+  const count = Number.parseInt(expect(s, 'NUMBER', 'array count').value, 10) || 0;
   expect(s, 'BRACKET_CLOSE', 'closing ]');
 
   if (peek(s).type === 'BRACE_OPEN') return parseTabularArray(s, key, count, startPos, indent);
@@ -308,7 +365,11 @@ function parseArrayNode(
 }
 
 function parseTabularArray(
-  s: ParserState, key: string, count: number, startPos: SourcePosition, indent: number,
+  s: ParserState,
+  key: string,
+  count: number,
+  startPos: SourcePosition,
+  indent: number,
 ): TabularArrayNode {
   advance(s); // '{'
   const fields: string[] = [];
@@ -338,11 +399,23 @@ function parseTabularArray(
       first = false;
       const cell = peek(s);
       if (cell.type === 'PIPE' || cell.type === 'NEWLINE' || cell.type === 'EOF') {
-        values.push({ type: 'scalar', scalarType: 'string', value: '', quoted: false, position: posOf(cell) });
+        values.push({
+          type: 'scalar',
+          scalarType: 'string',
+          value: '',
+          quoted: false,
+          position: posOf(cell),
+        });
         continue;
       }
       if (cell.type === 'QUOTED_STRING') {
-        values.push({ type: 'scalar', scalarType: 'string', value: advance(s).value, quoted: true, position: posOf(cell) });
+        values.push({
+          type: 'scalar',
+          scalarType: 'string',
+          value: advance(s).value,
+          quoted: true,
+          position: posOf(cell),
+        });
       } else if (cell.type === 'VALUE') {
         const parts = advance(s).value.split('|');
         for (const part of parts) values.push(inferScalar(part.trim(), posOf(cell)));
@@ -358,17 +431,24 @@ function parseTabularArray(
 }
 
 function parseInlineArray(
-  s: ParserState, key: string, count: number, startPos: SourcePosition,
+  s: ParserState,
+  key: string,
+  count: number,
+  startPos: SourcePosition,
 ): InlineArrayNode {
   const valTok = advance(s);
-  const parts = valTok.value.split(',').map(p => p.trim());
-  const values: ScalarNode[] = parts.map(p => inferScalar(p, posOf(valTok)));
+  const parts = valTok.value.split(',').map((p) => p.trim());
+  const values: ScalarNode[] = parts.map((p) => inferScalar(p, posOf(valTok)));
   eatComment(s);
   return { type: 'inlineArray', key, count, values, position: startPos };
 }
 
 function parseListArray(
-  s: ParserState, key: string, count: number, startPos: SourcePosition, indent: number,
+  s: ParserState,
+  key: string,
+  count: number,
+  startPos: SourcePosition,
+  indent: number,
 ): ListArrayNode {
   const items: ListItemNode[] = [];
   while (true) {
@@ -379,7 +459,10 @@ function parseListArray(
 
     const saved = s.pos;
     if (peek(s).type === 'INDENT') advance(s);
-    if (peek(s).type !== 'DASH') { s.pos = saved; break; }
+    if (peek(s).type !== 'DASH') {
+      s.pos = saved;
+      break;
+    }
 
     const dashTok = advance(s);
     const children: BodyNode[] = [];
@@ -421,11 +504,23 @@ function parseScalarToken(s: ParserState): ScalarNode {
   const t = peek(s);
   if (t.type === 'QUOTED_STRING') {
     advance(s);
-    return { type: 'scalar', scalarType: 'string', value: t.value, quoted: true, position: posOf(t) };
+    return {
+      type: 'scalar',
+      scalarType: 'string',
+      value: t.value,
+      quoted: true,
+      position: posOf(t),
+    };
   }
   if (t.type === 'NUMBER') {
     advance(s);
-    return { type: 'scalar', scalarType: 'number', value: Number(t.value), raw: t.value, position: posOf(t) };
+    return {
+      type: 'scalar',
+      scalarType: 'number',
+      value: Number(t.value),
+      raw: t.value,
+      position: posOf(t),
+    };
   }
   advance(s);
   return inferScalar(t.value, posOf(t));

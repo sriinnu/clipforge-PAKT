@@ -1,8 +1,8 @@
 /**
  * Tests for the PAKT validation and auto-repair utilities.
  */
-import { describe, it, expect } from 'vitest';
-import { validate, repair } from '../src/utils/validate.js';
+import { describe, expect, it } from 'vitest';
+import { repair, validate } from '../src/utils/validate.js';
 
 // ===========================================================================
 // 1. validate() — valid documents
@@ -17,25 +17,16 @@ describe('validate: valid documents pass', () => {
   });
 
   it('accepts a document with dict block and body', () => {
-    const pakt = [
-      '@from json',
-      '@dict',
-      '  $a: developer',
-      '@end',
-      'role: $a',
-    ].join('\n');
+    const pakt = ['@from json', '@dict', '  $a: developer', '@end', 'role: $a'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
   it('accepts a document with tabular array and correct counts', () => {
-    const pakt = [
-      '@from json',
-      'users [2]{name|role}:',
-      '  Alice|dev',
-      '  Bob|designer',
-    ].join('\n');
+    const pakt = ['@from json', 'users [2]{name|role}:', '  Alice|dev', '  Bob|designer'].join(
+      '\n',
+    );
     const result = validate(pakt);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
@@ -49,11 +40,7 @@ describe('validate: valid documents pass', () => {
   });
 
   it('accepts a document with comments', () => {
-    const pakt = [
-      '@from yaml',
-      '% This is a comment',
-      'name: Alice',
-    ].join('\n');
+    const pakt = ['@from yaml', '% This is a comment', 'name: Alice'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
@@ -90,22 +77,22 @@ describe('validate: missing @from header', () => {
     const pakt = 'name: Alice';
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E001')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E001')).toBe(true);
   });
 
   it('reports error for @from with no value', () => {
     const pakt = '@from\nname: Alice';
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E002')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E002')).toBe(true);
   });
 
   it('reports error for @from with unknown format', () => {
     const pakt = '@from xml\nname: Alice';
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E002')).toBe(true);
-    expect(result.errors[0]!.message).toContain('xml');
+    expect(result.errors.some((e) => e.code === 'E002')).toBe(true);
+    expect(result.errors[0]?.message).toContain('xml');
   });
 });
 
@@ -115,26 +102,17 @@ describe('validate: missing @from header', () => {
 
 describe('validate: dict block errors', () => {
   it('reports error for missing @end', () => {
-    const pakt = [
-      '@from json',
-      '@dict',
-      '  $a: developer',
-      'name: $a',
-    ].join('\n');
+    const pakt = ['@from json', '@dict', '  $a: developer', 'name: $a'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E003')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E003')).toBe(true);
   });
 
   it('reports error for @end without @dict', () => {
-    const pakt = [
-      '@from json',
-      '@end',
-      'name: Alice',
-    ].join('\n');
+    const pakt = ['@from json', '@end', 'name: Alice'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E003')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E003')).toBe(true);
   });
 });
 
@@ -154,19 +132,13 @@ describe('validate: unused alias warnings', () => {
     ].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(true);
-    expect(result.warnings.some(w => w.code === 'W001' && w.message.includes('$b'))).toBe(true);
+    expect(result.warnings.some((w) => w.code === 'W001' && w.message.includes('$b'))).toBe(true);
   });
 
   it('does not warn when all aliases are used', () => {
-    const pakt = [
-      '@from json',
-      '@dict',
-      '  $a: developer',
-      '@end',
-      'role: $a',
-    ].join('\n');
+    const pakt = ['@from json', '@dict', '  $a: developer', '@end', 'role: $a'].join('\n');
     const result = validate(pakt);
-    expect(result.warnings.filter(w => w.code === 'W001')).toHaveLength(0);
+    expect(result.warnings.filter((w) => w.code === 'W001')).toHaveLength(0);
   });
 });
 
@@ -176,26 +148,17 @@ describe('validate: unused alias warnings', () => {
 
 describe('validate: undefined alias errors', () => {
   it('reports error for undefined alias used in body', () => {
-    const pakt = [
-      '@from json',
-      '@dict',
-      '  $a: developer',
-      '@end',
-      'role: $z',
-    ].join('\n');
+    const pakt = ['@from json', '@dict', '  $a: developer', '@end', 'role: $z'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E005' && e.message.includes('$z'))).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E005' && e.message.includes('$z'))).toBe(true);
   });
 
   it('reports error when no dict block exists but aliases are used', () => {
-    const pakt = [
-      '@from json',
-      'role: $a',
-    ].join('\n');
+    const pakt = ['@from json', 'role: $a'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E005' && e.message.includes('$a'))).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E005' && e.message.includes('$a'))).toBe(true);
   });
 });
 
@@ -205,27 +168,21 @@ describe('validate: undefined alias errors', () => {
 
 describe('validate: tabular array count mismatch', () => {
   it('reports error when declared count exceeds actual rows', () => {
-    const pakt = [
-      '@from json',
-      'users [3]{name|role}:',
-      '  Alice|dev',
-      '  Bob|designer',
-    ].join('\n');
+    const pakt = ['@from json', 'users [3]{name|role}:', '  Alice|dev', '  Bob|designer'].join(
+      '\n',
+    );
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E007' && e.message.includes('[3]'))).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E007' && e.message.includes('[3]'))).toBe(true);
   });
 
   it('reports error when actual rows exceed declared count', () => {
-    const pakt = [
-      '@from json',
-      'users [1]{name|role}:',
-      '  Alice|dev',
-      '  Bob|designer',
-    ].join('\n');
+    const pakt = ['@from json', 'users [1]{name|role}:', '  Alice|dev', '  Bob|designer'].join(
+      '\n',
+    );
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E007')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E007')).toBe(true);
   });
 });
 
@@ -237,13 +194,13 @@ describe('validate: trailing whitespace', () => {
   it('warns about trailing whitespace', () => {
     const pakt = '@from json\nname: Alice   ';
     const result = validate(pakt);
-    expect(result.warnings.some(w => w.code === 'W003')).toBe(true);
+    expect(result.warnings.some((w) => w.code === 'W003')).toBe(true);
   });
 
   it('does not warn when there is no trailing whitespace', () => {
     const pakt = '@from json\nname: Alice';
     const result = validate(pakt);
-    expect(result.warnings.filter(w => w.code === 'W003')).toHaveLength(0);
+    expect(result.warnings.filter((w) => w.code === 'W003')).toHaveLength(0);
   });
 });
 
@@ -261,7 +218,7 @@ describe('validate: row field count mismatch', () => {
     ].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E006')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E006')).toBe(true);
   });
 
   it('reports error when row has more fields than header', () => {
@@ -273,7 +230,7 @@ describe('validate: row field count mismatch', () => {
     ].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E006')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E006')).toBe(true);
   });
 });
 
@@ -286,7 +243,7 @@ describe('validate: inline array count mismatch', () => {
     const pakt = '@from json\ntags [5]: React,TypeScript,Rust';
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E007' && e.message.includes('tags'))).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E007' && e.message.includes('tags'))).toBe(true);
   });
 });
 
@@ -298,13 +255,13 @@ describe('validate: indentation warnings', () => {
   it('warns about odd indentation', () => {
     const pakt = '@from json\n   name: Alice';
     const result = validate(pakt);
-    expect(result.warnings.some(w => w.code === 'W002')).toBe(true);
+    expect(result.warnings.some((w) => w.code === 'W002')).toBe(true);
   });
 
   it('does not warn for even indentation', () => {
     const pakt = '@from json\n  name: Alice';
     const result = validate(pakt);
-    expect(result.warnings.filter(w => w.code === 'W002')).toHaveLength(0);
+    expect(result.warnings.filter((w) => w.code === 'W002')).toHaveLength(0);
   });
 });
 
@@ -314,29 +271,20 @@ describe('validate: indentation warnings', () => {
 
 describe('repair: fix missing @end', () => {
   it('adds missing @end for unclosed @dict block', () => {
-    const malformed = [
-      '@from json',
-      '@dict',
-      '  $a: developer',
-      'name: $a',
-    ].join('\n');
+    const malformed = ['@from json', '@dict', '  $a: developer', 'name: $a'].join('\n');
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
     expect(fixed).toContain('@end');
     // Validate the repaired output
     const result = validate(fixed!);
-    expect(result.errors.filter(e => e.code === 'E003')).toHaveLength(0);
+    expect(result.errors.filter((e) => e.code === 'E003')).toHaveLength(0);
   });
 
   it('adds @end at end of file if dict is last block', () => {
-    const malformed = [
-      '@from json',
-      '@dict',
-      '  $a: developer',
-    ].join('\n');
+    const malformed = ['@from json', '@dict', '  $a: developer'].join('\n');
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
-    expect(fixed!.trimEnd().endsWith('@end')).toBe(true);
+    expect(fixed?.trimEnd().endsWith('@end')).toBe(true);
   });
 });
 
@@ -349,7 +297,7 @@ describe('repair: fix trailing whitespace', () => {
     const malformed = '@from json  \nname: Alice   \nage: 30  ';
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
-    const lines = fixed!.split('\n');
+    const lines = fixed?.split('\n');
     for (const line of lines) {
       expect(line).toBe(line.trimEnd());
     }
@@ -362,12 +310,9 @@ describe('repair: fix trailing whitespace', () => {
 
 describe('repair: fix count mismatch', () => {
   it('fixes tabular array count mismatch', () => {
-    const malformed = [
-      '@from json',
-      'users [5]{name|role}:',
-      '  Alice|dev',
-      '  Bob|designer',
-    ].join('\n');
+    const malformed = ['@from json', 'users [5]{name|role}:', '  Alice|dev', '  Bob|designer'].join(
+      '\n',
+    );
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
     expect(fixed).toContain('[2]');
@@ -383,12 +328,9 @@ describe('repair: fix count mismatch', () => {
   });
 
   it('fixes list array count mismatch', () => {
-    const malformed = [
-      '@from json',
-      'events [5]:',
-      '  - type: deploy',
-      '  - type: rollback',
-    ].join('\n');
+    const malformed = ['@from json', 'events [5]:', '  - type: deploy', '  - type: rollback'].join(
+      '\n',
+    );
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
     expect(fixed).toContain('[2]');
@@ -402,12 +344,9 @@ describe('repair: fix count mismatch', () => {
 
 describe('repair: fix mixed delimiters', () => {
   it('converts comma-delimited rows to pipe-delimited', () => {
-    const malformed = [
-      '@from json',
-      'users [2]{name|role}:',
-      '  Alice,dev',
-      '  Bob,designer',
-    ].join('\n');
+    const malformed = ['@from json', 'users [2]{name|role}:', '  Alice,dev', '  Bob,designer'].join(
+      '\n',
+    );
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
     expect(fixed).toContain('Alice|dev');
@@ -415,12 +354,9 @@ describe('repair: fix mixed delimiters', () => {
   });
 
   it('does not corrupt correctly pipe-delimited rows', () => {
-    const correct = [
-      '@from json',
-      'users [2]{name|role}:',
-      '  Alice|dev',
-      '  Bob|designer',
-    ].join('\n');
+    const correct = ['@from json', 'users [2]{name|role}:', '  Alice|dev', '  Bob|designer'].join(
+      '\n',
+    );
     const fixed = repair(correct);
     expect(fixed).not.toBeNull();
     expect(fixed).toContain('Alice|dev');
@@ -434,12 +370,7 @@ describe('repair: fix mixed delimiters', () => {
 
 describe('repair: normalize indentation', () => {
   it('normalizes odd indentation to even 2-space', () => {
-    const malformed = [
-      '@from json',
-      'user',
-      '   name: Alice',
-      '   age: 30',
-    ].join('\n');
+    const malformed = ['@from json', 'user', '   name: Alice', '   age: 30'].join('\n');
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
     // 3 spaces should round to 4 (2*2)
@@ -447,11 +378,7 @@ describe('repair: normalize indentation', () => {
   });
 
   it('preserves correct 2-space indentation', () => {
-    const correct = [
-      '@from json',
-      'user',
-      '  name: Alice',
-    ].join('\n');
+    const correct = ['@from json', 'user', '  name: Alice'].join('\n');
     const fixed = repair(correct);
     expect(fixed).not.toBeNull();
     expect(fixed).toContain('  name: Alice');
@@ -484,7 +411,7 @@ describe('validate: edge cases', () => {
   it('handles empty string', () => {
     const result = validate('');
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E001')).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E001')).toBe(true);
   });
 
   it('handles CRLF line endings', () => {
@@ -517,7 +444,7 @@ describe('validate: edge cases', () => {
     ].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(true);
-    expect(result.warnings.filter(w => w.code === 'W001')).toHaveLength(0);
+    expect(result.warnings.filter((w) => w.code === 'W001')).toHaveLength(0);
   });
 });
 
@@ -528,18 +455,18 @@ describe('validate: edge cases', () => {
 describe('repair: combined fixes', () => {
   it('applies multiple fixes at once', () => {
     const malformed = [
-      '@from json  ',       // trailing whitespace
+      '@from json  ', // trailing whitespace
       '@dict',
-      '  $a: developer',   // no @end
+      '  $a: developer', // no @end
       'users [5]{name|role}:', // wrong count
-      '  Alice,dev',        // comma delimiter
-      '  Bob,designer',     // comma delimiter
+      '  Alice,dev', // comma delimiter
+      '  Bob,designer', // comma delimiter
     ].join('\n');
     const fixed = repair(malformed);
     expect(fixed).not.toBeNull();
 
     // Check trailing whitespace removed
-    const lines = fixed!.split('\n');
+    const lines = fixed?.split('\n');
     for (const line of lines) {
       expect(line).toBe(line.trimEnd());
     }
@@ -562,24 +489,14 @@ describe('repair: combined fixes', () => {
 
 describe('validate: list array count mismatch', () => {
   it('reports error for list array with wrong item count', () => {
-    const pakt = [
-      '@from json',
-      'events [3]:',
-      '  - type: deploy',
-      '  - type: rollback',
-    ].join('\n');
+    const pakt = ['@from json', 'events [3]:', '  - type: deploy', '  - type: rollback'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'E007' && e.message.includes('events'))).toBe(true);
+    expect(result.errors.some((e) => e.code === 'E007' && e.message.includes('events'))).toBe(true);
   });
 
   it('passes for list array with correct item count', () => {
-    const pakt = [
-      '@from json',
-      'events [2]:',
-      '  - type: deploy',
-      '  - type: rollback',
-    ].join('\n');
+    const pakt = ['@from json', 'events [2]:', '  - type: deploy', '  - type: rollback'].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(true);
   });
@@ -592,11 +509,11 @@ describe('validate: list array count mismatch', () => {
 describe('validate: multiple issues at once', () => {
   it('collects multiple errors and warnings', () => {
     const pakt = [
-      '@dict',                      // missing @from; @dict without @end handled below
+      '@dict', // missing @from; @dict without @end handled below
       '  $a: developer',
       '  $b: unused',
-      'role: $z',                   // undefined $z; triggers @end insertion
-      'name: Alice  ',              // trailing whitespace
+      'role: $z', // undefined $z; triggers @end insertion
+      'name: Alice  ', // trailing whitespace
     ].join('\n');
     const result = validate(pakt);
     expect(result.valid).toBe(false);
@@ -618,7 +535,7 @@ describe('validate: all known formats accepted', () => {
     it(`accepts @from ${fmt}`, () => {
       const pakt = `@from ${fmt}\nname: test`;
       const result = validate(pakt);
-      expect(result.errors.filter(e => e.code === 'E002')).toHaveLength(0);
+      expect(result.errors.filter((e) => e.code === 'E002')).toHaveLength(0);
     });
   }
 });

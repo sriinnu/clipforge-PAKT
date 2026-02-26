@@ -20,12 +20,12 @@
 
 import type {
   BodyNode,
-  ScalarNode,
-  KeyValueNode,
-  ObjectNode,
-  TabularArrayNode,
   InlineArrayNode,
+  KeyValueNode,
   ListArrayNode,
+  ObjectNode,
+  ScalarNode,
+  TabularArrayNode,
 } from '../parser/ast.js';
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,15 @@
         "content_type": "application/json",
         "schema": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "name": { "type": "string" },
+              "email": { "type": "string" },
+              "created_at": { "type": "string", "format": "date-time" }
+            }
+          }
         }
       }
     },
@@ -22,7 +30,12 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -35,7 +48,12 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -48,7 +66,12 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string" }, "updated_at": { "type": "string", "format": "date-time" } }
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "updated_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -71,7 +94,15 @@
         "content_type": "application/json",
         "schema": {
           "type": "array",
-          "items": { "type": "object", "properties": { "order_id": { "type": "integer" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "order_id": { "type": "integer" },
+              "total": { "type": "number" },
+              "status": { "type": "string" },
+              "created_at": { "type": "string", "format": "date-time" }
+            }
+          }
         }
       }
     },
@@ -84,7 +115,15 @@
         "content_type": "application/json",
         "schema": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "price": { "type": "number" }, "category": { "type": "string" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "category": { "type": "string" }
+            }
+          }
         }
       }
     },
@@ -97,7 +136,12 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "price": { "type": "number" }, "category": { "type": "string" } }
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "price": { "type": "number" },
+            "category": { "type": "string" }
+          }
         }
       }
     },
@@ -110,7 +154,13 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "price": { "type": "number" }, "category": { "type": "string" }, "description": { "type": "string" } }
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "price": { "type": "number" },
+            "category": { "type": "string" },
+            "description": { "type": "string" }
+          }
         }
       }
     },
@@ -123,7 +173,16 @@
         "content_type": "application/json",
         "schema": {
           "type": "array",
-          "items": { "type": "object", "properties": { "order_id": { "type": "integer" }, "user_id": { "type": "integer" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "order_id": { "type": "integer" },
+              "user_id": { "type": "integer" },
+              "total": { "type": "number" },
+              "status": { "type": "string" },
+              "created_at": { "type": "string", "format": "date-time" }
+            }
+          }
         }
       }
     },
@@ -136,7 +195,13 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "order_id": { "type": "integer" }, "user_id": { "type": "integer" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+          "properties": {
+            "order_id": { "type": "integer" },
+            "user_id": { "type": "integer" },
+            "total": { "type": "number" },
+            "status": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -149,7 +214,14 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "order_id": { "type": "integer" }, "user_id": { "type": "integer" }, "items": { "type": "array" }, "total": { "type": "number" }, "status": { "type": "string" }, "created_at": { "type": "string", "format": "date-time" } }
+          "properties": {
+            "order_id": { "type": "integer" },
+            "user_id": { "type": "integer" },
+            "items": { "type": "array" },
+            "total": { "type": "number" },
+            "status": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -162,7 +234,11 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "order_id": { "type": "integer" }, "status": { "type": "string" }, "updated_at": { "type": "string", "format": "date-time" } }
+          "properties": {
+            "order_id": { "type": "integer" },
+            "status": { "type": "string" },
+            "updated_at": { "type": "string", "format": "date-time" }
+          }
         }
       }
     },
@@ -175,7 +251,11 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "total_revenue": { "type": "number" }, "period": { "type": "string" }, "breakdown": { "type": "array" } }
+          "properties": {
+            "total_revenue": { "type": "number" },
+            "period": { "type": "string" },
+            "breakdown": { "type": "array" }
+          }
         }
       }
     },
@@ -188,7 +268,11 @@
         "content_type": "application/json",
         "schema": {
           "type": "object",
-          "properties": { "total_users": { "type": "integer" }, "active_users": { "type": "integer" }, "growth_rate": { "type": "number" } }
+          "properties": {
+            "total_users": { "type": "integer" },
+            "active_users": { "type": "integer" },
+            "growth_rate": { "type": "number" }
+          }
         }
       }
     },
@@ -201,7 +285,14 @@
         "content_type": "application/json",
         "schema": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "parent_id": { "type": "integer" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "name": { "type": "string" },
+              "parent_id": { "type": "integer" }
+            }
+          }
         }
       }
     }

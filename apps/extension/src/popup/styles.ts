@@ -129,14 +129,22 @@ export const CSS_VARS = `
 
 /** Background tint colors for each detected format badge. */
 export const FORMAT_COLORS: Record<string, string> = {
-  json: '#f59e0b', yaml: '#3b82f6', csv: '#10b981',
-  markdown: '#8b5cf6', pakt: '#7c3aed', text: '#6b7280',
+  json: '#f59e0b',
+  yaml: '#3b82f6',
+  csv: '#10b981',
+  markdown: '#8b5cf6',
+  pakt: '#7c3aed',
+  text: '#6b7280',
 };
 
 /** Human-readable labels for each format. */
 export const FORMAT_LABELS: Record<string, string> = {
-  json: 'JSON', yaml: 'YAML', csv: 'CSV',
-  markdown: 'Markdown', pakt: 'PAKT', text: 'Plain Text',
+  json: 'JSON',
+  yaml: 'YAML',
+  csv: 'CSV',
+  markdown: 'Markdown',
+  pakt: 'PAKT',
+  text: 'Plain Text',
 };
 
 /** Tooltip descriptions explaining what the detected format means. */
@@ -151,105 +159,196 @@ export const FORMAT_TOOLTIPS: Record<string, string> = {
 
 /** Outermost wrapper for the popup. */
 export const containerStyle: React.CSSProperties = {
-  width: 350, maxHeight: 500, display: 'flex', flexDirection: 'column',
-  backgroundColor: 'var(--cf-bg)', color: 'var(--cf-text)',
-  fontFamily: 'var(--cf-font)', fontSize: 13, overflow: 'hidden',
+  width: 350,
+  maxHeight: 500,
+  display: 'flex',
+  flexDirection: 'column',
+  backgroundColor: 'var(--cf-bg)',
+  color: 'var(--cf-text)',
+  fontFamily: 'var(--cf-font)',
+  fontSize: 13,
+  overflow: 'hidden',
 };
 /** Top header bar with logo and settings gear. */
 export const headerStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '10px 14px', borderBottom: '1px solid var(--cf-border)', flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '10px 14px',
+  borderBottom: '1px solid var(--cf-border)',
+  flexShrink: 0,
 };
 /** ClipForge logo text. */
 export const logoStyle: React.CSSProperties = {
-  fontSize: 15, fontWeight: 700, color: 'var(--cf-accent)', letterSpacing: -0.3,
+  fontSize: 15,
+  fontWeight: 700,
+  color: 'var(--cf-accent)',
+  letterSpacing: -0.3,
 };
 /** Version badge next to the logo. */
 export const versionBadgeStyle: React.CSSProperties = {
-  fontSize: 10, color: 'var(--cf-text-dim)', backgroundColor: 'var(--cf-surface)',
-  padding: '1px 6px', borderRadius: 'var(--cf-radius-pill)', fontWeight: 500,
+  fontSize: 10,
+  color: 'var(--cf-text-dim)',
+  backgroundColor: 'var(--cf-surface)',
+  padding: '1px 6px',
+  borderRadius: 'var(--cf-radius-pill)',
+  fontWeight: 500,
 };
 /** Gear icon button in the header. */
 export const gearBtnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', color: 'var(--cf-text-muted)', cursor: 'pointer',
-  padding: 4, borderRadius: 'var(--cf-radius-sm)', display: 'flex',
-  alignItems: 'center', justifyContent: 'center', transition: 'color var(--cf-transition)',
+  background: 'none',
+  border: 'none',
+  color: 'var(--cf-text-muted)',
+  cursor: 'pointer',
+  padding: 4,
+  borderRadius: 'var(--cf-radius-sm)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'color var(--cf-transition)',
 };
 /** Back arrow button (settings header). */
 export const backBtnStyle: React.CSSProperties = { ...gearBtnStyle, padding: 2 };
 /** Main body content area (scrollable). */
 export const bodyStyle: React.CSSProperties = {
-  padding: '12px 14px', display: 'flex', flexDirection: 'column',
-  gap: 10, flex: 1, overflowY: 'auto',
+  padding: '12px 14px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  flex: 1,
+  overflowY: 'auto',
 };
 /** Top bar holding format badge and clear button. */
 export const topBarStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
 };
 /** Format detection pill badge. */
 export const formatBadgeStyle: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
-  borderRadius: 'var(--cf-radius-pill)', fontSize: 11, fontWeight: 600,
-  border: '1px solid', letterSpacing: 0.2, cursor: 'help',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+  padding: '3px 10px',
+  borderRadius: 'var(--cf-radius-pill)',
+  fontSize: 11,
+  fontWeight: 600,
+  border: '1px solid',
+  letterSpacing: 0.2,
+  cursor: 'help',
 };
 /** Clear / reset button. */
 export const clearBtnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', color: 'var(--cf-text-dim)', cursor: 'pointer',
-  fontSize: 11, fontWeight: 500, padding: '2px 6px',
-  borderRadius: 'var(--cf-radius-sm)', transition: 'color var(--cf-transition)',
+  background: 'none',
+  border: 'none',
+  color: 'var(--cf-text-dim)',
+  cursor: 'pointer',
+  fontSize: 11,
+  fontWeight: 500,
+  padding: '2px 6px',
+  borderRadius: 'var(--cf-radius-sm)',
+  transition: 'color var(--cf-transition)',
 };
 /** Monospace textarea for input/output. */
 export const textareaStyle: React.CSSProperties = {
-  width: '100%', minHeight: 100, padding: '10px 12px',
-  backgroundColor: 'var(--cf-surface)', color: 'var(--cf-text)',
-  border: '1px solid var(--cf-border)', borderRadius: 'var(--cf-radius-md)',
-  resize: 'vertical', fontFamily: 'var(--cf-font-mono)', fontSize: 12,
-  lineHeight: 1.6, outline: 'none', boxSizing: 'border-box',
+  width: '100%',
+  minHeight: 100,
+  padding: '10px 12px',
+  backgroundColor: 'var(--cf-surface)',
+  color: 'var(--cf-text)',
+  border: '1px solid var(--cf-border)',
+  borderRadius: 'var(--cf-radius-md)',
+  resize: 'vertical',
+  fontFamily: 'var(--cf-font-mono)',
+  fontSize: 12,
+  lineHeight: 1.6,
+  outline: 'none',
+  boxSizing: 'border-box',
   transition: 'border-color var(--cf-transition)',
 };
 /** Primary action button (Compress). */
 export const primaryBtnStyle: React.CSSProperties = {
-  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-  gap: 6, padding: '9px 16px', borderRadius: 'var(--cf-radius-md)',
-  border: 'none', backgroundColor: 'var(--cf-accent)', color: '#fff',
-  fontWeight: 600, fontSize: 13, cursor: 'pointer',
-  transition: 'all var(--cf-transition)', fontFamily: 'var(--cf-font)',
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  padding: '9px 16px',
+  borderRadius: 'var(--cf-radius-md)',
+  border: 'none',
+  backgroundColor: 'var(--cf-accent)',
+  color: '#fff',
+  fontWeight: 600,
+  fontSize: 13,
+  cursor: 'pointer',
+  transition: 'all var(--cf-transition)',
+  fontFamily: 'var(--cf-font)',
 };
 /** Secondary action button (Decompress). */
 export const secondaryBtnStyle: React.CSSProperties = {
-  ...primaryBtnStyle, backgroundColor: 'var(--cf-surface)',
+  ...primaryBtnStyle,
+  backgroundColor: 'var(--cf-surface)',
   border: '1px solid var(--cf-border)',
 };
 /** Dropdown select for decompress format. */
 export const selectStyle: React.CSSProperties = {
-  padding: '8px 10px', backgroundColor: 'var(--cf-surface)', color: 'var(--cf-text)',
-  border: '1px solid var(--cf-border)', borderRadius: 'var(--cf-radius-md)',
-  fontSize: 12, outline: 'none', fontFamily: 'var(--cf-font)', cursor: 'pointer',
+  padding: '8px 10px',
+  backgroundColor: 'var(--cf-surface)',
+  color: 'var(--cf-text)',
+  border: '1px solid var(--cf-border)',
+  borderRadius: 'var(--cf-radius-md)',
+  fontSize: 12,
+  outline: 'none',
+  fontFamily: 'var(--cf-font)',
+  cursor: 'pointer',
 };
 /** Copy result button. */
 export const copyBtnStyle: React.CSSProperties = {
-  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  gap: 6, padding: '9px 16px', borderRadius: 'var(--cf-radius-md)',
-  border: 'none', color: '#fff', fontWeight: 600, fontSize: 13,
-  cursor: 'pointer', transition: 'background-color 0.3s ease', fontFamily: 'var(--cf-font)',
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  padding: '9px 16px',
+  borderRadius: 'var(--cf-radius-md)',
+  border: 'none',
+  color: '#fff',
+  fontWeight: 600,
+  fontSize: 13,
+  cursor: 'pointer',
+  transition: 'background-color 0.3s ease',
+  fontFamily: 'var(--cf-font)',
 };
 /** Output section label. */
 export const outputLabelStyle: React.CSSProperties = {
-  fontSize: 11, color: 'var(--cf-text-dim)', textTransform: 'uppercase',
-  fontWeight: 600, letterSpacing: 0.5,
+  fontSize: 11,
+  color: 'var(--cf-text-dim)',
+  textTransform: 'uppercase',
+  fontWeight: 600,
+  letterSpacing: 0.5,
 };
 /** Status message (success/error toast). */
 export const statusMsgStyle: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 'var(--cf-radius-md)',
-  fontSize: 12, fontWeight: 500, animation: 'fadeIn 0.2s ease',
+  padding: '8px 12px',
+  borderRadius: 'var(--cf-radius-md)',
+  fontSize: 12,
+  fontWeight: 500,
+  animation: 'fadeIn 0.2s ease',
 };
 /** Bottom footer bar. */
 export const footerStyle: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '8px 14px', borderTop: '1px solid var(--cf-border)', flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '8px 14px',
+  borderTop: '1px solid var(--cf-border)',
+  flexShrink: 0,
 };
 /** Footer link style. */
 export const footerLinkStyle: React.CSSProperties = {
-  color: 'var(--cf-text-dim)', fontSize: 11, textDecoration: 'none',
-  fontWeight: 500, transition: 'color var(--cf-transition)',
+  color: 'var(--cf-text-dim)',
+  fontSize: 11,
+  textDecoration: 'none',
+  fontWeight: 500,
+  transition: 'color var(--cf-transition)',
 };

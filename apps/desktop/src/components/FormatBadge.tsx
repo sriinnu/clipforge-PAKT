@@ -33,9 +33,7 @@ const FormatBadge: FC<FormatBadgeProps> = ({ format, confidence }) => {
     >
       {label}
       {confidence != null && confidence < 1 && (
-        <span className="text-[10px] opacity-60">
-          {Math.round(confidence * 100)}%
-        </span>
+        <span className="text-[10px] opacity-60">{Math.round(confidence * 100)}%</span>
       )}
     </span>
   );

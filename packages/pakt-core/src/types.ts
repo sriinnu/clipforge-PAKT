@@ -360,7 +360,7 @@ export interface ModelPricing {
  * Known model pricings (as of Feb 2026).
  * @example
  * ```ts
- * import { MODEL_PRICING } from '@yugenlab/pakt';
+ * import { MODEL_PRICING } from '@sriinnu/pakt';
  * console.log(MODEL_PRICING['gpt-4o'].inputPerMTok); // 2.5
  * ```
  */
@@ -376,7 +376,7 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
  * Default PAKT options. L1+L2 enabled, L3+L4 disabled.
  * @example
  * ```ts
- * import { DEFAULT_OPTIONS } from '@yugenlab/pakt';
+ * import { DEFAULT_OPTIONS } from '@sriinnu/pakt';
  * console.log(DEFAULT_OPTIONS.dictMinSavings); // 3
  * ```
  */
@@ -397,7 +397,7 @@ export const DEFAULT_OPTIONS: Required<PaktOptions> = {
  * Default layers configuration (convenience constant).
  * @example
  * ```ts
- * import { DEFAULT_LAYERS } from '@yugenlab/pakt';
+ * import { DEFAULT_LAYERS } from '@sriinnu/pakt';
  * const myLayers = { ...DEFAULT_LAYERS, tokenizerAware: true };
  * ```
  */

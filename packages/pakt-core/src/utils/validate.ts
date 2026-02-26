@@ -6,7 +6,7 @@
  * The {@link repair} function is re-exported from `./repair.js`.
  */
 
-import type { ValidationResult, ValidationError, ValidationWarning } from '../types.js';
+import type { ValidationError, ValidationResult, ValidationWarning } from '../types.js';
 
 export { repair } from './repair.js';
 
@@ -40,7 +40,7 @@ const KNOWN_FORMATS = new Set(['json', 'yaml', 'csv', 'markdown', 'pakt', 'text'
  *
  * @example
  * ```ts
- * import { validate } from '@yugenlab/pakt';
+ * import { validate } from '@sriinnu/pakt';
  * const result = validate('@from json\nname: Alice');
  * console.log(result.valid); // true
  * ```
@@ -72,8 +72,10 @@ export function validate(pakt: string): ValidationResult {
     // ---- Trailing whitespace check ----------------------------------------
     if (line.length > 0 && line !== line.trimEnd()) {
       warnings.push({
-        line: lineNum, column: line.trimEnd().length + 1,
-        message: 'Trailing whitespace', code: 'W003',
+        line: lineNum,
+        column: line.trimEnd().length + 1,
+        message: 'Trailing whitespace',
+        code: 'W003',
       });
     }
 
@@ -81,8 +83,13 @@ export function validate(pakt: string): ValidationResult {
 
     // ---- Empty line inside tabular ends the block -------------------------
     if (trimmed === '' && inTabular) {
-      finalizeTabular(errors, tabularKey, tabularDeclaredCount,
-        tabularActualCount, tabularHeaderLine);
+      finalizeTabular(
+        errors,
+        tabularKey,
+        tabularDeclaredCount,
+        tabularActualCount,
+        tabularHeaderLine,
+      );
       inTabular = false;
       continue;
     }
@@ -93,7 +100,8 @@ export function validate(pakt: string): ValidationResult {
     const leadingSpaces = line.length - line.trimStart().length;
     if (leadingSpaces > 0 && leadingSpaces % 2 !== 0) {
       warnings.push({
-        line: lineNum, column: 1,
+        line: lineNum,
+        column: 1,
         message: `Odd indentation (${leadingSpaces} spaces), expected multiples of 2`,
         code: 'W002',
       });
@@ -101,8 +109,13 @@ export function validate(pakt: string): ValidationResult {
 
     // ---- Close tabular if indent drops ------------------------------------
     if (inTabular && leadingSpaces <= tabularIndent && !trimmed.startsWith('%')) {
-      finalizeTabular(errors, tabularKey, tabularDeclaredCount,
-        tabularActualCount, tabularHeaderLine);
+      finalizeTabular(
+        errors,
+        tabularKey,
+        tabularDeclaredCount,
+        tabularActualCount,
+        tabularHeaderLine,
+      );
       inTabular = false;
     }
 
@@ -111,23 +124,35 @@ export function validate(pakt: string): ValidationResult {
       hasFrom = true;
       const fmt = trimmed.slice(6).trim();
       if (!KNOWN_FORMATS.has(fmt)) {
-        errors.push({ line: lineNum, column: 7,
-          message: `Unknown format "${fmt}" in @from header`, code: 'E002' });
+        errors.push({
+          line: lineNum,
+          column: 7,
+          message: `Unknown format "${fmt}" in @from header`,
+          code: 'E002',
+        });
       }
       continue;
     }
     if (trimmed === '@from') {
       hasFrom = true;
-      errors.push({ line: lineNum, column: 1,
-        message: '@from header has no format value', code: 'E002' });
+      errors.push({
+        line: lineNum,
+        column: 1,
+        message: '@from header has no format value',
+        code: 'E002',
+      });
       continue;
     }
 
     // ---- @dict / @end -----------------------------------------------------
     if (trimmed === '@dict') {
       if (dictOpen) {
-        errors.push({ line: lineNum, column: 1,
-          message: 'Nested @dict blocks are not allowed', code: 'E004' });
+        errors.push({
+          line: lineNum,
+          column: 1,
+          message: 'Nested @dict blocks are not allowed',
+          code: 'E004',
+        });
       }
       dictOpen = true;
       dictOpenLine = lineNum;
@@ -135,8 +160,12 @@ export function validate(pakt: string): ValidationResult {
     }
     if (trimmed === '@end') {
       if (!dictOpen) {
-        errors.push({ line: lineNum, column: 1,
-          message: '@end without matching @dict', code: 'E003' });
+        errors.push({
+          line: lineNum,
+          column: 1,
+          message: '@end without matching @dict',
+          code: 'E003',
+        });
       }
       dictOpen = false;
       continue;
@@ -160,9 +189,12 @@ export function validate(pakt: string): ValidationResult {
       tabularActualCount++;
       const fieldCount = countPipeFields(trimmed);
       if (fieldCount !== tabularFields.length) {
-        errors.push({ line: lineNum, column: 1,
+        errors.push({
+          line: lineNum,
+          column: 1,
           message: `Row has ${fieldCount} field(s) but header declares ${tabularFields.length} (${tabularFields.join('|')})`,
-          code: 'E006' });
+          code: 'E006',
+        });
       }
       collectAliasUsage(trimmed, usedAliases);
       continue;
@@ -173,8 +205,8 @@ export function validate(pakt: string): ValidationResult {
     if (tabMatch) {
       inTabular = true;
       tabularKey = tabMatch[1]!;
-      tabularDeclaredCount = parseInt(tabMatch[2]!, 10);
-      tabularFields = tabMatch[3]!.split('|').map(f => f.trim());
+      tabularDeclaredCount = Number.parseInt(tabMatch[2]!, 10);
+      tabularFields = tabMatch[3]!.split('|').map((f) => f.trim());
       tabularActualCount = 0;
       tabularIndent = leadingSpaces;
       tabularHeaderLine = lineNum;
@@ -184,12 +216,15 @@ export function validate(pakt: string): ValidationResult {
     // ---- Detect inline array ----------------------------------------------
     const inlineMatch = trimmed.match(/^(\w[\w.]*)\s*\[(\d+)\]\s*:\s*(.+)$/);
     if (inlineMatch) {
-      const declaredCount = parseInt(inlineMatch[2]!, 10);
-      const items = inlineMatch[3]!.split(',').map(v => v.trim());
+      const declaredCount = Number.parseInt(inlineMatch[2]!, 10);
+      const items = inlineMatch[3]!.split(',').map((v) => v.trim());
       if (items.length !== declaredCount) {
-        errors.push({ line: lineNum, column: 1,
+        errors.push({
+          line: lineNum,
+          column: 1,
           message: `Inline array "${inlineMatch[1]}" declares [${declaredCount}] but has ${items.length} item(s)`,
-          code: 'E007' });
+          code: 'E007',
+        });
       }
       for (const item of items) collectAliasUsage(item, usedAliases);
       continue;
@@ -199,12 +234,15 @@ export function validate(pakt: string): ValidationResult {
     const listMatch = trimmed.match(/^(\w[\w.]*)\s*\[(\d+)\]\s*:$/);
     if (listMatch) {
       const listKey = listMatch[1]!;
-      const declaredCount = parseInt(listMatch[2]!, 10);
+      const declaredCount = Number.parseInt(listMatch[2]!, 10);
       const actualCount = countListItems(lines, i + 1, leadingSpaces);
       if (actualCount !== declaredCount) {
-        errors.push({ line: lineNum, column: 1,
+        errors.push({
+          line: lineNum,
+          column: 1,
           message: `List array "${listKey}" declares [${declaredCount}] but has ${actualCount} item(s)`,
-          code: 'E007' });
+          code: 'E007',
+        });
       }
       continue;
     }
@@ -215,35 +253,51 @@ export function validate(pakt: string): ValidationResult {
 
   // ---- Finalize any open tabular block ------------------------------------
   if (inTabular) {
-    finalizeTabular(errors, tabularKey, tabularDeclaredCount,
-      tabularActualCount, tabularHeaderLine);
+    finalizeTabular(
+      errors,
+      tabularKey,
+      tabularDeclaredCount,
+      tabularActualCount,
+      tabularHeaderLine,
+    );
   }
 
   // ---- Missing @from header -----------------------------------------------
   if (!hasFrom) {
-    errors.push({ line: 1, column: 1,
-      message: 'Missing required @from header', code: 'E001' });
+    errors.push({ line: 1, column: 1, message: 'Missing required @from header', code: 'E001' });
   }
 
   // ---- Unclosed @dict block -----------------------------------------------
   if (dictOpen) {
-    errors.push({ line: dictOpenLine, column: 1,
-      message: '@dict block missing @end', code: 'E003' });
+    errors.push({
+      line: dictOpenLine,
+      column: 1,
+      message: '@dict block missing @end',
+      code: 'E003',
+    });
   }
 
   // ---- Unused aliases (warning) -------------------------------------------
   for (const [alias, defLine] of definedAliases) {
     if (!usedAliases.has(alias)) {
-      warnings.push({ line: defLine, column: 1,
-        message: `Unused dictionary alias "${alias}"`, code: 'W001' });
+      warnings.push({
+        line: defLine,
+        column: 1,
+        message: `Unused dictionary alias "${alias}"`,
+        code: 'W001',
+      });
     }
   }
 
   // ---- Undefined alias references (error) ---------------------------------
   for (const alias of usedAliases) {
     if (!definedAliases.has(alias)) {
-      errors.push({ line: 1, column: 1,
-        message: `Undefined alias "${alias}" used in body`, code: 'E005' });
+      errors.push({
+        line: 1,
+        column: 1,
+        message: `Undefined alias "${alias}" used in body`,
+        code: 'E005',
+      });
     }
   }
 
@@ -256,13 +310,19 @@ export function validate(pakt: string): ValidationResult {
 
 /** Finalize a tabular array block -- check declared vs actual row count. */
 function finalizeTabular(
-  errors: ValidationError[], key: string,
-  declared: number, actual: number, headerLine: number,
+  errors: ValidationError[],
+  key: string,
+  declared: number,
+  actual: number,
+  headerLine: number,
 ): void {
   if (actual !== declared) {
-    errors.push({ line: headerLine, column: 1,
+    errors.push({
+      line: headerLine,
+      column: 1,
       message: `Tabular array "${key}" declares [${declared}] but has ${actual} row(s)`,
-      code: 'E007' });
+      code: 'E007',
+    });
   }
 }
 
@@ -296,8 +356,9 @@ function countListItems(lines: string[], startIdx: number, parentIndent: number)
 /** Collect `$alias` references from a text line into the usedAliases set. */
 function collectAliasUsage(text: string, used: Set<string>): void {
   const aliasRe = /\$\w+/g;
-  let m: RegExpExecArray | null;
-  while ((m = aliasRe.exec(text)) !== null) {
+  let m: RegExpExecArray | null = aliasRe.exec(text);
+  while (m !== null) {
     used.add(m[0]);
+    m = aliasRe.exec(text);
   }
 }

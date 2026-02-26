@@ -5,7 +5,7 @@
  * is correctly detected, compressed, and decompressed with envelope
  * metadata preserved.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compress, decompress, detect } from '../src/index.js';
 
 // ---------------------------------------------------------------------------
@@ -25,8 +25,8 @@ describe('HTTP envelope detection', () => {
     const result = detect(input);
     expect(result.format).toBe('json');
     expect(result.envelope).toBeDefined();
-    expect(result.envelope!.type).toBe('http');
-    expect(result.envelope!.preamble).toEqual([
+    expect(result.envelope?.type).toBe('http');
+    expect(result.envelope?.preamble).toEqual([
       'HTTP/1.1 200 OK',
       'Content-Type: application/json',
       'Vary: Accept',
@@ -34,17 +34,12 @@ describe('HTTP envelope detection', () => {
   });
 
   it('detects HTTP/2 response', () => {
-    const input = [
-      'HTTP/2 200',
-      'Content-Type: application/json',
-      '',
-      '[{"id": 1}]',
-    ].join('\n');
+    const input = ['HTTP/2 200', 'Content-Type: application/json', '', '[{"id": 1}]'].join('\n');
 
     const result = detect(input);
     expect(result.format).toBe('json');
     expect(result.envelope).toBeDefined();
-    expect(result.envelope!.preamble[0]).toBe('HTTP/2 200');
+    expect(result.envelope?.preamble[0]).toBe('HTTP/2 200');
   });
 
   it('detects shorthand HTTP response (no version)', () => {
@@ -59,20 +54,16 @@ describe('HTTP envelope detection', () => {
     const result = detect(input);
     expect(result.format).toBe('json');
     expect(result.envelope).toBeDefined();
-    expect(result.envelope!.preamble).toHaveLength(3);
+    expect(result.envelope?.preamble).toHaveLength(3);
   });
 
   it('detects body without blank line separator', () => {
-    const input = [
-      'HTTP/1.1 200 OK',
-      'Content-Type: application/json',
-      '{"items": []}',
-    ].join('\n');
+    const input = ['HTTP/1.1 200 OK', 'Content-Type: application/json', '{"items": []}'].join('\n');
 
     const result = detect(input);
     expect(result.format).toBe('json');
     expect(result.envelope).toBeDefined();
-    expect(result.envelope!.preamble).toEqual([
+    expect(result.envelope?.preamble).toEqual([
       'HTTP/1.1 200 OK',
       'Content-Type: application/json',
     ]);
@@ -115,12 +106,7 @@ describe('HTTP envelope detection', () => {
   });
 
   it('rejects non-HTTP first line', () => {
-    const input = [
-      'SMTP 250 OK',
-      'Content-Type: text/plain',
-      '',
-      '{"ok": true}',
-    ].join('\n');
+    const input = ['SMTP 250 OK', 'Content-Type: text/plain', '', '{"ok": true}'].join('\n');
 
     const result = detect(input);
     expect(result.envelope).toBeUndefined();
@@ -165,12 +151,9 @@ describe('HTTP envelope compression', () => {
         active: true,
       })),
     });
-    const largeInput = [
-      'HTTP/1.1 200 OK',
-      'Content-Type: application/json',
-      '',
-      largeBody,
-    ].join('\n');
+    const largeInput = ['HTTP/1.1 200 OK', 'Content-Type: application/json', '', largeBody].join(
+      '\n',
+    );
     const result = compress(largeInput);
     expect(result.savings.totalPercent).toBeGreaterThan(0);
     expect(result.savings.byLayer.structural).toBeGreaterThan(0);
@@ -189,7 +172,12 @@ describe('HTTP envelope compression', () => {
 
 describe('HTTP envelope roundtrip', () => {
   it('roundtrips JSON body losslessly and recovers envelope', () => {
-    const body = { users: [{ name: 'Alice', role: 'dev' }, { name: 'Bob', role: 'admin' }] };
+    const body = {
+      users: [
+        { name: 'Alice', role: 'dev' },
+        { name: 'Bob', role: 'admin' },
+      ],
+    };
     const input = [
       'HTTP/1.1 200 OK',
       'Content-Type: application/json',
@@ -205,16 +193,13 @@ describe('HTTP envelope roundtrip', () => {
 
     // Envelope is recovered
     expect(decompressed.envelope).toBeDefined();
-    expect(decompressed.envelope).toEqual([
-      'HTTP/1.1 200 OK',
-      'Content-Type: application/json',
-    ]);
+    expect(decompressed.envelope).toEqual(['HTTP/1.1 200 OK', 'Content-Type: application/json']);
   });
 
   it('roundtrips array body with envelope', () => {
     const body = [
       { id: 1, name: 'Widget', price: 9.99 },
-      { id: 2, name: 'Gadget', price: 19.50 },
+      { id: 2, name: 'Gadget', price: 19.5 },
     ];
     const input = [
       'HTTP/1.1 200 OK',
@@ -254,7 +239,7 @@ describe('HTTP envelope roundtrip', () => {
     const decompressed = decompress(compressed.compressed, 'json');
 
     expect(decompressed.envelope).toHaveLength(6);
-    expect(decompressed.envelope![0]).toBe('HTTP/1.1 200 OK');
+    expect(decompressed.envelope?.[0]).toBe('HTTP/1.1 200 OK');
     expect(JSON.parse(decompressed.text)).toEqual(body);
   });
 

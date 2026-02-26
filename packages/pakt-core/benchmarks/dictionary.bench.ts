@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 /**
- * Dictionary (L2) benchmarks for @yugenlab/pakt.
+ * Dictionary (L2) benchmarks for @sriinnu/pakt.
  *
  * Isolates the L2 dictionary layer performance by comparing:
  * - High-repetition data (50-row tabular: many repeated departments, statuses)
@@ -9,9 +12,6 @@
  */
 import { bench, describe } from 'vitest';
 import { compress } from '../src/index.js';
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Fixture loading
@@ -39,9 +39,10 @@ function reportDict(label: string, data: string, opts?: Parameters<typeof compre
   });
 
   const dictSavings = withoutDict.compressedTokens - withDict.compressedTokens;
-  const dictPercent = withoutDict.compressedTokens > 0
-    ? ((dictSavings / withoutDict.compressedTokens) * 100).toFixed(1)
-    : '0.0';
+  const dictPercent =
+    withoutDict.compressedTokens > 0
+      ? ((dictSavings / withoutDict.compressedTokens) * 100).toFixed(1)
+      : '0.0';
 
   console.log(`--- Dictionary analysis: ${label} ---`);
   console.log(`  Tokens without dict : ${withoutDict.compressedTokens}`);
@@ -51,7 +52,9 @@ function reportDict(label: string, data: string, opts?: Parameters<typeof compre
   if (withDict.dictionary.length > 0) {
     console.log('  Aliases:');
     for (const e of withDict.dictionary) {
-      console.log(`    ${e.alias} -> "${e.expansion}" (${e.occurrences}x, saved ${e.tokensSaved} tokens)`);
+      console.log(
+        `    ${e.alias} -> "${e.expansion}" (${e.occurrences}x, saved ${e.tokensSaved} tokens)`,
+      );
     }
   } else {
     console.log('  No aliases created (values too unique or below min-savings threshold)');
