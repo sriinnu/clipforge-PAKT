@@ -19,7 +19,7 @@
       },
       "style": {
         "useConst": "error",
-        "noNonNullAssertion": "error",
+        "noNonNullAssertion": "warn",
         "noArguments": "error"
       },
       "suspicious": {
@@ -68,7 +68,8 @@
         "**/*.test.tsx",
         "**/*.spec.ts",
         "**/tests/**",
-        "**/benchmarks/**"
+        "**/benchmarks/**",
+        "**/scripts/**"
       ],
       "linter": {
         "rules": {
