@@ -22,7 +22,7 @@
  *
  * @example
  * ```ts
- * import { repair } from '@yugenlab/pakt';
+ * import { repair } from '@sriinnu/pakt';
  * const fixed = repair('@from json\n@dict\n  $a: foo\nname: $a');
  * // Adds missing @end: '@from json\n@dict\n  $a: foo\n@end\nname: $a'
  * ```

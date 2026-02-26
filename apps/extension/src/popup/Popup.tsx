@@ -6,8 +6,8 @@
  * Sub-components: ActionBar, StatsCard, Settings, icons, styles.
  */
 
-import { compress, countTokens, decompress, detect } from '@yugenlab/pakt';
-import type { DecompressResult, PaktFormat, PaktResult } from '@yugenlab/pakt';
+import { compress, countTokens, decompress, detect } from '@sriinnu/pakt';
+import type { DecompressResult, PaktFormat, PaktResult } from '@sriinnu/pakt';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type ExtensionSettings, getSettings } from '../shared/storage';
 import { ActionBar } from './ActionBar';

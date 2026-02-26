@@ -131,7 +131,7 @@ function eatComment(s: ParserState): void {
  *
  * @example
  * ```ts
- * import { parse } from '@yugenlab/pakt';
+ * import { parse } from '@sriinnu/pakt';
  * const doc = parse('@from json\nname: Alice');
  * ```
  */

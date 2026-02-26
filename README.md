@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@yugenlab/pakt"><img src="https://img.shields.io/npm/v/@yugenlab/pakt?color=6366f1&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@sriinnu/pakt"><img src="https://img.shields.io/npm/v/@sriinnu/pakt?color=6366f1&label=npm" alt="npm version" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b5cf6" alt="license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
   <a href="https://github.com/sriinnu/clipforge-PAKT/actions"><img src="https://img.shields.io/github/actions/workflow/status/sriinnu/clipforge-PAKT/ci.yml?label=CI&color=22c55e" alt="CI" /></a>
@@ -38,7 +38,7 @@ LLMs charge by the token. Structured data wastes tokens on syntax: braces, quote
 
 ClipForge is a suite of tools built around PAKT, designed to make prompt compression accessible everywhere you work with LLMs:
 
-- **[@yugenlab/pakt](./packages/pakt-core/)** -- The core compression library and CLI. Install it via npm and integrate PAKT into any Node.js or TypeScript project.
+- **[@sriinnu/pakt](./packages/pakt-core/)** -- The core compression library and CLI. Install it via npm and integrate PAKT into any Node.js or TypeScript project.
 - **[ClipForge Desktop](./apps/desktop/)** -- A cross-platform menubar application (built with Tauri v2 and React) that compresses clipboard content on the fly. Copy structured data, compress it with a keystroke, and paste the PAKT output directly into your LLM prompt.
 - **ClipForge Browser Extension** *(coming soon)* -- Inline compression for web-based LLM interfaces.
 
@@ -78,18 +78,18 @@ clipforge-PAKT/
 
 | Package | npm | Description |
 |---------|-----|-------------|
-| [`@yugenlab/pakt`](./packages/pakt-core/) | [![npm](https://img.shields.io/npm/v/@yugenlab/pakt?color=6366f1&label=)](https://www.npmjs.com/package/@yugenlab/pakt) | PAKT compression engine -- the core library with API and CLI |
+| [`@sriinnu/pakt`](./packages/pakt-core/) | [![npm](https://img.shields.io/npm/v/@sriinnu/pakt?color=6366f1&label=)](https://www.npmjs.com/package/@sriinnu/pakt) | PAKT compression engine -- the core library with API and CLI |
 
 ---
 
 ## Quick Start
 
 ```bash
-npm install @yugenlab/pakt
+npm install @sriinnu/pakt
 ```
 
 ```ts
-import { compress, decompress, detect } from '@yugenlab/pakt';
+import { compress, decompress, detect } from '@sriinnu/pakt';
 
 // Compress JSON to PAKT
 const result = compress('{"users": [{"name": "Alice", "role": "dev"}, {"name": "Bob", "role": "dev"}]}');

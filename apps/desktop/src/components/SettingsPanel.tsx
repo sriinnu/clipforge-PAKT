@@ -1,5 +1,5 @@
-import type { PaktFormat } from '@yugenlab/pakt';
-import { VERSION } from '@yugenlab/pakt';
+import type { PaktFormat } from '@sriinnu/pakt';
+import { VERSION } from '@sriinnu/pakt';
 import type { FC } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 

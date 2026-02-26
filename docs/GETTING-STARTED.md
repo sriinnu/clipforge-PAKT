@@ -72,7 +72,7 @@ pnpm build
 pnpm test
 
 # Build only the core library
-pnpm build --filter @yugenlab/pakt
+pnpm build --filter @sriinnu/pakt
 ```
 
 ---
@@ -104,7 +104,7 @@ echo '{"users":[{"name":"Alice","role":"dev"},{"name":"Bob","role":"dev"}]}' | \
 ## 5. Use as a Library
 
 ```typescript
-import { compress, decompress, detect, countTokens } from '@yugenlab/pakt';
+import { compress, decompress, detect, countTokens } from '@sriinnu/pakt';
 
 // Compress JSON
 const result = compress('{"name":"Alice","age":30}');
@@ -120,7 +120,7 @@ const detected = detect('name: Alice\nage: 30');
 console.log(detected.format); // 'yaml'
 ```
 
-> **Note:** The package is not published to npm yet. Within this monorepo, `@yugenlab/pakt` resolves via pnpm workspace linking. To test in an external project, use `pnpm pack --filter @yugenlab/pakt` and install the resulting tarball.
+> **Note:** The package is not published to npm yet. Within this monorepo, `@sriinnu/pakt` resolves via pnpm workspace linking. To test in an external project, use `pnpm pack --filter @sriinnu/pakt` and install the resulting tarball.
 
 ---
 
@@ -171,7 +171,7 @@ GitHub Actions builds for macOS, Windows, and Linux, then creates a draft releas
 ```
 clipforge-PAKT/
 ├── packages/
-│   └── pakt-core/           # @yugenlab/pakt library
+│   └── pakt-core/           # @sriinnu/pakt library
 │       ├── src/              # Source code
 │       ├── tests/            # Vitest tests (322 tests)
 │       └── dist/             # Built output (ESM + CJS + DTS)
@@ -194,7 +194,7 @@ clipforge-PAKT/
 - **Library code** -- edit files in `packages/pakt-core/src/`
 - **Library tests** -- run in watch mode:
   ```bash
-  pnpm --filter @yugenlab/pakt test -- --watch
+  pnpm --filter @sriinnu/pakt test -- --watch
   ```
 - **Desktop UI** -- edit files in `apps/desktop/src/` (Vite hot-reloads)
 - **Rust backend** -- edit files in `apps/desktop/src-tauri/src/` (Tauri rebuilds automatically)
@@ -207,8 +207,8 @@ clipforge-PAKT/
 |---------|-------------|
 | `pnpm build` | Build all packages |
 | `pnpm test` | Run all tests |
-| `pnpm build --filter @yugenlab/pakt` | Build only the library |
-| `pnpm --filter @yugenlab/pakt test -- --watch` | Watch mode for library tests |
+| `pnpm build --filter @sriinnu/pakt` | Build only the library |
+| `pnpm --filter @sriinnu/pakt test -- --watch` | Watch mode for library tests |
 | `cd apps/desktop && pnpm tauri dev` | Run desktop app in dev mode |
 | `cd apps/desktop && pnpm tauri build` | Build desktop app for distribution |
 
@@ -216,14 +216,14 @@ clipforge-PAKT/
 
 ## 11. Pre-publish Checklist
 
-For when you are ready to publish `@yugenlab/pakt` to npm:
+For when you are ready to publish `@sriinnu/pakt` to npm:
 
 - [ ] All 322+ tests pass
 - [ ] `pnpm build` completes cleanly with no warnings
-- [ ] `pnpm pack --filter @yugenlab/pakt` produces a clean tarball
+- [ ] `pnpm pack --filter @sriinnu/pakt` produces a clean tarball
 - [ ] Test the tarball in a fresh project: `npm install ./yugenlab-pakt-0.1.0.tgz`
-- [ ] Verify ESM import works: `import { compress } from '@yugenlab/pakt'`
-- [ ] Verify CJS require works: `const { compress } = require('@yugenlab/pakt')`
+- [ ] Verify ESM import works: `import { compress } from '@sriinnu/pakt'`
+- [ ] Verify CJS require works: `const { compress } = require('@sriinnu/pakt')`
 - [ ] README is accurate and up-to-date
 - [ ] LICENSE file exists (MIT)
 - [ ] `package.json` has correct `files`, `exports`, `main`, `module`, `types` fields

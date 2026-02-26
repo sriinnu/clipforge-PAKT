@@ -43,7 +43,16 @@ CLAUDE.md
 # Extension build
 apps/extension/dist/
 
+# Reports & archives (local only)
+report.html
+*.zip
+
+# Tauri generated schemas (local only)
+apps/desktop/src-tauri/gen/
+
 # Logs
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+.npmrc

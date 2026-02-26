@@ -6,7 +6,7 @@
  * The button appears on hover near the input and fades in/out smoothly.
  */
 
-import { compress, detect } from '@yugenlab/pakt';
+import { compress, detect } from '@sriinnu/pakt';
 import { getSettings } from '../shared/storage';
 
 // ---------------------------------------------------------------------------

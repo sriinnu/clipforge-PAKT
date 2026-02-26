@@ -114,7 +114,7 @@ function tok(type: TokenType, value: string, line: number, column: number, offse
  *
  * @example
  * ```ts
- * import { tokenize } from '@yugenlab/pakt';
+ * import { tokenize } from '@sriinnu/pakt';
  * const tokens = tokenize('@from json\nname: Alice');
  * ```
  */

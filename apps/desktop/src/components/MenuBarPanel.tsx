@@ -1,4 +1,4 @@
-import type { PaktFormat } from '@yugenlab/pakt';
+import type { PaktFormat } from '@sriinnu/pakt';
 import { type FC, useCallback, useEffect, useState } from 'react';
 import { useClipboard } from '../hooks/useClipboard';
 import { useCompactor } from '../hooks/useCompactor';

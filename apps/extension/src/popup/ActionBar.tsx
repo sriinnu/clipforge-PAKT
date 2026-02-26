@@ -5,7 +5,7 @@
  * - Disabled state during compression
  */
 
-import type { PaktFormat } from '@yugenlab/pakt';
+import type { PaktFormat } from '@sriinnu/pakt';
 import { CompressIcon, DecompressIcon, SpinnerIcon } from './icons';
 import { primaryBtnStyle, secondaryBtnStyle, selectStyle } from './styles';
 

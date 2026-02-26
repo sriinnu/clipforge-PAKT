@@ -1,4 +1,4 @@
-import type { PaktLayers } from '@yugenlab/pakt';
+import type { PaktLayers } from '@sriinnu/pakt';
 import type { FC } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 

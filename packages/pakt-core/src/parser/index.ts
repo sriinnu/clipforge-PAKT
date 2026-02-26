@@ -4,7 +4,7 @@
  *
  * @example
  * ```ts
- * import { parse, tokenize } from '@yugenlab/pakt/parser';
+ * import { parse, tokenize } from '@sriinnu/pakt/parser';
  *
  * const tokens = tokenize('@from json\nname: Alice');
  * const doc    = parse('@from json\nname: Alice');

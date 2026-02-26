@@ -1,5 +1,11 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
   "organizeImports": { "enabled": true },
   "linter": {
     "enabled": true,
@@ -13,10 +19,15 @@
       },
       "style": {
         "useConst": "error",
-        "noNonNullAssertion": "warn"
+        "noNonNullAssertion": "error",
+        "noArguments": "error"
       },
       "suspicious": {
-        "noExplicitAny": "warn"
+        "noExplicitAny": "error",
+        "noConsoleLog": "warn"
+      },
+      "correctness": {
+        "noUnusedImports": "error"
       }
     }
   },
@@ -24,16 +35,58 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 100,
+    "lineEnding": "lf"
   },
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
       "trailingCommas": "all",
-      "semicolons": "always"
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "jsxQuoteStyle": "double"
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "target", ".turbo", "coverage", ".claude"]
-  }
+    "ignore": [
+      "node_modules",
+      "dist",
+      "target",
+      ".turbo",
+      "coverage",
+      ".claude",
+      "**/gen/",
+      "**/*.d.ts"
+    ]
+  },
+  "overrides": [
+    {
+      "include": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/tests/**",
+        "**/benchmarks/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noConsoleLog": "off"
+          },
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "warn",
+              "options": { "maxAllowedComplexity": 25 }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

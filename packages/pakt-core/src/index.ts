@@ -1,5 +1,5 @@
 /**
- * @yugenlab/pakt — PAKT compression engine
+ * @sriinnu/pakt — PAKT compression engine
  *
  * Lossless format conversion for LLM token optimization.
  * Compresses JSON, YAML, CSV, and Markdown into a compact
@@ -9,7 +9,7 @@
  *
  * @example
  * ```ts
- * import { compress, decompress, detect } from '@yugenlab/pakt';
+ * import { compress, decompress, detect } from '@sriinnu/pakt';
  *
  * // Compress JSON to PAKT
  * const result = compress('{"users": [{"name": "Alice"}, {"name": "Bob"}]}');

@@ -1,5 +1,5 @@
-import { compress, countTokens, decompress, detect } from '@yugenlab/pakt';
-import type { PaktFormat, PaktOptions } from '@yugenlab/pakt';
+import { compress, countTokens, decompress, detect } from '@sriinnu/pakt';
+import type { PaktFormat, PaktOptions } from '@sriinnu/pakt';
 import { useCallback, useState } from 'react';
 
 export interface CompactorState {

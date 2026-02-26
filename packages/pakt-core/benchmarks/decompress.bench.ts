@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 /**
- * Decompression benchmarks for @yugenlab/pakt.
+ * Decompression benchmarks for @sriinnu/pakt.
  *
  * Pre-compresses each fixture, then benchmarks decompress() throughput.
  * This isolates decompression performance from compression overhead.
