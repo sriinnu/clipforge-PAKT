@@ -6,20 +6,20 @@
  */
 
 import type {
+  BodyNode,
+  CommentNode,
+  DictBlockNode,
   DocumentNode,
   HeaderNode,
-  DictBlockNode,
-  BodyNode,
+  InlineArrayNode,
   KeyValueNode,
+  ListArrayNode,
+  ListItemNode,
   ObjectNode,
   TabularArrayNode,
   TabularRowNode,
-  InlineArrayNode,
-  ListArrayNode,
-  ListItemNode,
-  CommentNode,
-  ScalarNode,
 } from '../parser/ast.js';
+import { formatScalar, formatTabularCell } from './format-scalar.js';
 
 const INDENT = '  ';
 const PRE_DICT_HEADERS: readonly string[] = ['version', 'from', 'target'];
@@ -64,10 +64,7 @@ export function serialize(ast: DocumentNode): string {
  * Emit pre-dict headers (@version, @from, @target) into `lines` and return
  * formatted post-dict header lines (@compress, @warning) for later emission.
  */
-function emitHeaders(
-  headers: HeaderNode[],
-  lines: string[],
-): string[] {
+function emitHeaders(headers: HeaderNode[], lines: string[]): string[] {
   const postDictLines: string[] = [];
 
   for (const ht of PRE_DICT_HEADERS) {
@@ -141,11 +138,7 @@ function emitNode(node: BodyNode, lines: string[], depth: number): void {
 }
 
 /** Emit a key-value pair: `key: value`. */
-function emitKeyValue(
-  node: KeyValueNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitKeyValue(node: KeyValueNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const value = formatScalar(node.value);
   lines.push(`${prefix}${node.key}: ${value}`);
@@ -159,11 +152,7 @@ function emitObject(node: ObjectNode, lines: string[], depth: number): void {
 }
 
 /** Emit a tabular array: `key [count]{f1|f2|...}:` with pipe-delimited rows. */
-function emitTabularArray(
-  node: TabularArrayNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const fieldList = node.fields.join('|');
   lines.push(`${prefix}${node.key} [${node.count}]{${fieldList}}:`);
@@ -173,33 +162,21 @@ function emitTabularArray(
 }
 
 /** Emit a single tabular row as pipe-delimited values. */
-function emitTabularRow(
-  row: TabularRowNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitTabularRow(row: TabularRowNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const cells = row.values.map((v) => formatTabularCell(v));
   lines.push(`${prefix}${cells.join('|')}`);
 }
 
 /** Emit an inline array: `key [count]: val1,val2,val3`. */
-function emitInlineArray(
-  node: InlineArrayNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitInlineArray(node: InlineArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const values = node.values.map((v) => formatScalar(v)).join(',');
   lines.push(`${prefix}${node.key} [${node.count}]: ${values}`);
 }
 
 /** Emit a list array: `key [count]:` followed by dash-prefixed items. */
-function emitListArray(
-  node: ListArrayNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitListArray(node: ListArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   lines.push(`${prefix}${node.key} [${node.count}]:`);
   for (const item of node.items) {
@@ -208,11 +185,7 @@ function emitListArray(
 }
 
 /** Emit a list item: `- ` prefix on first child, rest indented under it. */
-function emitListItem(
-  item: ListItemNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitListItem(item: ListItemNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
 
   for (let i = 0; i < item.children.length; i++) {
@@ -243,90 +216,9 @@ function formatBodyNodeInline(node: BodyNode): string {
 }
 
 /** Emit a comment line: `% comment text`. */
-function emitComment(
-  node: CommentNode,
-  lines: string[],
-  depth: number,
-): void {
+function emitComment(node: CommentNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   lines.push(`${prefix}% ${node.text}`);
-}
-
-/**
- * Format a scalar node as a PAKT value string.
- *
- * @param scalar - The scalar node to format
- * @returns The formatted scalar string
- *
- * @example
- * ```ts
- * formatScalar({ type: 'scalar', scalarType: 'number', value: 42, raw: '42', position: pos });
- * // '42'
- * ```
- */
-function formatScalar(scalar: ScalarNode): string {
-  switch (scalar.scalarType) {
-    case 'number':
-      return scalar.raw;
-    case 'boolean':
-      return String(scalar.value);
-    case 'null':
-      return 'null';
-    case 'string':
-      return formatString(scalar.value, scalar.quoted);
-  }
-}
-
-/** Format a tabular cell, quoting values that contain pipe characters. */
-function formatTabularCell(scalar: ScalarNode): string {
-  if (scalar.scalarType === 'string' && scalar.value.includes('|')) {
-    return quoteString(scalar.value);
-  }
-  return formatScalar(scalar);
-}
-
-/** Format a string value, quoting it if necessary for PAKT safety. */
-function formatString(value: string, wasQuoted: boolean): string {
-  if (wasQuoted || needsQuoting(value)) {
-    return quoteString(value);
-  }
-  return value;
-}
-
-/** Check if a string value requires quoting (`:`, `|`, `$`, `%`, whitespace, etc.). */
-function needsQuoting(value: string): boolean {
-  if (value.length === 0) return true;
-  if (value.includes(':')) return true;
-  if (value.includes('|')) return true;
-  if (value.startsWith('$')) return true;
-  if (value.startsWith('%')) return true;
-  if (value !== value.trim()) return true;
-  if (value.includes('\n')) return true;
-  if (value.includes('"')) return true;
-  if (value.includes('\\')) return true;
-  return false;
-}
-
-/**
- * Quote a string value with double quotes, escaping special characters.
- *
- * Escapes: `"` -> `\"`, `\` -> `\\`, newline -> `\n`
- *
- * @param value - The string to quote
- * @returns The double-quoted and escaped string
- *
- * @example
- * ```ts
- * quoteString('Error: failed');  // '"Error: failed"'
- * quoteString('say "hi"');       // '"say \\"hi\\""'
- * ```
- */
-function quoteString(value: string): string {
-  const escaped = value
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n');
-  return `"${escaped}"`;
 }
 
 /** Generate an indentation string for the given depth (each level = 2 spaces). */

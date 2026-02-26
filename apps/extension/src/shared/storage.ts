@@ -37,9 +37,7 @@ export async function getSettings(): Promise<ExtensionSettings> {
  * Save settings to chrome.storage.sync.
  * Merges partial updates with existing settings.
  */
-export async function saveSettings(
-  partial: Partial<ExtensionSettings>,
-): Promise<void> {
+export async function saveSettings(partial: Partial<ExtensionSettings>): Promise<void> {
   return new Promise((resolve) => {
     chrome.storage.sync.set(partial, () => {
       resolve();
@@ -54,10 +52,7 @@ export async function saveSettings(
 export function onSettingsChange(
   callback: (changes: Partial<ExtensionSettings>) => void,
 ): () => void {
-  const listener = (
-    changes: Record<string, chrome.storage.StorageChange>,
-    area: string,
-  ) => {
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
     if (area !== 'sync') return;
 
     const updated: Partial<ExtensionSettings> = {};

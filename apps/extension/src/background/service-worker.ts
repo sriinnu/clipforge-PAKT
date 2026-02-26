@@ -6,7 +6,7 @@
  * - Updates badge text with token savings (green when savings > 0)
  */
 
-import { compress, detect, countTokens } from '@yugenlab/pakt';
+import { compress, countTokens, detect } from '@sriinnu/pakt';
 import { getSettings } from '../shared/storage';
 
 // ---------------------------------------------------------------------------

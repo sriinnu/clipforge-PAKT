@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div style={cardStyle}>
             {/* Error icon */}
             <div style={iconCircleStyle}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   stroke="var(--cf-error)"
@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               {this.state.error.message || 'An unexpected error occurred.'}
             </span>
 
-            <button style={retryBtnStyle} onClick={this.handleReset}>
+            <button type="button" style={retryBtnStyle} onClick={this.handleReset}>
               Try Again
             </button>
           </div>
@@ -82,28 +82,52 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 /* -- Style objects -------------------------------------------------------- */
 
 const wrapperStyle: React.CSSProperties = {
-  width: 350, minHeight: 200, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', backgroundColor: 'var(--cf-bg)',
-  fontFamily: 'var(--cf-font)', padding: 24,
+  width: 350,
+  minHeight: 200,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: 'var(--cf-bg)',
+  fontFamily: 'var(--cf-font)',
+  padding: 24,
 };
 const cardStyle: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', alignItems: 'center',
-  gap: 12, textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 12,
+  textAlign: 'center',
 };
 const iconCircleStyle: React.CSSProperties = {
-  width: 48, height: 48, borderRadius: '50%',
-  backgroundColor: 'var(--cf-error-glow)', display: 'flex',
-  alignItems: 'center', justifyContent: 'center',
+  width: 48,
+  height: 48,
+  borderRadius: '50%',
+  backgroundColor: 'var(--cf-error-glow)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 const titleStyle: React.CSSProperties = {
-  fontSize: 15, fontWeight: 600, color: 'var(--cf-text)',
+  fontSize: 15,
+  fontWeight: 600,
+  color: 'var(--cf-text)',
 };
 const messageStyle: React.CSSProperties = {
-  fontSize: 12, color: 'var(--cf-text-muted)', lineHeight: 1.5, maxWidth: 260,
+  fontSize: 12,
+  color: 'var(--cf-text-muted)',
+  lineHeight: 1.5,
+  maxWidth: 260,
 };
 const retryBtnStyle: React.CSSProperties = {
-  marginTop: 4, padding: '8px 20px', borderRadius: 'var(--cf-radius-md)',
-  border: 'none', backgroundColor: 'var(--cf-accent)', color: '#fff',
-  fontWeight: 600, fontSize: 13, cursor: 'pointer',
-  fontFamily: 'var(--cf-font)', transition: 'all 0.2s ease',
+  marginTop: 4,
+  padding: '8px 20px',
+  borderRadius: 'var(--cf-radius-md)',
+  border: 'none',
+  backgroundColor: 'var(--cf-accent)',
+  color: '#fff',
+  fontWeight: 600,
+  fontSize: 13,
+  cursor: 'pointer',
+  fontFamily: 'var(--cf-font)',
+  transition: 'all 0.2s ease',
 };

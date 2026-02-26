@@ -6,7 +6,7 @@
  * The button appears on hover near the input and fades in/out smoothly.
  */
 
-import { compress, detect } from '@yugenlab/pakt';
+import { compress, detect } from '@sriinnu/pakt';
 import { getSettings } from '../shared/storage';
 
 // ---------------------------------------------------------------------------
@@ -19,15 +19,8 @@ const SITE_SELECTORS: Record<string, string[]> = {
     'textarea[data-id="root"]',
     'div[contenteditable="true"]',
   ],
-  'chatgpt.com': [
-    '#prompt-textarea',
-    'textarea[data-id="root"]',
-    'div[contenteditable="true"]',
-  ],
-  'claude.ai': [
-    'div.ProseMirror[contenteditable="true"]',
-    'div[contenteditable="true"]',
-  ],
+  'chatgpt.com': ['#prompt-textarea', 'textarea[data-id="root"]', 'div[contenteditable="true"]'],
+  'claude.ai': ['div.ProseMirror[contenteditable="true"]', 'div[contenteditable="true"]'],
   'gemini.google.com': [
     '.ql-editor[contenteditable="true"]',
     'div[contenteditable="true"]',
@@ -238,15 +231,17 @@ function findInputs(): HTMLElement[] {
   const elements: HTMLElement[] = [];
   for (const selector of selectors) {
     const found = document.querySelectorAll<HTMLElement>(selector);
-    found.forEach((el) => elements.push(el));
+    for (const el of found) {
+      elements.push(el);
+    }
   }
   return elements;
 }
 
 function attachToInput(input: HTMLElement): void {
   // Avoid attaching twice
-  if (input.dataset['clipforgeAttached']) return;
-  input.dataset['clipforgeAttached'] = 'true';
+  if (input.dataset.clipforgeAttached) return;
+  input.dataset.clipforgeAttached = 'true';
 
   // Show button on hover near input
   input.addEventListener('mouseenter', () => {

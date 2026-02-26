@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PAKT_SYSTEM_PROMPT } from '../src/prompt.js';
 import { countTokens } from '../src/tokens/counter.js';
 

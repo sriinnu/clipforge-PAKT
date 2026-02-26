@@ -8,10 +8,10 @@
  * Usage: node scripts/gen-icons.mjs
  */
 
-import { writeFileSync, mkdirSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { deflateSync } from 'zlib';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { deflateSync } from 'node:zlib';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const iconsDir = resolve(__dirname, '..', 'icons');
@@ -54,8 +54,8 @@ function createPngRGBA(size, pixels) {
   const ihdrData = Buffer.alloc(13);
   ihdrData.writeUInt32BE(size, 0);
   ihdrData.writeUInt32BE(size, 4);
-  ihdrData[8] = 8;  // bit depth
-  ihdrData[9] = 6;  // color type: RGBA
+  ihdrData[8] = 8; // bit depth
+  ihdrData[9] = 6; // color type: RGBA
   ihdrData[10] = 0; // compression
   ihdrData[11] = 0; // filter
   ihdrData[12] = 0; // interlace
@@ -93,12 +93,34 @@ function distance(x1, y1, x2, y2) {
 }
 
 /**
+ * Compute anti-aliased alpha for a point near a corner arc.
+ * Returns -1 if the point is not in any corner region, otherwise 0.0-1.0.
+ */
+function cornerAlpha(px, py, left, right, top, bottom, radius) {
+  const corners = [
+    [left + radius, top + radius, px < left + radius && py < top + radius],
+    [right - radius, top + radius, px > right - radius && py < top + radius],
+    [left + radius, bottom - radius, px < left + radius && py > bottom - radius],
+    [right - radius, bottom - radius, px > right - radius && py > bottom - radius],
+  ];
+
+  for (const [cx, cy, inRegion] of corners) {
+    if (!inRegion) continue;
+    const d = distance(px, py, cx, cy);
+    if (d > radius + 0.7) return 0.0;
+    if (d > radius - 0.7) return Math.max(0, Math.min(1, (radius + 0.7 - d) / 1.4));
+    return 1.0;
+  }
+
+  return -1;
+}
+
+/**
  * Check if point (px, py) is inside a rounded rectangle.
  * Returns 0.0-1.0 for anti-aliasing at edges.
  */
 function roundedRectAlpha(px, py, x, y, w, h, r) {
-  // Clamp radius
-  r = Math.min(r, w / 2, h / 2);
+  const radius = Math.min(r, w / 2, h / 2);
 
   const left = x;
   const right = x + w;
@@ -106,31 +128,12 @@ function roundedRectAlpha(px, py, x, y, w, h, r) {
   const bottom = y + h;
 
   // Inside the inner rect (no rounding needed)?
-  if (px >= left + r && px <= right - r && py >= top && py <= bottom) return 1.0;
-  if (px >= left && px <= right && py >= top + r && py <= bottom - r) return 1.0;
+  if (px >= left + radius && px <= right - radius && py >= top && py <= bottom) return 1.0;
+  if (px >= left && px <= right && py >= top + radius && py <= bottom - radius) return 1.0;
 
-  // Check each corner
-  const corners = [
-    [left + r, top + r],       // top-left
-    [right - r, top + r],      // top-right
-    [left + r, bottom - r],    // bottom-left
-    [right - r, bottom - r],   // bottom-right
-  ];
-
-  for (const [cx, cy] of corners) {
-    const inCornerRegion =
-      (px < left + r && py < top + r && cx === left + r && cy === top + r) ||
-      (px > right - r && py < top + r && cx === right - r && cy === top + r) ||
-      (px < left + r && py > bottom - r && cx === left + r && cy === bottom - r) ||
-      (px > right - r && py > bottom - r && cx === right - r && cy === bottom - r);
-
-    if (inCornerRegion) {
-      const d = distance(px, py, cx, cy);
-      if (d > r + 0.7) return 0.0;
-      if (d > r - 0.7) return Math.max(0, Math.min(1, (r + 0.7 - d) / 1.4));
-      return 1.0;
-    }
-  }
+  // Check corner regions
+  const ca = cornerAlpha(px, py, left, right, top, bottom, radius);
+  if (ca >= 0) return ca;
 
   // Outside the bounding box
   if (px < left || px > right || py < top || py > bottom) return 0.0;
@@ -188,9 +191,10 @@ function renderLetterP(size) {
       const innerWidth = bowlWidth - bowlThickness;
       const innerHeight = bowlHeight - bowlThickness * 2;
       const innerR = Math.max(0, bowlR - bowlThickness * 0.5);
-      const innerA = innerWidth > 0 && innerHeight > 0
-        ? roundedRectAlpha(px, py, innerLeft, innerTop, innerWidth, innerHeight, innerR)
-        : 0;
+      const innerA =
+        innerWidth > 0 && innerHeight > 0
+          ? roundedRectAlpha(px, py, innerLeft, innerTop, innerWidth, innerHeight, innerR)
+          : 0;
 
       // Bowl = outer minus inner
       const bowlA = Math.max(0, outerA - innerA);
@@ -207,8 +211,12 @@ function renderLetterP(size) {
 // Generate icons
 // ---------------------------------------------------------------------------
 
-const BG_R = 124, BG_G = 58, BG_B = 237;  // #7c3aed
-const FG_R = 255, FG_G = 255, FG_B = 255;  // white
+const BG_R = 124; // #7c3aed
+const BG_G = 58;
+const BG_B = 237;
+const FG_R = 255; // white
+const FG_G = 255;
+const FG_B = 255;
 
 const sizes = [16, 48, 128];
 

@@ -2,8 +2,8 @@
  * End-to-end roundtrip tests for the PAKT library.
  * Verifies: compress(input) -> decompress(compressed) -> deepEqual(original)
  */
-import { describe, it, expect } from 'vitest';
-import { compress, decompress, detect } from '../src/index.js';
+import { describe, expect, it } from 'vitest';
+import { compress, decompress } from '../src/index.js';
 
 // ---------------------------------------------------------------------------
 // Helper: parse CSV text into rows of objects for structural comparison
@@ -11,11 +11,13 @@ import { compress, decompress, detect } from '../src/index.js';
 function parseCsvRows(csv: string): Record<string, string>[] {
   const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) return [];
-  const headers = lines[0]!.split(',').map((h) => h.trim());
+  const headers = lines[0]?.split(',').map((h) => h.trim());
   return lines.slice(1).map((line) => {
     const vals = line.split(',').map((v) => v.trim());
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = vals[i] ?? ''; });
+    headers.forEach((h, i) => {
+      row[h] = vals[i] ?? '';
+    });
     return row;
   });
 }
@@ -140,24 +142,30 @@ describe('CSV roundtrips', () => {
     const result = compress(input, { fromFormat: 'csv' });
     const dec = decompress(result.compressed, 'json');
     const data = JSON.parse(dec.text) as unknown;
-    const rows = (Array.isArray(data) ? data : Object.values(data as Record<string, unknown>).find(Array.isArray)) as Record<string, unknown>[];
+    const rows = (
+      Array.isArray(data)
+        ? data
+        : Object.values(data as Record<string, unknown>).find(Array.isArray)
+    ) as Record<string, unknown>[];
     expect(rows).toBeDefined();
-    expect(rows![0]).toEqual({ item: 'Widget', price: 9.99, qty: 100 });
+    expect(rows?.[0]).toEqual({ item: 'Widget', price: 9.99, qty: 100 });
   });
 
   it('13. CSV with many rows and repeating values', () => {
     const header = 'name,role,dept';
-    const dataRows = Array.from({ length: 12 }, (_, i) =>
-      `Person${i},engineer,engineering`,
-    );
+    const dataRows = Array.from({ length: 12 }, (_, i) => `Person${i},engineer,engineering`);
     const input = [header, ...dataRows].join('\n');
     const result = compress(input, { fromFormat: 'csv' });
     const dec = decompress(result.compressed, 'json');
     const data = JSON.parse(dec.text) as unknown;
-    const rows = (Array.isArray(data) ? data : Object.values(data as Record<string, unknown>).find(Array.isArray)) as Record<string, unknown>[];
+    const rows = (
+      Array.isArray(data)
+        ? data
+        : Object.values(data as Record<string, unknown>).find(Array.isArray)
+    ) as Record<string, unknown>[];
     expect(rows).toHaveLength(12);
-    expect(rows![0]).toHaveProperty('role', 'engineer');
-    expect(rows![0]).toHaveProperty('dept', 'engineering');
+    expect(rows?.[0]).toHaveProperty('role', 'engineer');
+    expect(rows?.[0]).toHaveProperty('dept', 'engineering');
   });
 
   it('14. tab-separated values', () => {
@@ -165,11 +173,15 @@ describe('CSV roundtrips', () => {
     const result = compress(input, { fromFormat: 'csv' });
     const dec = decompress(result.compressed, 'json');
     const data = JSON.parse(dec.text) as unknown;
-    const rows = (Array.isArray(data) ? data : Object.values(data as Record<string, unknown>).find(Array.isArray)) as Record<string, unknown>[];
+    const rows = (
+      Array.isArray(data)
+        ? data
+        : Object.values(data as Record<string, unknown>).find(Array.isArray)
+    ) as Record<string, unknown>[];
     expect(rows).toBeDefined();
-    expect(rows![0]).toHaveProperty('name', 'Alice');
-    expect(rows![0]).toHaveProperty('age', 30);
-    expect(rows![1]).toHaveProperty('active', false);
+    expect(rows?.[0]).toHaveProperty('name', 'Alice');
+    expect(rows?.[0]).toHaveProperty('age', 30);
+    expect(rows?.[1]).toHaveProperty('active', false);
   });
 });
 
@@ -201,13 +213,7 @@ describe('YAML roundtrips', () => {
   });
 
   it('17. YAML with lists', () => {
-    const input = [
-      'project: PAKT',
-      'tags:',
-      '  - compression',
-      '  - tokens',
-      '  - llm',
-    ].join('\n');
+    const input = ['project: PAKT', 'tags:', '  - compression', '  - tokens', '  - llm'].join('\n');
     const result = compress(input, { fromFormat: 'yaml' });
     const dec = decompress(result.compressed, 'json');
     const data = JSON.parse(dec.text);
@@ -413,8 +419,8 @@ describe('Edge cases', () => {
     const result = compress(input);
     // With 30 rows of repeating values, L2 should create dict entries
     if (result.dictionary.length > 0) {
-      expect(result.dictionary[0]!.alias).toMatch(/^\$/);
-      expect(result.dictionary[0]!.occurrences).toBeGreaterThan(1);
+      expect(result.dictionary[0]?.alias).toMatch(/^\$/);
+      expect(result.dictionary[0]?.occurrences).toBeGreaterThan(1);
     }
     // Regardless, roundtrip must be lossless
     const dec = decompress(result.compressed, 'json');

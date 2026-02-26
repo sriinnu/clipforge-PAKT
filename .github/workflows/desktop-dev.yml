@@ -30,8 +30,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -62,7 +60,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        run: pnpm build --filter @yugenlab/pakt
+        run: pnpm build --filter @sriinnu/pakt
 
       - name: Build Tauri app
         working-directory: apps/desktop

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compressL1 } from '../src/layers/L1-compress.js';
 import { decompressL1 } from '../src/layers/L1-decompress.js';
 import type { DocumentNode } from '../src/parser/ast.js';
@@ -11,7 +11,7 @@ import type { DocumentNode } from '../src/parser/ast.js';
 function roundtrip(data: unknown, label = ''): void {
   const doc = compressL1(data, 'json');
   const restored = decompressL1(doc.body);
-  expect(restored, `roundtrip failed${label ? ': ' + label : ''}`).toEqual(data);
+  expect(restored, `roundtrip failed${label ? `: ${label}` : ''}`).toEqual(data);
 }
 
 function compress(data: unknown): DocumentNode {
@@ -28,16 +28,16 @@ describe('L1: flat object', () => {
     const doc = compress(data);
 
     expect(doc.headers).toHaveLength(1);
-    expect(doc.headers[0]!.headerType).toBe('from');
-    expect(doc.headers[0]!.value).toBe('json');
+    expect(doc.headers[0]?.headerType).toBe('from');
+    expect(doc.headers[0]?.value).toBe('json');
     expect(doc.dictionary).toBeNull();
     expect(doc.body).toHaveLength(4);
 
     const [n, a, act, b] = doc.body;
-    expect(n!.type).toBe('keyValue');
-    expect(a!.type).toBe('keyValue');
-    expect(act!.type).toBe('keyValue');
-    expect(b!.type).toBe('keyValue');
+    expect(n?.type).toBe('keyValue');
+    expect(a?.type).toBe('keyValue');
+    expect(act?.type).toBe('keyValue');
+    expect(b?.type).toBe('keyValue');
   });
 
   it('round-trips a flat object', () => {
@@ -61,8 +61,8 @@ describe('L1: nested object', () => {
     const doc = compress(data);
 
     expect(doc.body).toHaveLength(1);
-    expect(doc.body[0]!.type).toBe('object');
-    const obj = doc.body[0] as Extract<typeof doc.body[0], { type: 'object' }>;
+    expect(doc.body[0]?.type).toBe('object');
+    const obj = doc.body[0] as Extract<(typeof doc.body)[0], { type: 'object' }>;
     expect(obj.key).toBe('user');
     expect(obj.children).toHaveLength(2);
   });
@@ -85,7 +85,7 @@ describe('L1: nested object', () => {
   it('handles empty nested object', () => {
     const data = { metadata: {} };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('object');
+    expect(doc.body[0]?.type).toBe('object');
     roundtrip(data);
   });
 });
@@ -130,7 +130,7 @@ describe('L1: tabular array', () => {
       ],
     };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('listArray');
+    expect(doc.body[0]?.type).toBe('listArray');
   });
 
   it('uses ListArray when object values contain nested objects', () => {
@@ -141,7 +141,7 @@ describe('L1: tabular array', () => {
       ],
     };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('listArray');
+    expect(doc.body[0]?.type).toBe('listArray');
   });
 });
 
@@ -164,13 +164,13 @@ describe('L1: inline array', () => {
   it('detects array of numbers as InlineArrayNode', () => {
     const data = { scores: [95, 87, 92, 78] };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('inlineArray');
+    expect(doc.body[0]?.type).toBe('inlineArray');
   });
 
   it('detects mixed primitives as InlineArrayNode', () => {
     const data = { mixed: ['hello', 42, true, null] };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('inlineArray');
+    expect(doc.body[0]?.type).toBe('inlineArray');
     roundtrip(data);
   });
 
@@ -193,10 +193,10 @@ describe('L1: list array', () => {
       ],
     };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('listArray');
-    if (doc.body[0]!.type === 'listArray') {
-      expect(doc.body[0]!.count).toBe(2);
-      expect(doc.body[0]!.items).toHaveLength(2);
+    expect(doc.body[0]?.type).toBe('listArray');
+    if (doc.body[0]?.type === 'listArray') {
+      expect(doc.body[0]?.count).toBe(2);
+      expect(doc.body[0]?.items).toHaveLength(2);
     }
   });
 
@@ -249,11 +249,11 @@ describe('L1: mixed document', () => {
       tags: [1, 2, 3],
     };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('keyValue');
-    expect(doc.body[1]!.type).toBe('object');
-    expect(doc.body[2]!.type).toBe('tabularArray');
-    expect(doc.body[3]!.type).toBe('listArray');
-    expect(doc.body[4]!.type).toBe('inlineArray');
+    expect(doc.body[0]?.type).toBe('keyValue');
+    expect(doc.body[1]?.type).toBe('object');
+    expect(doc.body[2]?.type).toBe('tabularArray');
+    expect(doc.body[3]?.type).toBe('listArray');
+    expect(doc.body[4]?.type).toBe('inlineArray');
   });
 });
 
@@ -265,10 +265,10 @@ describe('L1: empty values', () => {
   it('handles empty array', () => {
     const data = { tags: [] as unknown[] };
     const doc = compress(data);
-    expect(doc.body[0]!.type).toBe('inlineArray');
-    if (doc.body[0]!.type === 'inlineArray') {
-      expect(doc.body[0]!.count).toBe(0);
-      expect(doc.body[0]!.values).toHaveLength(0);
+    expect(doc.body[0]?.type).toBe('inlineArray');
+    if (doc.body[0]?.type === 'inlineArray') {
+      expect(doc.body[0]?.count).toBe(0);
+      expect(doc.body[0]?.values).toHaveLength(0);
     }
     roundtrip(data);
   });
@@ -309,9 +309,9 @@ describe('L1: type preservation', () => {
   it('preserves number 42 as number', () => {
     const data = { count: 42 };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue') {
-      expect(doc.body[0]!.value.scalarType).toBe('number');
-      expect(doc.body[0]!.value.value).toBe(42);
+    if (doc.body[0]?.type === 'keyValue') {
+      expect(doc.body[0]?.value.scalarType).toBe('number');
+      expect(doc.body[0]?.value.value).toBe(42);
     }
     roundtrip(data);
   });
@@ -319,8 +319,8 @@ describe('L1: type preservation', () => {
   it('preserves string "true" as quoted string', () => {
     const data = { flag: 'true' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue') {
-      const val = doc.body[0]!.value;
+    if (doc.body[0]?.type === 'keyValue') {
+      const val = doc.body[0]?.value;
       expect(val.scalarType).toBe('string');
       if (val.scalarType === 'string') {
         expect(val.quoted).toBe(true);
@@ -340,8 +340,8 @@ describe('L1: type preservation', () => {
   it('preserves string "null" as quoted string', () => {
     const data = { val: 'null' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue') {
-      const val = doc.body[0]!.value;
+    if (doc.body[0]?.type === 'keyValue') {
+      const val = doc.body[0]?.value;
       expect(val.scalarType).toBe('string');
       if (val.scalarType === 'string') {
         expect(val.quoted).toBe(true);
@@ -375,8 +375,8 @@ describe('L1: special characters', () => {
   it('quotes strings containing colons', () => {
     const data = { msg: 'Error: timeout' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -384,8 +384,8 @@ describe('L1: special characters', () => {
   it('quotes strings containing pipes', () => {
     const data = { formula: 'x|y' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -393,8 +393,8 @@ describe('L1: special characters', () => {
   it('quotes strings starting with $', () => {
     const data = { ref: '$notAlias' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -402,8 +402,8 @@ describe('L1: special characters', () => {
   it('quotes strings starting with %', () => {
     const data = { ref: '%notComment' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -411,8 +411,8 @@ describe('L1: special characters', () => {
   it('quotes strings with leading spaces', () => {
     const data = { padded: '  indented' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -420,8 +420,8 @@ describe('L1: special characters', () => {
   it('quotes strings with trailing spaces', () => {
     const data = { padded: 'value  ' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -429,8 +429,8 @@ describe('L1: special characters', () => {
   it('quotes strings containing newlines', () => {
     const data = { msg: 'line one\nline two' };
     const doc = compress(data);
-    if (doc.body[0]!.type === 'keyValue' && doc.body[0]!.value.scalarType === 'string') {
-      expect(doc.body[0]!.value.quoted).toBe(true);
+    if (doc.body[0]?.type === 'keyValue' && doc.body[0]?.value.scalarType === 'string') {
+      expect(doc.body[0]?.value.quoted).toBe(true);
     }
     roundtrip(data);
   });
@@ -566,10 +566,7 @@ describe('L1: roundtrip (compressL1 -> decompressL1 -> deepEqual)', () => {
   });
 
   it('roundtrips root-level array of objects (list)', () => {
-    roundtrip([
-      { a: 1, b: 2 },
-      { c: 3 },
-    ]);
+    roundtrip([{ a: 1, b: 2 }, { c: 3 }]);
   });
 
   it('roundtrips root-level primitive values', () => {
@@ -609,17 +606,17 @@ describe('L1: roundtrip (compressL1 -> decompressL1 -> deepEqual)', () => {
 describe('L1: @from header', () => {
   it('sets @from json', () => {
     const doc = compressL1({}, 'json');
-    expect(doc.headers[0]!.value).toBe('json');
+    expect(doc.headers[0]?.value).toBe('json');
   });
 
   it('sets @from yaml', () => {
     const doc = compressL1({}, 'yaml');
-    expect(doc.headers[0]!.value).toBe('yaml');
+    expect(doc.headers[0]?.value).toBe('yaml');
   });
 
   it('sets @from csv', () => {
     const doc = compressL1({}, 'csv');
-    expect(doc.headers[0]!.value).toBe('csv');
+    expect(doc.headers[0]?.value).toBe('csv');
   });
 });
 
@@ -631,18 +628,18 @@ describe('L1: root-level non-object values', () => {
   it('wraps root array in _root key', () => {
     const doc = compress([1, 2, 3]);
     expect(doc.body).toHaveLength(1);
-    expect(doc.body[0]!.type).toBe('inlineArray');
-    if (doc.body[0]!.type === 'inlineArray') {
-      expect(doc.body[0]!.key).toBe('_root');
+    expect(doc.body[0]?.type).toBe('inlineArray');
+    if (doc.body[0]?.type === 'inlineArray') {
+      expect(doc.body[0]?.key).toBe('_root');
     }
   });
 
   it('wraps root primitive in _value key', () => {
     const doc = compress('hello');
     expect(doc.body).toHaveLength(1);
-    expect(doc.body[0]!.type).toBe('keyValue');
-    if (doc.body[0]!.type === 'keyValue') {
-      expect(doc.body[0]!.key).toBe('_value');
+    expect(doc.body[0]?.type).toBe('keyValue');
+    if (doc.body[0]?.type === 'keyValue') {
+      expect(doc.body[0]?.key).toBe('_value');
     }
   });
 

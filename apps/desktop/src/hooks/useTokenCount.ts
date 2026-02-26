@@ -1,5 +1,5 @@
+import { countTokens } from '@sriinnu/pakt';
 import { useMemo } from 'react';
-import { countTokens } from '@yugenlab/pakt';
 
 /**
  * Hook that wraps countTokens() from pakt-core.

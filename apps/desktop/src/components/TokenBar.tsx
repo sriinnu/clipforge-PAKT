@@ -12,9 +12,7 @@ const TokenBar: FC<TokenBarProps> = ({ originalTokens, compressedTokens }) => {
       : 0;
 
   const compressedWidth =
-    originalTokens > 0
-      ? Math.max(4, Math.round((compressedTokens / originalTokens) * 100))
-      : 100;
+    originalTokens > 0 ? Math.max(4, Math.round((compressedTokens / originalTokens) * 100)) : 100;
 
   const isActive = originalTokens > 0 && compressedTokens > 0;
 
@@ -23,18 +21,13 @@ const TokenBar: FC<TokenBarProps> = ({ originalTokens, compressedTokens }) => {
       {/* Labels row */}
       <div className="flex items-center justify-between text-xs">
         <span className="text-gray-400">
-          Before:{' '}
-          <span className="font-mono text-gray-200">
-            {originalTokens.toLocaleString()}
-          </span>{' '}
+          Before: <span className="font-mono text-gray-200">{originalTokens.toLocaleString()}</span>{' '}
           tokens
         </span>
         {isActive && (
           <span
             className={`rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold ${
-              savings > 0
-                ? 'bg-green-500/20 text-green-400'
-                : 'bg-gray-500/20 text-gray-400'
+              savings > 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
             }`}
           >
             {savings > 0 ? `-${savings}%` : '0%'}
@@ -42,9 +35,7 @@ const TokenBar: FC<TokenBarProps> = ({ originalTokens, compressedTokens }) => {
         )}
         <span className="text-gray-400">
           After:{' '}
-          <span className="font-mono text-gray-200">
-            {compressedTokens.toLocaleString()}
-          </span>{' '}
+          <span className="font-mono text-gray-200">{compressedTokens.toLocaleString()}</span>{' '}
           tokens
         </span>
       </div>

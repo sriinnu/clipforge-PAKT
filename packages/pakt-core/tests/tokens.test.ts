@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { countTokens } from '../src/tokens/counter.js';
 import { compareSavings } from '../src/tokens/savings.js';
 
@@ -70,18 +70,18 @@ describe('compareSavings', () => {
     const report = compareSavings(longJson, shortPakt, 'gpt-4o');
     expect(report.model).toBe('gpt-4o');
     expect(report.costSaved).toBeDefined();
-    expect(report.costSaved!.input).toBeGreaterThan(0);
-    expect(report.costSaved!.output).toBeGreaterThan(0);
-    expect(report.costSaved!.currency).toBe('USD');
+    expect(report.costSaved?.input).toBeGreaterThan(0);
+    expect(report.costSaved?.output).toBeGreaterThan(0);
+    expect(report.costSaved?.currency).toBe('USD');
   });
 
   it('includes cost savings for known model claude-sonnet', () => {
     const report = compareSavings(longJson, shortPakt, 'claude-sonnet');
     expect(report.model).toBe('claude-sonnet');
     expect(report.costSaved).toBeDefined();
-    expect(report.costSaved!.input).toBeGreaterThan(0);
-    expect(report.costSaved!.output).toBeGreaterThan(0);
-    expect(report.costSaved!.currency).toBe('USD');
+    expect(report.costSaved?.input).toBeGreaterThan(0);
+    expect(report.costSaved?.output).toBeGreaterThan(0);
+    expect(report.costSaved?.currency).toBe('USD');
   });
 
   it('returns undefined costSaved for unknown model', () => {

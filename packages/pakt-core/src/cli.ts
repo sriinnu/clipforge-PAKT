@@ -16,9 +16,9 @@
  *   pakt --help
  */
 
-import { compress, decompress, detect, countTokens, compareSavings, VERSION } from './index.js';
-import type { PaktFormat, PaktLayers } from './types.js';
 import { readFileSync } from 'node:fs';
+import { VERSION, compareSavings, compress, countTokens, decompress, detect } from './index.js';
+import type { PaktFormat, PaktLayers } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Format mapping
@@ -150,7 +150,9 @@ function readInput(file: string | undefined): string {
 
   // Check if stdin is a TTY — if it is, there is nothing to read
   if (process.stdin.isTTY) {
-    throw new Error('No input file specified and stdin is a terminal. Provide a file or pipe input.');
+    throw new Error(
+      'No input file specified and stdin is a terminal. Provide a file or pipe input.',
+    );
   }
 
   return readFileSync(0, 'utf8');
@@ -170,13 +172,15 @@ function parseLayers(layerStr: string): Partial<PaktLayers> {
 
   const parts = layerStr.split(',');
   for (const part of parts) {
-    const num = parseInt(part.trim(), 10);
-    if (isNaN(num)) {
+    const num = Number.parseInt(part.trim(), 10);
+    if (Number.isNaN(num)) {
       throw new Error(`Invalid layer number: "${part.trim()}". Expected 1, 2, 3, or 4.`);
     }
     const key = LAYER_MAP[num];
     if (!key) {
-      throw new Error(`Unknown layer: ${String(num)}. Valid layers: 1 (structural), 2 (dictionary), 3 (tokenizer), 4 (semantic).`);
+      throw new Error(
+        `Unknown layer: ${String(num)}. Valid layers: 1 (structural), 2 (dictionary), 3 (tokenizer), 4 (semantic).`,
+      );
     }
     layers[key] = true;
   }
@@ -274,8 +278,12 @@ function cmdSavings(args: ParsedArgs): void {
   process.stdout.write(`Savings:          ${String(report.savedPercent)}%\n`);
 
   if (report.costSaved) {
-    process.stdout.write(`Cost saved (input):  $${report.costSaved.input.toFixed(6)} ${report.costSaved.currency}\n`);
-    process.stdout.write(`Cost saved (output): $${report.costSaved.output.toFixed(6)} ${report.costSaved.currency}\n`);
+    process.stdout.write(
+      `Cost saved (input):  $${report.costSaved.input.toFixed(6)} ${report.costSaved.currency}\n`,
+    );
+    process.stdout.write(
+      `Cost saved (output): $${report.costSaved.output.toFixed(6)} ${report.costSaved.currency}\n`,
+    );
   }
 }
 

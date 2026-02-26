@@ -1,6 +1,6 @@
+import type { PaktLayers } from '@sriinnu/pakt';
 import type { FC } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
-import type { PaktLayers } from '@yugenlab/pakt';
 
 interface LayerInfo {
   key: keyof PaktLayers;
@@ -69,9 +69,7 @@ const LayerControls: FC = () => {
               className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-800/50"
             >
               <div className="flex items-center gap-2">
-                <span className="w-6 font-mono text-[10px] text-gray-500">
-                  {layer.code}
-                </span>
+                <span className="w-6 font-mono text-[10px] text-gray-500">{layer.code}</span>
                 <span className="text-xs text-gray-300">{layer.label}</span>
                 {layer.comingSoon && (
                   <span className="rounded bg-yellow-500/15 px-1 py-0.5 text-[9px] text-yellow-500">

@@ -22,25 +22,25 @@
  * Used as the discriminator on {@link Token}.
  */
 export type TokenType =
-  | 'HEADER'        // @from, @target, @version, @compress, @warning
-  | 'DICT_START'    // @dict
-  | 'DICT_END'      // @end
-  | 'KEY'           // any key identifier before ':'
-  | 'COLON'         // :
-  | 'VALUE'         // value after ': '
-  | 'PIPE'          // |
-  | 'BRACKET_OPEN'  // [
+  | 'HEADER' // @from, @target, @version, @compress, @warning
+  | 'DICT_START' // @dict
+  | 'DICT_END' // @end
+  | 'KEY' // any key identifier before ':'
+  | 'COLON' // :
+  | 'VALUE' // value after ': '
+  | 'PIPE' // |
+  | 'BRACKET_OPEN' // [
   | 'BRACKET_CLOSE' // ]
-  | 'BRACE_OPEN'    // {
-  | 'BRACE_CLOSE'   // }
-  | 'COMMA'         // ,
-  | 'DASH'          // - (list item prefix)
-  | 'COMMENT'       // % comment
-  | 'NEWLINE'       // \n
-  | 'INDENT'        // leading spaces (value = space count)
+  | 'BRACE_OPEN' // {
+  | 'BRACE_CLOSE' // }
+  | 'COMMA' // ,
+  | 'DASH' // - (list item prefix)
+  | 'COMMENT' // % comment
+  | 'NEWLINE' // \n
+  | 'INDENT' // leading spaces (value = space count)
   | 'QUOTED_STRING' // "..."
-  | 'NUMBER'        // bare number
-  | 'EOF';          // end of input
+  | 'NUMBER' // bare number
+  | 'EOF'; // end of input
 
 /**
  * A single lexical token emitted by the tokenizer.
@@ -114,7 +114,7 @@ function tok(type: TokenType, value: string, line: number, column: number, offse
  *
  * @example
  * ```ts
- * import { tokenize } from '@yugenlab/pakt';
+ * import { tokenize } from '@sriinnu/pakt';
  * const tokens = tokenize('@from json\nname: Alice');
  * ```
  */
@@ -153,7 +153,10 @@ export function tokenize(input: string): Token[] {
       const ch = line[col]!;
 
       // Skip whitespace between tokens (not leading — that was INDENT)
-      if (ch === ' ') { col++; continue; }
+      if (ch === ' ') {
+        col++;
+        continue;
+      }
 
       // Comment: % ...
       if (ch === '%') {
@@ -181,7 +184,7 @@ export function tokenize(input: string): Token[] {
         if (headerMatch) {
           const keyword = headerMatch[1]!;
           if (HEADER_KEYWORDS.has(keyword)) {
-            const val = headerMatch[2]!.trim();
+            const val = headerMatch[2]?.trim();
             tokens.push(tok('HEADER', `@${keyword} ${val}`, lineNum, col + 1, offset + col));
             col = line.length;
             continue;
@@ -205,12 +208,36 @@ export function tokenize(input: string): Token[] {
       }
 
       // Structural single-character tokens
-      if (ch === '|') { tokens.push(tok('PIPE', '|', lineNum, col + 1, offset + col)); col++; continue; }
-      if (ch === '[') { tokens.push(tok('BRACKET_OPEN', '[', lineNum, col + 1, offset + col)); col++; continue; }
-      if (ch === ']') { tokens.push(tok('BRACKET_CLOSE', ']', lineNum, col + 1, offset + col)); col++; continue; }
-      if (ch === '{') { tokens.push(tok('BRACE_OPEN', '{', lineNum, col + 1, offset + col)); col++; continue; }
-      if (ch === '}') { tokens.push(tok('BRACE_CLOSE', '}', lineNum, col + 1, offset + col)); col++; continue; }
-      if (ch === ',') { tokens.push(tok('COMMA', ',', lineNum, col + 1, offset + col)); col++; continue; }
+      if (ch === '|') {
+        tokens.push(tok('PIPE', '|', lineNum, col + 1, offset + col));
+        col++;
+        continue;
+      }
+      if (ch === '[') {
+        tokens.push(tok('BRACKET_OPEN', '[', lineNum, col + 1, offset + col));
+        col++;
+        continue;
+      }
+      if (ch === ']') {
+        tokens.push(tok('BRACKET_CLOSE', ']', lineNum, col + 1, offset + col));
+        col++;
+        continue;
+      }
+      if (ch === '{') {
+        tokens.push(tok('BRACE_OPEN', '{', lineNum, col + 1, offset + col));
+        col++;
+        continue;
+      }
+      if (ch === '}') {
+        tokens.push(tok('BRACE_CLOSE', '}', lineNum, col + 1, offset + col));
+        col++;
+        continue;
+      }
+      if (ch === ',') {
+        tokens.push(tok('COMMA', ',', lineNum, col + 1, offset + col));
+        col++;
+        continue;
+      }
 
       // Dash — list item prefix: "- " at the start of content
       if (ch === '-' && col + 1 < line.length && line[col + 1] === ' ') {
@@ -252,7 +279,15 @@ export function tokenize(input: string): Token[] {
               if (valueText.length > 0) {
                 tokens.push(tok('VALUE', valueText, lineNum, valueStart + 1, offset + valueStart));
               }
-              tokens.push(tok('COMMENT', commentContent, lineNum, valueStart + commentIdx + 1, offset + valueStart + commentIdx));
+              tokens.push(
+                tok(
+                  'COMMENT',
+                  commentContent,
+                  lineNum,
+                  valueStart + commentIdx + 1,
+                  offset + valueStart + commentIdx,
+                ),
+              );
               col = line.length;
             } else {
               valueText = remaining.trimEnd();
@@ -303,7 +338,10 @@ function isDirectiveStart(line: string, col: number): boolean {
  * Returns the token and the index *after* the closing quote.
  */
 function scanQuotedString(
-  line: string, start: number, lineNum: number, byteOffset: number,
+  line: string,
+  start: number,
+  lineNum: number,
+  byteOffset: number,
 ): { token: Token; end: number } {
   let i = start + 1; // skip opening quote
   let value = '';
@@ -312,12 +350,24 @@ function scanQuotedString(
     if (ch === '\\' && i + 1 < line.length) {
       const next = line[i + 1]!;
       switch (next) {
-        case '\\': value += '\\'; break;
-        case '"':  value += '"';  break;
-        case 'n':  value += '\n'; break;
-        case 't':  value += '\t'; break;
-        case 'r':  value += '\r'; break;
-        default:   value += '\\' + next; break;
+        case '\\':
+          value += '\\';
+          break;
+        case '"':
+          value += '"';
+          break;
+        case 'n':
+          value += '\n';
+          break;
+        case 't':
+          value += '\t';
+          break;
+        case 'r':
+          value += '\r';
+          break;
+        default:
+          value += `\\${next}`;
+          break;
       }
       i += 2;
       continue;
@@ -336,7 +386,10 @@ function scanQuotedString(
 
 /** Scan an unquoted word / key starting at `start`. */
 function scanWord(
-  line: string, start: number, lineNum: number, byteOffset: number,
+  line: string,
+  start: number,
+  lineNum: number,
+  byteOffset: number,
 ): { token: Token; end: number } {
   let i = start;
   // Read until we hit a structural delimiter or space
@@ -354,9 +407,18 @@ function scanWord(
 
 /** Characters that terminate a word scan. */
 function isDelimiter(ch: string): boolean {
-  return ch === ' ' || ch === ':' || ch === '|' || ch === ',' ||
-    ch === '[' || ch === ']' || ch === '{' || ch === '}' ||
-    ch === '%' || ch === '"';
+  return (
+    ch === ' ' ||
+    ch === ':' ||
+    ch === '|' ||
+    ch === ',' ||
+    ch === '[' ||
+    ch === ']' ||
+    ch === '{' ||
+    ch === '}' ||
+    ch === '%' ||
+    ch === '"'
+  );
 }
 
 /**

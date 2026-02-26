@@ -1,6 +1,6 @@
+import type { PaktFormat, PaktLayers } from '@sriinnu/pakt';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PaktFormat, PaktLayers } from '@yugenlab/pakt';
 
 interface SettingsState {
   outputFormat: PaktFormat;

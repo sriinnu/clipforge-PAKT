@@ -9,7 +9,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@yugenlab/pakt": "workspace:*",
+    "@sriinnu/pakt": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
