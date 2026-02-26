@@ -3,7 +3,7 @@
  * Verifies: compress(input) -> decompress(compressed) -> deepEqual(original)
  */
 import { describe, expect, it } from 'vitest';
-import { compress, decompress, detect } from '../src/index.js';
+import { compress, decompress } from '../src/index.js';
 
 // ---------------------------------------------------------------------------
 // Helper: parse CSV text into rows of objects for structural comparison

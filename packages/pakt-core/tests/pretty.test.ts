@@ -17,7 +17,6 @@ import type {
 import { createPosition } from '../src/parser/ast.js';
 import { parse } from '../src/parser/parser.js';
 import { prettyPrint } from '../src/serializer/pretty.js';
-import { serialize } from '../src/serializer/serialize.js';
 
 // -- Helpers (same factory pattern as serializer.test.ts) --------------------
 
