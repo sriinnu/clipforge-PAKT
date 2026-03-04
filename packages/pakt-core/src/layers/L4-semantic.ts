@@ -54,11 +54,7 @@ const POS: SourcePosition = { line: 0, column: 0, offset: 0 };
  * @param value      - The header value to match
  * @returns True if the header already exists
  */
-function hasHeader(
-  headers: HeaderNode[],
-  headerType: string,
-  value: string,
-): boolean {
+function hasHeader(headers: HeaderNode[], headerType: string, value: string): boolean {
   return headers.some((h) => h.headerType === headerType && h.value === value);
 }
 
@@ -142,11 +138,12 @@ type Strategy = (doc: DocumentNode) => DocumentNode;
  * @returns Object with the compressed doc and whether any changes were made
  */
 function applyStrategiesUntilBudget(
-  doc: DocumentNode,
+  inputDoc: DocumentNode,
   budget: number,
   strategies: Strategy[],
 ): { doc: DocumentNode; changed: boolean } {
   let changed = false;
+  let doc = inputDoc;
 
   for (const strategy of strategies) {
     // Check if already within budget before applying

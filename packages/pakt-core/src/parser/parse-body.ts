@@ -4,6 +4,7 @@
  * Handles objects, arrays (tabular, inline, list), and keyed nodes.
  */
 
+import { inferScalar } from './ast-helpers.js';
 import type {
   BodyNode,
   CommentNode,
@@ -16,7 +17,6 @@ import type {
   TabularArrayNode,
   TabularRowNode,
 } from './ast.js';
-import { inferScalar } from './ast-helpers.js';
 import { mkEmptyKV, parseScalarToken } from './parse-scalars.js';
 import type { ParserState } from './parser.js';
 import {

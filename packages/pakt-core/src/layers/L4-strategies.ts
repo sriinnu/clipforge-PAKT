@@ -121,7 +121,7 @@ export function strategyValueTruncation(doc: DocumentNode): DocumentNode {
     .filter((s) => s.value.length > LONG_STRING_THRESHOLD)
     .sort((a, b) => b.value.length - a.value.length);
   for (const scalar of long) {
-    scalar.value = scalar.value.slice(0, TRUNCATED_KEEP) + '...';
+    scalar.value = `${scalar.value.slice(0, TRUNCATED_KEEP)}...`;
   }
   return doc;
 }
@@ -226,8 +226,11 @@ export function strategyFieldDropping(doc: DocumentNode): DocumentNode {
 function isLowInfo(node: BodyNode): boolean {
   if (node.type !== 'keyValue') return false;
   const v = node.value;
-  return v.scalarType === 'null' || v.scalarType === 'boolean' ||
-    (v.scalarType === 'string' && v.value === '');
+  return (
+    v.scalarType === 'null' ||
+    v.scalarType === 'boolean' ||
+    (v.scalarType === 'string' && v.value === '')
+  );
 }
 
 /** Walk body nodes and drop low-info fields from large objects. */
@@ -250,7 +253,10 @@ function dropFieldsFromObject(obj: ObjectNode): void {
   let dropped = 0;
   obj.children = obj.children.filter((child) => {
     if (dropped >= maxDrop) return true;
-    if (isLowInfo(child)) { dropped++; return false; }
+    if (isLowInfo(child)) {
+      dropped++;
+      return false;
+    }
     return true;
   });
 }
@@ -297,8 +303,7 @@ function collapseListArray(node: ListArrayNode): void {
     const sig = itemSignature(current);
     let runLength = 1;
     // Count consecutive items with the same signature
-    while (i + runLength < node.items.length &&
-      itemSignature(node.items[i + runLength]!) === sig) {
+    while (i + runLength < node.items.length && itemSignature(node.items[i + runLength]!) === sig) {
       runLength++;
     }
     if (runLength >= 3) {

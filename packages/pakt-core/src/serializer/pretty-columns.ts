@@ -62,11 +62,7 @@ export function emitAlignedRow(
  * @param lines  - Output line accumulator (mutated in place)
  * @param prefix - Indentation prefix string
  */
-export function emitCompactRow(
-  row: TabularRowNode,
-  lines: string[],
-  prefix: string,
-): void {
+export function emitCompactRow(row: TabularRowNode, lines: string[], prefix: string): void {
   const cells = row.values.map((v) => formatTabularCell(v));
   lines.push(`${prefix}${cells.join('|')}`);
 }

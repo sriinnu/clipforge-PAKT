@@ -163,10 +163,20 @@ function compressItem(
     }
 
     // Compression didn't help — keep original
-    return { text: item.content, originalTokens, compressedTokens: originalTokens, wasCompressed: false };
+    return {
+      text: item.content,
+      originalTokens,
+      compressedTokens: originalTokens,
+      wasCompressed: false,
+    };
   } catch {
     // Compression failed — gracefully fall back to original text
-    return { text: item.content, originalTokens, compressedTokens: originalTokens, wasCompressed: false };
+    return {
+      text: item.content,
+      originalTokens,
+      compressedTokens: originalTokens,
+      wasCompressed: false,
+    };
   }
 }
 

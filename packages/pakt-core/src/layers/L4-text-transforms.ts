@@ -40,7 +40,7 @@ export function normalizeWhitespace(text: string): string {
       if (!match) return line;
       const [, indent, rest] = match;
       // Collapse multiple spaces in the content portion only
-      const collapsed = rest!.replace(/ {2,}/g, ' ').trimEnd();
+      const collapsed = rest?.replace(/ {2,}/g, ' ').trimEnd();
       return indent + collapsed;
     })
     .join('\n');
@@ -126,7 +126,7 @@ function abbreviatePipeValues(line: string): string {
   if (!match) return line;
   const [, indent, content] = match;
 
-  const parts = content!.split('|');
+  const parts = content?.split('|');
   const abbreviated = parts.map((part) => {
     const trimmed = part.trim();
     if (trimmed === 'true' || trimmed === 'false' || trimmed === 'null') {
@@ -157,14 +157,11 @@ function abbreviatePipeValues(line: string): string {
  */
 export function reduceNumericPrecision(text: string): string {
   // Match numbers with 3+ decimal places in value positions
-  return text.replace(
-    /(\d+\.\d{3,})/g,
-    (_match, num: string) => {
-      const parsed = Number.parseFloat(num);
-      if (!Number.isFinite(parsed)) return num;
-      return parsed.toFixed(2);
-    },
-  );
+  return text.replace(/(\d+\.\d{3,})/g, (_match, num: string) => {
+    const parsed = Number.parseFloat(num);
+    if (!Number.isFinite(parsed)) return num;
+    return parsed.toFixed(2);
+  });
 }
 
 // ---------------------------------------------------------------------------

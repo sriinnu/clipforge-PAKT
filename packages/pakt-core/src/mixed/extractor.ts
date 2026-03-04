@@ -58,11 +58,10 @@ const FENCED_RE = /^(`{3,})([\w.-]*)\s*\n([\s\S]*?)^\1\s*$/gm;
  */
 function extractFencedBlocks(text: string): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
-  let match: RegExpExecArray | null;
 
   // Reset lastIndex before iteration
   FENCED_RE.lastIndex = 0;
-  while ((match = FENCED_RE.exec(text)) !== null) {
+  for (let match = FENCED_RE.exec(text); match !== null; match = FENCED_RE.exec(text)) {
     const langTag = (match[2] ?? '').toLowerCase().trim();
     const content = match[3] ?? '';
     const startOffset = match.index;
@@ -76,7 +75,11 @@ function extractFencedBlocks(text: string): ExtractedBlock[] {
     if (!format) {
       const detected = detect(content);
       // Only accept high-confidence structured detections
-      if (detected.confidence >= 0.8 && detected.format !== 'text' && detected.format !== 'markdown') {
+      if (
+        detected.confidence >= 0.8 &&
+        detected.format !== 'text' &&
+        detected.format !== 'markdown'
+      ) {
         format = detected.format;
       }
     }
@@ -186,7 +189,10 @@ function extractInlineJson(text: string, occupied: Set<number>): ExtractedBlock[
     const trimmed = line.trimStart();
     const leadingSpaces = line.length - trimmed.length;
 
-    if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && !occupied.has(offset + leadingSpaces)) {
+    if (
+      (trimmed.startsWith('{') || trimmed.startsWith('[')) &&
+      !occupied.has(offset + leadingSpaces)
+    ) {
       const startIdx = offset + leadingSpaces;
       const closeIdx = findMatchingBracket(text, startIdx);
 
@@ -264,21 +270,25 @@ function extractCsvSections(text: string, occupied: Set<number>): ExtractedBlock
   let i = 0;
   while (i < allLines.length) {
     // Skip lines that are already occupied or empty
-    if (occupied.has(lineOffsets[i]!) || allLines[i]!.trim().length === 0) {
+    if (occupied.has(lineOffsets[i]!) || allLines[i]?.trim().length === 0) {
       i++;
       continue;
     }
 
     // Try to find a CSV run starting at line i
     let end = i + 1;
-    while (end < allLines.length && !occupied.has(lineOffsets[end]!) && allLines[end]!.trim().length > 0) {
+    while (
+      end < allLines.length &&
+      !occupied.has(lineOffsets[end]!) &&
+      allLines[end]?.trim().length > 0
+    ) {
       end++;
     }
 
     const candidateLines = allLines.slice(i, end);
     if (detectCsvDelimiter(candidateLines)) {
       const startOffset = lineOffsets[i]!;
-      const endLineOffset = lineOffsets[end - 1]! + allLines[end - 1]!.length;
+      const endLineOffset = lineOffsets[end - 1]! + allLines[end - 1]?.length;
       const content = text.slice(startOffset, endLineOffset);
       blocks.push({
         format: 'csv',

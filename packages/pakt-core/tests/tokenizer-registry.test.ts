@@ -200,9 +200,7 @@ describe('countTokens uses registry', () => {
   });
 
   it('falls back to GPT when custom factory does not match', () => {
-    registerTokenCounter((model) =>
-      model === 'special' ? { model, count: () => 999 } : null,
-    );
+    registerTokenCounter((model) => (model === 'special' ? { model, count: () => 999 } : null));
 
     // 'gpt-4o' is not handled by our factory
     const tokens = countTokens('Hello, world!', 'gpt-4o');
@@ -212,9 +210,7 @@ describe('countTokens uses registry', () => {
 
   it('defaults to gpt-4o when no model is specified', () => {
     // Register a factory that only handles 'gpt-4o'
-    registerTokenCounter((model) =>
-      model === 'gpt-4o' ? { model, count: () => 7 } : null,
-    );
+    registerTokenCounter((model) => (model === 'gpt-4o' ? { model, count: () => 7 } : null));
 
     // countTokens with no model should default to 'gpt-4o'
     const tokens = countTokens('test');

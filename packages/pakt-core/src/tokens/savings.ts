@@ -4,8 +4,8 @@
  * and compressed text, with optional cost estimates based on model pricing.
  */
 
-import type { SavingsReport } from '../types.js';
 import { MODEL_PRICING } from '../constants.js';
+import type { SavingsReport } from '../types.js';
 import { countTokens } from './counter.js';
 
 /**

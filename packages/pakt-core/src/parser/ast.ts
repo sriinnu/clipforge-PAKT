@@ -393,4 +393,3 @@ export type ASTNode =
 // ---------------------------------------------------------------------------
 
 export { createPosition, inferScalar } from './ast-helpers.js';
-

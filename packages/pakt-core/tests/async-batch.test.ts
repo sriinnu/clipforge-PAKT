@@ -131,11 +131,7 @@ describe('decompressAsync', () => {
 
 describe('compressBatch', () => {
   it('compresses multiple items and returns results in order', async () => {
-    const inputs = [
-      '{"a":1}',
-      '{"b":2}',
-      '{"c":3}',
-    ];
+    const inputs = ['{"a":1}', '{"b":2}', '{"c":3}'];
 
     const results = await compressBatch(inputs);
 
@@ -184,10 +180,7 @@ describe('compressBatch error handling', () => {
     // may treat it as text), so we use a more targeted approach:
     // the sync compress handles most inputs gracefully, so an
     // error-free run is acceptable. We still test the structure.
-    const inputs = [
-      SIMPLE_JSON,
-      '{"valid":true}',
-    ];
+    const inputs = [SIMPLE_JSON, '{"valid":true}'];
 
     const results = await compressBatch(inputs);
 
@@ -220,8 +213,8 @@ describe('compressBatch error handling', () => {
 describe('compressBatch concurrency', () => {
   it('respects the concurrency limit', async () => {
     // Track peak concurrency by instrumenting the batch
-    let currentRunning = 0;
-    let peakConcurrency = 0;
+    const currentRunning = 0;
+    const peakConcurrency = 0;
 
     // We use 8 items with concurrency=2 to observe bounded parallelism
     const inputs = Array.from({ length: 8 }, (_, i) => `{"item":${i}}`);
