@@ -33,8 +33,8 @@ import type { DecompressResult, PaktFormat } from './types.js';
  * @param pakt - The PAKT-formatted string to decompress
  * @param outputFormat - Desired output format. Defaults to the original
  *   format declared in the `@from` header.
- * @returns Decompressed data and formatted text
- * @throws {Error} If the PAKT string is malformed or unparseable
+ * @returns Decompressed data and formatted text.
+ *   On error, returns the raw PAKT string as text with format 'text' (graceful degradation).
  *
  * @example
  * ```ts
@@ -70,6 +70,31 @@ import type { DecompressResult, PaktFormat } from './types.js';
  * ```
  */
 export function decompress(pakt: string, outputFormat?: PaktFormat): DecompressResult {
+  // Graceful degradation: wrap the entire pipeline in try-catch so that
+  // on ANY error we return the raw PAKT string as text instead of crashing.
+  try {
+    return decompressPipeline(pakt, outputFormat);
+  } catch {
+    return {
+      data: pakt,
+      text: pakt,
+      originalFormat: 'text',
+      wasLossy: false,
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Internal pipeline (wrapped by decompress() for error handling)
+// ---------------------------------------------------------------------------
+
+/**
+ * Core decompression pipeline extracted for try-catch wrapping.
+ * @param pakt - The PAKT-formatted string to decompress
+ * @param outputFormat - Desired output format
+ * @returns Decompressed data and formatted text
+ */
+function decompressPipeline(pakt: string, outputFormat?: PaktFormat): DecompressResult {
   // 1. Reverse L3 tokenizer transforms if applied (before parsing)
   const normalizedPakt = reverseL3Transforms(pakt);
 

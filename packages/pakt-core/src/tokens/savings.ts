@@ -5,7 +5,7 @@
  */
 
 import type { SavingsReport } from '../types.js';
-import { MODEL_PRICING } from '../types.js';
+import { MODEL_PRICING } from '../constants.js';
 import { countTokens } from './counter.js';
 
 /**
@@ -41,8 +41,8 @@ export function compareSavings(
 ): SavingsReport {
   const resolvedModel = model ?? 'gpt-4o';
 
-  const originalTokens = countTokens(original);
-  const compressedTokens = countTokens(compressed);
+  const originalTokens = countTokens(original, resolvedModel);
+  const compressedTokens = countTokens(compressed, resolvedModel);
   const savedTokens = originalTokens - compressedTokens;
 
   const savedPercent = originalTokens === 0 ? 0 : Math.round((savedTokens / originalTokens) * 100);

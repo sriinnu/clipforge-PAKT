@@ -28,7 +28,7 @@ import type {
   TabularArrayNode,
   TabularRowNode,
 } from '../parser/ast.js';
-import { createPosition } from '../parser/ast.js';
+import { createPosition } from '../parser/ast-helpers.js';
 import type { PaktFormat } from '../types.js';
 
 // ---------------------------------------------------------------------------

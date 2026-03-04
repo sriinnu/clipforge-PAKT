@@ -163,8 +163,8 @@ export function findSuffixCandidates(
   // Find common suffixes (= common prefixes of reversed strings)
   const suffixCounts = new Map<string, number>();
   for (let i = 0; i < reversed.length - 1; i++) {
-    const a = reversed[i]?.rev;
-    const b = reversed[i + 1]?.rev;
+    const a = reversed[i]!.rev;
+    const b = reversed[i + 1]!.rev;
     let len = 0;
     while (len < a.length && len < b.length && a[len] === b[len]) len++;
     if (len >= MIN_SUFFIX_LENGTH) {

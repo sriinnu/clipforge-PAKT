@@ -1,22 +1,43 @@
 /**
  * @module tokens/counter
- * Token counting utilities using the gpt-tokenizer library.
- * Uses cl100k_base encoding by default, which is compatible with
- * GPT-4, GPT-4o, and close enough for Claude models.
+ * Token counting utilities with pluggable backend support.
+ *
+ * The public {@link countTokens} function is the main entry point. It
+ * delegates to the {@link getTokenCounter} registry, which falls back to
+ * the built-in {@link GptTokenCounter} (cl100k_base / GPT BPE) when no
+ * custom counter is registered for the requested model.
+ *
+ * @example
+ * ```ts
+ * import { countTokens } from '@sriinnu/pakt';
+ *
+ * const tokens = countTokens('Hello, world!');
+ * console.log(tokens); // 4
+ * ```
  */
 
-import { encode } from 'gpt-tokenizer';
+import { getTokenCounter } from './registry.js';
+
+// ---------------------------------------------------------------------------
+// Re-export GptTokenCounter for convenience
+// ---------------------------------------------------------------------------
+
+export { GptTokenCounter } from './gpt-counter.js';
+
+// ---------------------------------------------------------------------------
+// Public API — backwards-compatible countTokens function
+// ---------------------------------------------------------------------------
 
 /**
  * Count the number of tokens in a text string.
- * Uses the cl100k_base tokenizer (GPT-4, GPT-4o, Claude-compatible).
  *
- * The `model` parameter is accepted for API compatibility but the
- * gpt-tokenizer library uses cl100k_base by default, which is close
- * enough for all major models (GPT-4o, Claude Sonnet/Opus/Haiku).
+ * Delegates to the token counter registry. If a custom counter is
+ * registered for the given model, it will be used. Otherwise, the
+ * default GPT BPE counter (cl100k_base) is used as a fallback.
  *
  * @param text - The text string to tokenize and count.
- * @param model - Optional model name for API compatibility (currently unused).
+ * @param model - Optional model name. When provided, the registry will
+ *   look for a matching custom counter before falling back to GPT BPE.
  * @returns The number of tokens in the text.
  *
  * @example
@@ -26,15 +47,11 @@ import { encode } from 'gpt-tokenizer';
  * const tokens = countTokens('Hello, world!');
  * console.log(tokens); // 4
  *
- * // Model parameter accepted but uses cl100k_base for all
- * const tokens2 = countTokens('Hello, world!', 'gpt-4o');
- * console.log(tokens2); // 4
+ * // With a model hint (uses registered counter or falls back to GPT BPE)
+ * const tokens2 = countTokens('Hello, world!', 'claude-sonnet');
  * ```
  */
-export function countTokens(text: string, _model?: string): number {
-  if (text === '') {
-    return 0;
-  }
-  const tokens = encode(text);
-  return tokens.length;
+export function countTokens(text: string, model?: string): number {
+  const counter = getTokenCounter(model ?? 'gpt-4o');
+  return counter.count(text);
 }

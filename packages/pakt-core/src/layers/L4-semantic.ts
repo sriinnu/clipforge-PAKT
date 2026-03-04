@@ -1,137 +1,280 @@
 /**
  * @module layers/L4-semantic
- * L4 semantic compression layer (stub).
+ * L4 semantic compression layer — budget-aware lossy compression.
  *
- * This layer will eventually implement **lossy** semantic compression,
- * reducing token count by summarising, paraphrasing, and eliding
- * low-information-density content. Unlike L1-L3 (all lossless), L4 is
- * intentionally irreversible -- the original wording is *not*
- * recoverable. It is always opt-in and gated behind the
- * `semantic: true` layer flag plus a positive `semanticBudget`.
+ * Unlike L1-L3 (all lossless), L4 is intentionally irreversible.
+ * It uses heuristic/rule-based transforms (no LLM required) to
+ * reduce token count when the document exceeds a target budget.
  *
- * Planned capabilities (future):
- * - **Value summarisation**: long string values condensed to key phrases
- * - **Redundancy elision**: repeated structures collapsed with "..."
- * - **Selective field dropping**: low-priority fields removed to fit a
- *   target token budget
- * - **Budget-aware pruning**: iteratively trim the document AST until
- *   the serialized output fits within the caller-supplied token budget
+ * Capabilities:
+ * - **Value truncation**: long string values shortened to key prefix
+ * - **Array truncation**: large arrays summarised with head + tail
+ * - **Field dropping**: low-information fields pruned from objects
+ * - **Redundancy collapse**: consecutive identical items merged
+ * - **Text-level transforms**: whitespace, abbreviation, precision
  *
  * Signals lossy output via `@compress semantic` + `@warning lossy` headers.
  *
- * Current status: **stub** -- all functions are identity pass-throughs.
+ * @see {@link ./L4-strategies.ts} for individual AST strategies
+ * @see {@link ./L4-text-transforms.ts} for text-level transforms
  */
 
-import type { DocumentNode } from '../parser/ast.js';
+import type {
+  CompressHeaderNode,
+  DocumentNode,
+  HeaderNode,
+  SourcePosition,
+  WarningHeaderNode,
+} from '../parser/ast.js';
+import { serialize } from '../serializer/serialize.js';
+import { countTokens } from '../tokens/counter.js';
+import {
+  strategyArrayTruncation,
+  strategyFieldDropping,
+  strategyRedundancyCollapse,
+  strategyValueTruncation,
+} from './L4-strategies.js';
+import { applyTextTransforms } from './L4-text-transforms.js';
 
 // ---------------------------------------------------------------------------
-// AST-level compression (stub)
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Default position for synthetic header nodes. */
+const POS: SourcePosition = { line: 0, column: 0, offset: 0 };
+
+// ---------------------------------------------------------------------------
+// Header helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether a header of the given type and value already exists.
+ * @param headers - The document's header array
+ * @param headerType - The header type to find
+ * @param value      - The header value to match
+ * @returns True if the header already exists
+ */
+function hasHeader(
+  headers: HeaderNode[],
+  headerType: string,
+  value: string,
+): boolean {
+  return headers.some((h) => h.headerType === headerType && h.value === value);
+}
+
+/**
+ * Add `@compress semantic` and `@warning lossy` headers to a document
+ * if they are not already present.
+ *
+ * @param doc - The document to annotate
+ * @returns A new document with the headers added
+ */
+function addL4Headers(doc: DocumentNode): DocumentNode {
+  const newHeaders = [...doc.headers];
+
+  if (!hasHeader(newHeaders, 'compress', 'semantic')) {
+    const compressHeader: CompressHeaderNode = {
+      type: 'header',
+      headerType: 'compress',
+      value: 'semantic',
+      position: POS,
+    };
+    newHeaders.push(compressHeader);
+  }
+
+  if (!hasHeader(newHeaders, 'warning', 'lossy')) {
+    const warningHeader: WarningHeaderNode = {
+      type: 'header',
+      headerType: 'warning',
+      value: 'lossy',
+      position: POS,
+    };
+    newHeaders.push(warningHeader);
+  }
+
+  return { ...doc, headers: newHeaders };
+}
+
+/**
+ * Remove `@compress semantic` and `@warning lossy` headers from a document.
+ * Returns the original doc reference if no L4 headers are present.
+ *
+ * @param doc - The document to strip
+ * @returns A new document with L4 headers removed, or the original if unchanged
+ */
+function stripL4Headers(doc: DocumentNode): DocumentNode {
+  const hasL4Headers = doc.headers.some(
+    (h) =>
+      (h.headerType === 'compress' && h.value === 'semantic') ||
+      (h.headerType === 'warning' && h.value === 'lossy'),
+  );
+
+  // Return original reference when no L4 headers exist (preserves identity)
+  if (!hasL4Headers) return doc;
+
+  const filtered = doc.headers.filter(
+    (h) =>
+      !(h.headerType === 'compress' && h.value === 'semantic') &&
+      !(h.headerType === 'warning' && h.value === 'lossy'),
+  );
+  return { ...doc, headers: filtered };
+}
+
+// ---------------------------------------------------------------------------
+// Budget-aware strategy runner
+// ---------------------------------------------------------------------------
+
+/**
+ * Type definition for an AST compression strategy function.
+ * Each strategy accepts a document and returns the mutated document.
+ */
+type Strategy = (doc: DocumentNode) => DocumentNode;
+
+/**
+ * Apply AST strategies in order, stopping when within budget.
+ *
+ * After each strategy, the document is serialized and its token count
+ * is measured. If the count is at or below `budget`, processing stops.
+ *
+ * @param doc        - The document AST to compress
+ * @param budget     - Target token budget
+ * @param strategies - Ordered list of strategy functions
+ * @returns Object with the compressed doc and whether any changes were made
+ */
+function applyStrategiesUntilBudget(
+  doc: DocumentNode,
+  budget: number,
+  strategies: Strategy[],
+): { doc: DocumentNode; changed: boolean } {
+  let changed = false;
+
+  for (const strategy of strategies) {
+    // Check if already within budget before applying
+    const preText = serialize(doc);
+    const preTokens = countTokens(preText);
+    if (preTokens <= budget) break;
+
+    // Snapshot body length to detect changes
+    const preSerialized = preText;
+    doc = strategy(doc);
+    const postSerialized = serialize(doc);
+
+    if (postSerialized !== preSerialized) {
+      changed = true;
+    }
+
+    // Check if now within budget
+    if (countTokens(postSerialized) <= budget) break;
+  }
+
+  return { doc, changed };
+}
+
+// ---------------------------------------------------------------------------
+// AST-level compression
 // ---------------------------------------------------------------------------
 
 /**
  * Apply L4 semantic compression to a parsed PAKT document.
  *
- * **Future behaviour:** walks the document AST and applies
- * budget-aware lossy transforms -- value summarisation, redundancy
- * elision, and selective field dropping -- until the estimated token
- * count of the serialized output is at or below `budget`. Adds
- * `@compress semantic` and `@warning lossy` headers to the result.
+ * Walks the document AST and applies budget-aware lossy transforms
+ * -- value truncation, array truncation, field dropping, and
+ * redundancy collapse -- until the estimated token count of the
+ * serialized output is at or below `budget`. Adds `@compress semantic`
+ * and `@warning lossy` headers when transforms are applied.
  *
- * **Current behaviour (stub):** returns the document unchanged.
+ * When `budget` is 0 or negative the function is a no-op.
  *
  * @param doc    - The parsed document AST to compress
- * @param budget - Target token budget for the compressed output.
- *                 When 0 or negative the function is a no-op.
- * @returns A (potentially modified) document node. In the stub,
- *          this is always the original `doc` reference.
+ * @param budget - Target token budget for the compressed output
+ * @returns A (potentially modified) document node
  *
  * @example
  * ```ts
  * import { compressL4 } from './layers/L4-semantic.js';
  *
- * // Stub: returns document unchanged
- * const out = compressL4(doc, 500);
- * console.log(out === doc); // true
+ * const compressed = compressL4(doc, 500);
+ * // compressed.headers includes @compress semantic + @warning lossy
  * ```
  */
 export function compressL4(doc: DocumentNode, budget: number): DocumentNode {
-  // TODO: implement budget-aware lossy compression
-  // 1. Estimate current token count of serialized doc
-  // 2. If within budget, return as-is
-  // 3. Apply progressive pruning strategies:
-  //    a. Summarise long string values
-  //    b. Elide repeated structural patterns
-  //    c. Drop low-priority fields
-  // 4. Add @compress semantic + @warning lossy headers
-  void budget;
-  return doc;
+  // No-op for non-positive budget
+  if (budget <= 0) return doc;
+
+  // Check if already within budget
+  const initialText = serialize(doc);
+  const initialTokens = countTokens(initialText);
+  if (initialTokens <= budget) return doc;
+
+  // Apply AST strategies progressively
+  const strategies: Strategy[] = [
+    strategyValueTruncation,
+    strategyArrayTruncation,
+    strategyFieldDropping,
+    strategyRedundancyCollapse,
+  ];
+
+  const result = applyStrategiesUntilBudget(doc, budget, strategies);
+
+  // Add L4 headers if any changes were made
+  if (result.changed) {
+    return addL4Headers(result.doc);
+  }
+
+  return result.doc;
 }
 
 // ---------------------------------------------------------------------------
-// AST-level decompression (stub)
+// AST-level decompression
 // ---------------------------------------------------------------------------
 
 /**
  * Reverse L4 semantic compression on a document AST.
  *
- * **Future behaviour:** because L4 is lossy, true reversal is
- * impossible. This function will strip the `@compress semantic` and
- * `@warning lossy` headers so downstream layers can proceed, but the
- * content itself remains in its compressed (summarised) form.
- *
- * **Current behaviour (stub):** returns the document unchanged.
+ * Because L4 is lossy, true reversal is impossible. This function
+ * strips the `@compress semantic` and `@warning lossy` headers so
+ * downstream layers can proceed, but the content itself remains
+ * in its compressed (summarised) form.
  *
  * @param doc - The document AST to "decompress"
- * @returns The document with L4 headers removed (content unchanged).
- *          In the stub, this is always the original `doc` reference.
+ * @returns The document with L4 headers removed (content unchanged)
  *
  * @example
  * ```ts
  * import { decompressL4 } from './layers/L4-semantic.js';
  *
- * const out = decompressL4(doc);
- * console.log(out === doc); // true (stub)
+ * const cleaned = decompressL4(doc);
+ * // cleaned.headers no longer contains @compress semantic or @warning lossy
  * ```
  */
 export function decompressL4(doc: DocumentNode): DocumentNode {
-  // TODO: strip @compress semantic / @warning lossy headers
-  // Content recovery is not possible -- L4 is lossy by design
-  return doc;
+  return stripL4Headers(doc);
 }
 
 // ---------------------------------------------------------------------------
-// Text-level transform (stub)
+// Text-level transform
 // ---------------------------------------------------------------------------
 
 /**
  * Apply L4 semantic transforms to a serialized PAKT string.
  *
- * **Future behaviour:** operates on the final serialized text to
- * apply last-mile lossy transforms that are easier to express on
- * strings than on the AST (e.g. whitespace-aware abbreviation,
- * Unicode normalization, or aggressive quoting removal). Respects
- * the `budget` parameter to keep output within token limits.
+ * Delegates to the text-level transform pipeline which applies
+ * whitespace normalization, value abbreviation, and numeric
+ * precision reduction progressively until within budget.
  *
- * **Current behaviour (stub):** returns the text unchanged.
+ * When `budget` is 0 or negative, returns the text unchanged.
  *
  * @param text   - Serialized PAKT string
- * @param budget - Target token budget. When 0 or negative, no-op.
- * @returns The (possibly shortened) PAKT string. In the stub, this
- *          is always the original `text` reference.
+ * @param budget - Target token budget (0 or negative = no-op)
+ * @returns The (possibly shortened) PAKT string
  *
  * @example
  * ```ts
  * import { applyL4Transforms } from './layers/L4-semantic.js';
  *
- * const out = applyL4Transforms(paktString, 200);
- * console.log(out === paktString); // true (stub)
+ * const result = applyL4Transforms(paktString, 200);
  * ```
  */
 export function applyL4Transforms(text: string, budget: number): string {
-  // TODO: implement text-level lossy transforms
-  // 1. Tokenize to estimate current cost
-  // 2. If within budget, return as-is
-  // 3. Apply progressive text-level shortenings
-  void budget;
-  return text;
+  return applyTextTransforms(text, budget);
 }
