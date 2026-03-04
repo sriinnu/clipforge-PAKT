@@ -74,10 +74,10 @@ export function detectEnvelope(input: string): EnvelopeDetection | null {
     }
 
     // Must look like an HTTP header
-    if (HTTP_HEADER_RE.test(trimmed)) continue;
+    if (trimmed && HTTP_HEADER_RE.test(trimmed)) continue;
 
     // Not a header -- check if it's the body starting without blank separator
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    if (trimmed && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
       bodyLineIdx = i;
       break;
     }
@@ -103,7 +103,7 @@ export function detectEnvelope(input: string): EnvelopeDetection | null {
   // Compute byte offset of body in original input
   let bodyOffset = 0;
   for (let i = 0; i < bodyLineIdx; i++) {
-    bodyOffset += lines[i]?.length + 1; // +1 for \n
+    bodyOffset += (lines[i]?.length ?? 0) + 1; // +1 for \n
   }
 
   return { preamble, body, bodyOffset };

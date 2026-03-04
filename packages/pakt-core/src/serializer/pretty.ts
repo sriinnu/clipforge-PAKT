@@ -4,6 +4,8 @@
  * Unlike the compact serializer, this module pads tabular cells so pipe
  * characters align vertically, adds configurable section spacing, and uses
  * customisable indentation.
+ *
+ * Column-alignment helpers live in {@link module:serializer/pretty-columns}.
  */
 
 import type {
@@ -18,9 +20,9 @@ import type {
   ListItemNode,
   ObjectNode,
   TabularArrayNode,
-  TabularRowNode,
 } from '../parser/ast.js';
-import { formatScalar, formatTabularCell } from './format-scalar.js';
+import { formatScalar } from './format-scalar.js';
+import { computeColumnWidths, emitAlignedRow, emitCompactRow } from './pretty-columns.js';
 
 // -- Header emission ordering ------------------------------------------------
 
@@ -138,10 +140,10 @@ function emitDictionary(
   opts: ResolvedOptions,
 ): void {
   if (dict && dict.entries.length > 0) {
-    const pad = ' '.repeat(opts.indent);
+    const indentPad = ' '.repeat(opts.indent);
     lines.push('@dict');
     for (const entry of dict.entries) {
-      lines.push(`${pad}${entry.alias}: ${entry.expansion}`);
+      lines.push(`${indentPad}${entry.alias}: ${entry.expansion}`);
     }
     lines.push('@end');
   }
@@ -244,24 +246,6 @@ function emitObject(node: ObjectNode, lines: string[], depth: number, opts: Reso
 // -- Tabular array -----------------------------------------------------------
 
 /**
- * Compute the maximum display width for each column across all rows.
- * Used to pad cells so pipe characters align vertically.
- * @param rows     - All tabular data rows to measure
- * @param colCount - Number of columns (from the field header)
- * @returns Array of max widths, one per column
- */
-function computeColumnWidths(rows: TabularRowNode[], colCount: number): number[] {
-  const widths = new Array<number>(colCount).fill(0);
-  for (const row of rows) {
-    for (let c = 0; c < row.values.length && c < colCount; c++) {
-      const w = formatTabularCell(row.values[c]!).length;
-      if (w > widths[c]!) widths[c] = w;
-    }
-  }
-  return widths;
-}
-
-/**
  * Emit a tabular array with its field header and rows.
  * Uses column-aligned output when `opts.alignColumns` is true.
  * @param node  - The tabular array AST node
@@ -278,53 +262,13 @@ function emitTabularArray(
   const prefix = pad(depth, opts);
   lines.push(`${prefix}${node.key} [${node.count}]{${node.fields.join('|')}}:`);
 
+  const rowPrefix = pad(depth + 1, opts);
   if (opts.alignColumns && node.rows.length > 0) {
     const widths = computeColumnWidths(node.rows, node.fields.length);
-    for (const row of node.rows) emitAlignedRow(row, lines, depth + 1, opts, widths);
+    for (const row of node.rows) emitAlignedRow(row, lines, rowPrefix, widths);
   } else {
-    for (const row of node.rows) emitCompactRow(row, lines, depth + 1, opts);
+    for (const row of node.rows) emitCompactRow(row, lines, rowPrefix);
   }
-}
-
-/**
- * Emit a tabular row with cells padded for vertical column alignment.
- * @param row    - The tabular row AST node
- * @param lines  - Output line accumulator (mutated in place)
- * @param depth  - Current indentation depth
- * @param opts   - Resolved formatting options
- * @param widths - Pre-computed max width per column
- */
-function emitAlignedRow(
-  row: TabularRowNode,
-  lines: string[],
-  depth: number,
-  opts: ResolvedOptions,
-  widths: number[],
-): void {
-  const cells: string[] = [];
-  for (let c = 0; c < row.values.length; c++) {
-    const raw = formatTabularCell(row.values[c]!);
-    // Pad all columns except the last
-    cells.push(c < row.values.length - 1 ? raw.padEnd(widths[c] ?? 0) : raw);
-  }
-  lines.push(`${pad(depth, opts)}${cells.join(' | ')}`);
-}
-
-/**
- * Emit a tabular row without column padding (compact mode).
- * @param row   - The tabular row AST node
- * @param lines - Output line accumulator (mutated in place)
- * @param depth - Current indentation depth
- * @param opts  - Resolved formatting options
- */
-function emitCompactRow(
-  row: TabularRowNode,
-  lines: string[],
-  depth: number,
-  opts: ResolvedOptions,
-): void {
-  const cells = row.values.map((v) => formatTabularCell(v));
-  lines.push(`${pad(depth, opts)}${cells.join('|')}`);
 }
 
 // -- Inline array ------------------------------------------------------------

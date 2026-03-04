@@ -16,3 +16,5 @@ export { tokenize } from './tokenizer.js';
 export type { Token, TokenType } from './tokenizer.js';
 export { TokenizerError } from './tokenizer.js';
 export * from './ast.js';
+/** Re-export AST factory functions and helpers. */
+export { createPosition, inferScalar } from './ast-helpers.js';
