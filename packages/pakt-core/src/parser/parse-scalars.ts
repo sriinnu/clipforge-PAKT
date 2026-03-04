@@ -4,8 +4,8 @@
  * parser. Converts individual tokens into typed {@link ScalarNode} AST nodes.
  */
 
-import type { ScalarNode, SourcePosition } from './ast.js';
 import { inferScalar } from './ast-helpers.js';
+import type { ScalarNode, SourcePosition } from './ast.js';
 import type { ParserState } from './parser.js';
 import { advance, peek, posOf } from './parser.js';
 

@@ -9,9 +9,9 @@
  */
 
 import { compress } from '../compress.js';
+import { DEFAULT_OPTIONS } from '../constants.js';
 import { countTokens } from '../tokens/index.js';
 import type { PaktFormat, PaktOptions, PaktSavings } from '../types.js';
-import { DEFAULT_OPTIONS } from '../constants.js';
 import { extractBlocks } from './extractor.js';
 
 // ---------------------------------------------------------------------------
@@ -88,10 +88,7 @@ const PAKT_CLOSE = '<!-- /PAKT -->';
  * console.log(result.savings.totalPercent); // > 0
  * ```
  */
-export function compressMixed(
-  input: string,
-  options?: Partial<PaktOptions>,
-): MixedCompressResult {
+export function compressMixed(input: string, options?: Partial<PaktOptions>): MixedCompressResult {
   const targetModel = options?.targetModel ?? DEFAULT_OPTIONS.targetModel;
   const originalTokens = countTokens(input, targetModel);
   const blocks = extractBlocks(input);
@@ -121,11 +118,7 @@ export function compressMixed(
 
     // Only replace if compression actually saved tokens
     if (blockCompTokens < blockOrigTokens) {
-      const wrapped = [
-        PAKT_OPEN(block.format),
-        result.compressed,
-        PAKT_CLOSE,
-      ].join('\n');
+      const wrapped = [PAKT_OPEN(block.format), result.compressed, PAKT_CLOSE].join('\n');
 
       replacements.push({
         startOffset: block.startOffset,
@@ -137,9 +130,10 @@ export function compressMixed(
         format: block.format,
         originalTokens: blockOrigTokens,
         compressedTokens: blockCompTokens,
-        savingsPercent: blockOrigTokens > 0
-          ? Math.round(((blockOrigTokens - blockCompTokens) / blockOrigTokens) * 100)
-          : 0,
+        savingsPercent:
+          blockOrigTokens > 0
+            ? Math.round(((blockOrigTokens - blockCompTokens) / blockOrigTokens) * 100)
+            : 0,
       });
     }
   }
@@ -158,9 +152,8 @@ export function compressMixed(
 
   const compressedTokens = countTokens(compressed, targetModel);
   const totalTokensSaved = originalTokens - compressedTokens;
-  const totalPercent = originalTokens > 0
-    ? Math.round((totalTokensSaved / originalTokens) * 100)
-    : 0;
+  const totalPercent =
+    originalTokens > 0 ? Math.round((totalTokensSaved / originalTokens) * 100) : 0;
 
   return {
     compressed,

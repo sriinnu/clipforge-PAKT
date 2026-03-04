@@ -7,6 +7,7 @@
  * L1 (structural) -> L2 (dictionary) -> L3 (tokenizer, optional) -> L4 (semantic, optional)
  */
 
+import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 import { detect } from './detect.js';
 import { parseInput } from './format-parsers/index.js';
 import {
@@ -24,7 +25,6 @@ import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktFormat, PaktLayers, PaktOptions, PaktResult } from './types.js';
-import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 
 // ---------------------------------------------------------------------------
 // Merge helpers
@@ -294,7 +294,7 @@ function compressPipeline(
   let semanticSaved = 0;
   let isReversible = true;
   if (layers.semantic && (options?.semanticBudget ?? 0) > 0) {
-    const semanticBudget = options!.semanticBudget!;
+    const semanticBudget = options?.semanticBudget!;
     const preSemanticText = compressed;
     const preSemanticTokens = countTokens(preSemanticText, targetModel);
 

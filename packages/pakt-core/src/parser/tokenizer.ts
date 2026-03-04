@@ -273,11 +273,12 @@ function scanDirective(
  */
 function scanColon(
   line: string,
-  col: number,
+  startCol: number,
   lineNum: number,
   lineOffset: number,
   tokens: Token[],
 ): number {
+  let col = startCol;
   tokens.push(tok('COLON', ':', lineNum, col + 1, lineOffset + col));
   col++;
 

@@ -98,13 +98,7 @@ export function tok(
 }
 
 /** Set of header keywords recognised by PAKT directives. */
-export const HEADER_KEYWORDS = new Set([
-  'from',
-  'target',
-  'version',
-  'compress',
-  'warning',
-]);
+export const HEADER_KEYWORDS = new Set(['from', 'target', 'version', 'compress', 'warning']);
 
 // ---------------------------------------------------------------------------
 // Directive matching

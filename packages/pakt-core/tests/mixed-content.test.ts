@@ -103,15 +103,7 @@ describe('extractBlocks', () => {
   });
 
   it('blocks are sorted by startOffset', () => {
-    const md = [
-      '```json',
-      '{"a": 1}',
-      '```',
-      '',
-      '```yaml',
-      'b: 2',
-      '```',
-    ].join('\n');
+    const md = ['```json', '{"a": 1}', '```', '', '```yaml', 'b: 2', '```'].join('\n');
 
     const blocks = extractBlocks(md);
     expect(blocks.length).toBe(2);
@@ -119,13 +111,7 @@ describe('extractBlocks', () => {
   });
 
   it('extracts fenced code blocks without explicit language tag via auto-detect', () => {
-    const md = [
-      '# Example',
-      '',
-      '```',
-      '{"auto": "detected"}',
-      '```',
-    ].join('\n');
+    const md = ['# Example', '', '```', '{"auto": "detected"}', '```'].join('\n');
 
     const blocks = extractBlocks(md);
     // Auto-detect should identify this as JSON
@@ -151,15 +137,7 @@ describe('compressMixed', () => {
       })),
     });
 
-    const md = [
-      '# API Response',
-      '',
-      '```json',
-      jsonBlock,
-      '```',
-      '',
-      'End of report.',
-    ].join('\n');
+    const md = ['# API Response', '', '```json', jsonBlock, '```', '', 'End of report.'].join('\n');
 
     const result = compressMixed(md);
 
@@ -225,15 +203,9 @@ describe('decompressMixed', () => {
       ],
     };
 
-    const md = [
-      '# Team Report',
-      '',
-      '```json',
-      JSON.stringify(jsonData),
-      '```',
-      '',
-      'End.',
-    ].join('\n');
+    const md = ['# Team Report', '', '```json', JSON.stringify(jsonData), '```', '', 'End.'].join(
+      '\n',
+    );
 
     const compressed = compressMixed(md);
     const restored = decompressMixed(compressed.compressed);

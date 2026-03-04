@@ -206,7 +206,7 @@ export function validate(pakt: string): ValidationResult {
       inTabular = true;
       tabularKey = tabMatch[1]!;
       tabularDeclaredCount = Number.parseInt(tabMatch[2]!, 10);
-      tabularFields = tabMatch[3]!.split('|').map((f) => f.trim());
+      tabularFields = tabMatch[3]?.split('|').map((f) => f.trim());
       tabularActualCount = 0;
       tabularIndent = leadingSpaces;
       tabularHeaderLine = lineNum;
@@ -217,7 +217,7 @@ export function validate(pakt: string): ValidationResult {
     const inlineMatch = trimmed.match(/^(\w[\w.]*)\s*\[(\d+)\]\s*:\s*(.+)$/);
     if (inlineMatch) {
       const declaredCount = Number.parseInt(inlineMatch[2]!, 10);
-      const items = inlineMatch[3]!.split(',').map((v) => v.trim());
+      const items = inlineMatch[3]?.split(',').map((v) => v.trim());
       if (items.length !== declaredCount) {
         errors.push({
           line: lineNum,

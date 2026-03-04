@@ -7,6 +7,7 @@
  * Scalar parsing lives in {@link module:parser/parse-scalars}.
  */
 
+import { createPosition } from './ast-helpers.js';
 import type {
   DictBlockNode,
   DictEntryNode,
@@ -14,7 +15,6 @@ import type {
   HeaderNode,
   SourcePosition,
 } from './ast.js';
-import { createPosition } from './ast-helpers.js';
 import { parseBody } from './parse-body.js';
 import type { Token, TokenType } from './tokenizer.js';
 import { tokenize } from './tokenizer.js';

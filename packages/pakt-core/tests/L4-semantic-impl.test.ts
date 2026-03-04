@@ -8,20 +8,18 @@
  */
 import { describe, expect, it } from 'vitest';
 import { compress } from '../src/index.js';
-import { compressL4, decompressL4, applyL4Transforms } from '../src/layers/L4-semantic.js';
+import { applyL4Transforms, compressL4, decompressL4 } from '../src/layers/L4-semantic.js';
 import {
-  strategyValueTruncation,
   strategyArrayTruncation,
   strategyFieldDropping,
   strategyRedundancyCollapse,
+  strategyValueTruncation,
 } from '../src/layers/L4-strategies.js';
 import {
-  normalizeWhitespace,
   abbreviateValues,
+  normalizeWhitespace,
   reduceNumericPrecision,
 } from '../src/layers/L4-text-transforms.js';
-import { serialize } from '../src/serializer/serialize.js';
-import { countTokens } from '../src/tokens/counter.js';
 import type {
   BodyNode,
   DocumentNode,
@@ -29,13 +27,13 @@ import type {
   InlineArrayNode,
   KeyValueNode,
   ListArrayNode,
-  ListItemNode,
   ObjectNode,
   ScalarNode,
   SourcePosition,
   TabularArrayNode,
-  TabularRowNode,
 } from '../src/parser/ast.js';
+import { serialize } from '../src/serializer/serialize.js';
+import { countTokens } from '../src/tokens/counter.js';
 
 // -- Helpers -----------------------------------------------------------------
 
@@ -44,45 +42,65 @@ const p: SourcePosition = { line: 0, column: 0, offset: 0 };
 
 /** Create a string scalar node. */
 const str = (v: string, q = false): ScalarNode => ({
-  type: 'scalar', scalarType: 'string', value: v, quoted: q, position: p,
+  type: 'scalar',
+  scalarType: 'string',
+  value: v,
+  quoted: q,
+  position: p,
 });
 
 /** Create a number scalar node. */
 const num = (v: number): ScalarNode => ({
-  type: 'scalar', scalarType: 'number', value: v, raw: String(v), position: p,
+  type: 'scalar',
+  scalarType: 'number',
+  value: v,
+  raw: String(v),
+  position: p,
 });
 
 /** Create a boolean scalar node. */
 const bool = (v: boolean): ScalarNode => ({
-  type: 'scalar', scalarType: 'boolean', value: v, position: p,
+  type: 'scalar',
+  scalarType: 'boolean',
+  value: v,
+  position: p,
 });
 
 /** Create a null scalar node. */
 const nil = (): ScalarNode => ({
-  type: 'scalar', scalarType: 'null', value: null, position: p,
+  type: 'scalar',
+  scalarType: 'null',
+  value: null,
+  position: p,
 });
 
 /** Create a key-value node. */
 const kv = (key: string, val: ScalarNode): KeyValueNode => ({
-  type: 'keyValue', key, value: val, position: p,
+  type: 'keyValue',
+  key,
+  value: val,
+  position: p,
 });
 
 /** Create an object node. */
 const obj = (key: string, children: BodyNode[]): ObjectNode => ({
-  type: 'object', key, children, position: p,
+  type: 'object',
+  key,
+  children,
+  position: p,
 });
 
 /** Create an inline array node. */
 const inlineArr = (key: string, values: ScalarNode[]): InlineArrayNode => ({
-  type: 'inlineArray', key, count: values.length, values, position: p,
+  type: 'inlineArray',
+  key,
+  count: values.length,
+  values,
+  position: p,
 });
 
 /** Create a tabular array node. */
-const tabArr = (
-  key: string,
-  fields: string[],
-  rows: ScalarNode[][],
-): TabularArrayNode => ({
+const tabArr = (key: string, fields: string[], rows: ScalarNode[][]): TabularArrayNode => ({
   type: 'tabularArray',
   key,
   count: rows.length,
@@ -110,7 +128,11 @@ const listArr = (key: string, items: BodyNode[][]): ListArrayNode => ({
 
 /** Create a document node with optional headers. */
 const doc = (body: BodyNode[], headers: HeaderNode[] = []): DocumentNode => ({
-  type: 'document', headers, dictionary: null, body, position: p,
+  type: 'document',
+  headers,
+  dictionary: null,
+  body,
+  position: p,
 });
 
 // ---------------------------------------------------------------------------
@@ -126,7 +148,7 @@ describe('Strategy A — Value truncation', () => {
     const result = (d.body[0] as KeyValueNode).value;
     expect(result.scalarType).toBe('string');
     if (result.scalarType === 'string') {
-      expect(result.value).toBe('A'.repeat(40) + '...');
+      expect(result.value).toBe(`${'A'.repeat(40)}...`);
       expect(result.value.length).toBe(43);
     }
   });
@@ -143,10 +165,7 @@ describe('Strategy A — Value truncation', () => {
   });
 
   it('processes longest strings first', () => {
-    const d = doc([
-      kv('short', str('X'.repeat(55))),
-      kv('long', str('Y'.repeat(100))),
-    ]);
+    const d = doc([kv('short', str('X'.repeat(55))), kv('long', str('Y'.repeat(100)))]);
     strategyValueTruncation(d);
 
     const short = (d.body[0] as KeyValueNode).value;
@@ -158,11 +177,7 @@ describe('Strategy A — Value truncation', () => {
   });
 
   it('truncates strings inside tabular arrays', () => {
-    const d = doc([
-      tabArr('items', ['name', 'desc'], [
-        [str('A'), str('Z'.repeat(60))],
-      ]),
-    ]);
+    const d = doc([tabArr('items', ['name', 'desc'], [[str('A'), str('Z'.repeat(60))]])]);
     strategyValueTruncation(d);
 
     const tab = d.body[0] as TabularArrayNode;
@@ -203,9 +218,7 @@ describe('Strategy B — Array truncation', () => {
   });
 
   it('truncates tabular arrays with >10 rows', () => {
-    const rows = Array.from({ length: 12 }, (_, i) => [
-      num(i), str(`name${i}`),
-    ]);
+    const rows = Array.from({ length: 12 }, (_, i) => [num(i), str(`name${i}`)]);
     const d = doc([tabArr('users', ['id', 'name'], rows)]);
     strategyArrayTruncation(d);
 
@@ -259,9 +272,7 @@ describe('Strategy C — Field dropping', () => {
   });
 
   it('does not drop fields from objects with 8 or fewer fields', () => {
-    const children: BodyNode[] = Array.from({ length: 8 }, (_, i) =>
-      kv(`field${i}`, nil()),
-    );
+    const children: BodyNode[] = Array.from({ length: 8 }, (_, i) => kv(`field${i}`, nil()));
     const d = doc([obj('small', children)]);
     strategyFieldDropping(d);
 
@@ -271,9 +282,7 @@ describe('Strategy C — Field dropping', () => {
 
   it('drops at most 30% of fields', () => {
     // 10 fields, all low-info — should drop at most 3
-    const children: BodyNode[] = Array.from({ length: 10 }, (_, i) =>
-      kv(`field${i}`, nil()),
-    );
+    const children: BodyNode[] = Array.from({ length: 10 }, (_, i) => kv(`field${i}`, nil()));
     const d = doc([obj('many', children)]);
     strategyFieldDropping(d);
 
@@ -307,10 +316,7 @@ describe('Strategy D — Redundancy collapse', () => {
   });
 
   it('does not collapse fewer than 3 consecutive identical items', () => {
-    const items = [
-      [kv('type', str('a'))],
-      [kv('type', str('b'))],
-    ];
+    const items = [[kv('type', str('a'))], [kv('type', str('b'))]];
     const d = doc([listArr('events', items)]);
     strategyRedundancyCollapse(d);
 
@@ -362,9 +368,7 @@ describe('compressL4', () => {
 
   it('adds @compress semantic header when transforms applied', () => {
     // Create a doc that is deliberately over-budget
-    const longValues = Array.from({ length: 20 }, (_, i) =>
-      kv(`field${i}`, str('X'.repeat(80))),
-    );
+    const longValues = Array.from({ length: 20 }, (_, i) => kv(`field${i}`, str('X'.repeat(80))));
     const d = doc(longValues);
     const serialized = serialize(d);
     const tokens = countTokens(serialized);
@@ -378,9 +382,7 @@ describe('compressL4', () => {
   });
 
   it('adds @warning lossy header when transforms applied', () => {
-    const longValues = Array.from({ length: 20 }, (_, i) =>
-      kv(`field${i}`, str('Y'.repeat(80))),
-    );
+    const longValues = Array.from({ length: 20 }, (_, i) => kv(`field${i}`, str('Y'.repeat(80))));
     const d = doc(longValues);
     const serialized = serialize(d);
     const tokens = countTokens(serialized);
@@ -394,9 +396,7 @@ describe('compressL4', () => {
 
   it('stops applying strategies once within budget', () => {
     // Create a doc with long strings — value truncation alone should help
-    const longValues = Array.from({ length: 5 }, (_, i) =>
-      kv(`field${i}`, str('Z'.repeat(80))),
-    );
+    const longValues = Array.from({ length: 5 }, (_, i) => kv(`field${i}`, str('Z'.repeat(80))));
     const d = doc(longValues);
     const serialized = serialize(d);
     const tokens = countTokens(serialized);
@@ -583,7 +583,8 @@ describe('L4 pipeline integration', () => {
       items: Array.from({ length: 20 }, (_, i) => ({
         id: i + 1,
         name: 'A very long name that exceeds fifty characters in length for testing purposes',
-        description: 'Another very long description string that is well over the fifty character threshold for truncation',
+        description:
+          'Another very long description string that is well over the fifty character threshold for truncation',
         status: 'active',
         deleted: false,
         notes: null,

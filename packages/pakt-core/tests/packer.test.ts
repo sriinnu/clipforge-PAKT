@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { pack } from '../src/packer/packer.js';
-import { countTokens } from '../src/tokens/counter.js';
 import type { PackerItem } from '../src/packer/types.js';
+import { countTokens } from '../src/tokens/counter.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures — reusable items for multiple tests
@@ -181,9 +181,7 @@ describe('pack — adaptive compression', () => {
     // small margin. The key insight: adaptive compression *attempts* to save more
     // but the safety revert in compress() handles cases where L3 doesn't help.
     const tolerance = 10;
-    expect(withAdaptive.totalTokens).toBeLessThanOrEqual(
-      withoutAdaptive.totalTokens + tolerance,
-    );
+    expect(withAdaptive.totalTokens).toBeLessThanOrEqual(withoutAdaptive.totalTokens + tolerance);
 
     // Both should pack all items
     expect(withAdaptive.stats.packedCount).toBe(10);
@@ -211,9 +209,7 @@ describe('pack — zero budget', () => {
   });
 
   it('drops all items when budget equals reserve tokens', () => {
-    const items: PackerItem[] = [
-      { id: 'a', content: SMALL_JSON },
-    ];
+    const items: PackerItem[] = [{ id: 'a', content: SMALL_JSON }];
 
     // Budget exactly equals the default reserve (50), effective budget = 0
     const result = pack(items, { budget: 50 });
@@ -246,9 +242,7 @@ describe('pack — single item', () => {
   });
 
   it('drops a single item when it exceeds budget', () => {
-    const items: PackerItem[] = [
-      { id: 'big', content: LARGE_JSON },
-    ];
+    const items: PackerItem[] = [{ id: 'big', content: LARGE_JSON }];
 
     // Budget too small for the item (just reserve + a few tokens)
     const result = pack(items, { budget: 55 });
@@ -328,9 +322,7 @@ describe('pack — stats accuracy', () => {
   });
 
   it('remaining budget is consistent with totalTokens', () => {
-    const items: PackerItem[] = [
-      { id: 'a', content: SMALL_JSON, priority: 10 },
-    ];
+    const items: PackerItem[] = [{ id: 'a', content: SMALL_JSON, priority: 10 }];
 
     const budget = 5000;
     const reserve = 50;
@@ -342,9 +334,7 @@ describe('pack — stats accuracy', () => {
   });
 
   it('savings percent is calculated correctly for packed items', () => {
-    const items: PackerItem[] = [
-      { id: 'a', content: MEDIUM_JSON, priority: 10 },
-    ];
+    const items: PackerItem[] = [{ id: 'a', content: MEDIUM_JSON, priority: 10 }];
 
     const result = pack(items, { budget: 10_000 });
     const item = result.packed[0];
@@ -438,9 +428,7 @@ describe('pack — metadata preservation', () => {
 
 describe('pack — reserve tokens', () => {
   it('respects custom reserve token setting', () => {
-    const items: PackerItem[] = [
-      { id: 'a', content: SMALL_JSON },
-    ];
+    const items: PackerItem[] = [{ id: 'a', content: SMALL_JSON }];
 
     // Count how many tokens the item actually needs
     const origTokens = countTokens(SMALL_JSON);
