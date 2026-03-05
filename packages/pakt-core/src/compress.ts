@@ -7,21 +7,24 @@
  * L1 (structural) -> L2 (dictionary) -> L3 (tokenizer, optional) -> L4 (semantic, optional)
  */
 
+import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 import { detect } from './detect.js';
 import { parseInput } from './format-parsers/index.js';
 import {
   applyL3Transforms,
+  applyL4Transforms,
   compressL1,
   compressL2,
   compressL3,
+  compressL4,
   extractDictEntries,
   revertL3,
 } from './layers/index.js';
+import { compressMixed } from './mixed/index.js';
 import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktFormat, PaktLayers, PaktOptions, PaktResult } from './types.js';
-import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Merge helpers
@@ -65,8 +68,8 @@ function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
  *
  * @param input - The text to compress (JSON, YAML, CSV, Markdown, or plain text)
  * @param options - Compression options (layers, target model, etc.)
- * @returns Compression result with PAKT string and savings metadata
- * @throws {Error} If the input cannot be parsed in the detected/specified format
+ * @returns Compression result with PAKT string and savings metadata.
+ *   On error, returns the original input with 0% savings (graceful degradation).
  *
  * @example
  * ```ts
@@ -121,6 +124,44 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
     };
   }
 
+  // Graceful degradation: wrap the entire pipeline in try-catch so that
+  // on ANY error we return the original input with 0% savings instead of crashing.
+  try {
+    return compressPipeline(input, options, targetModel);
+  } catch {
+    const tokens = countTokens(input, targetModel);
+    return {
+      compressed: input,
+      originalTokens: tokens,
+      compressedTokens: tokens,
+      savings: {
+        totalPercent: 0,
+        totalTokens: 0,
+        byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
+      },
+      reversible: true,
+      detectedFormat: options?.fromFormat ?? 'text',
+      dictionary: [],
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Internal pipeline (wrapped by compress() for error handling)
+// ---------------------------------------------------------------------------
+
+/**
+ * Core compression pipeline extracted for try-catch wrapping.
+ * @param input - Raw input text
+ * @param options - Compression options
+ * @param targetModel - Target model for token counting
+ * @returns Compression result
+ */
+function compressPipeline(
+  input: string,
+  options: Partial<PaktOptions> | undefined,
+  targetModel: string,
+): PaktResult {
   // 1. Merge options with defaults
   const layers = mergeLayers(options?.layers);
   const fromFormat = options?.fromFormat;
@@ -139,8 +180,25 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   }
 
   // 3. Handle formats with no structural compression benefit
-  //    PAKT: already compressed. Text/Markdown: wrapping in PAKT adds overhead.
+  //    PAKT: already compressed. Text/Markdown: try mixed-content compression.
   if (detectedFormat === 'text' || detectedFormat === 'markdown' || detectedFormat === 'pakt') {
+    // For text/markdown, try mixed-content compression to find embedded blocks
+    if (detectedFormat !== 'pakt') {
+      const mixedResult = compressMixed(input, options);
+      if (mixedResult.blocks.length > 0 && mixedResult.savings.totalPercent > 0) {
+        return {
+          compressed: mixedResult.compressed,
+          originalTokens: mixedResult.originalTokens,
+          compressedTokens: mixedResult.compressedTokens,
+          savings: mixedResult.savings,
+          reversible: mixedResult.reversible,
+          detectedFormat,
+          dictionary: [],
+        };
+      }
+    }
+
+    // No mixed blocks found or no savings — return as-is
     const tokens = countTokens(input, targetModel);
     return {
       compressed: input,
@@ -230,21 +288,42 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
     }
   }
 
-  // L4 semantic compression — gated stub (not yet implemented)
-  // When layers.semantic is true and semanticBudget > 0, L4 will apply
-  // lossy transforms here. Currently a no-op.
+  // 10. L4 semantic compression (opt-in, lossy)
+  //     Applies budget-aware AST transforms + text-level transforms.
+  //     Sets reversible = false when L4 actually modifies the output.
+  let semanticSaved = 0;
+  let isReversible = true;
   if (layers.semantic && (options?.semanticBudget ?? 0) > 0) {
-    console.warn('L4 semantic compression is not yet implemented — layer ignored');
+    const semanticBudget = options?.semanticBudget!;
+    const preSemanticText = compressed;
+    const preSemanticTokens = countTokens(preSemanticText, targetModel);
+
+    // 10a. AST-level L4 compression
+    doc = compressL4(doc, semanticBudget);
+    compressed = serialize(doc);
+
+    // 10b. Text-level L4 transforms
+    compressed = applyL4Transforms(compressed, semanticBudget);
+
+    const postSemanticTokens = countTokens(compressed, targetModel);
+    semanticSaved = preSemanticTokens - postSemanticTokens;
+
+    // Mark as non-reversible if L4 made any changes
+    if (semanticSaved > 0) {
+      isReversible = false;
+    } else {
+      semanticSaved = 0;
+    }
   }
 
-  // 10. Count final tokens
+  // 11. Count final tokens
   const compressedTokens = countTokens(compressed, targetModel);
 
-  // 11. Compute total savings
+  // 12. Compute total savings
   const totalTokens = originalTokens - compressedTokens;
   const totalPercent = originalTokens > 0 ? Math.round((totalTokens / originalTokens) * 100) : 0;
 
-  // 12. Extract dictionary entries and return result
+  // 13. Extract dictionary entries and return result
   const dictionary = extractDictEntries(doc);
 
   return {
@@ -258,10 +337,10 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
         structural: Math.max(0, structuralSaved),
         dictionary: Math.max(0, dictionarySaved),
         tokenizer: Math.max(0, tokenizerSaved),
-        semantic: 0,
+        semantic: Math.max(0, semanticSaved),
       },
     },
-    reversible: true,
+    reversible: isReversible,
     detectedFormat,
     dictionary,
   };
