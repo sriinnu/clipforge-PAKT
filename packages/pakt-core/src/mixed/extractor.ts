@@ -10,9 +10,7 @@
 import { detect } from '../detect.js';
 import type { PaktFormat } from '../types.js';
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
+// -- Public types -------------------------------------------------------------
 
 /** A block of structured data found within mixed content. */
 export interface ExtractedBlock {
@@ -28,9 +26,7 @@ export interface ExtractedBlock {
   languageTag?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Language tag to PaktFormat mapping
-// ---------------------------------------------------------------------------
+// -- Language tag to PaktFormat mapping --------------------------------------
 
 /** Maps common fenced-code-block language tags to PaktFormat values. */
 const LANG_TAG_MAP: Record<string, PaktFormat> = {
@@ -42,9 +38,7 @@ const LANG_TAG_MAP: Record<string, PaktFormat> = {
   tsv: 'csv',
 };
 
-// ---------------------------------------------------------------------------
-// Fenced code block extraction
-// ---------------------------------------------------------------------------
+// -- Fenced code block extraction --------------------------------------------
 
 /** Regex for fenced code blocks: ```lang ... ``` */
 const FENCED_RE = /^(`{3,})([\w.-]*)\s*\n([\s\S]*?)^\1\s*$/gm;
@@ -98,9 +92,7 @@ function extractFencedBlocks(text: string): ExtractedBlock[] {
   return blocks;
 }
 
-// ---------------------------------------------------------------------------
-// YAML frontmatter extraction
-// ---------------------------------------------------------------------------
+// -- YAML frontmatter extraction ---------------------------------------------
 
 /** Regex for YAML frontmatter at the start of the document. */
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---(?:\n|$)/;
@@ -126,9 +118,7 @@ function extractFrontmatter(text: string): ExtractedBlock | null {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Inline JSON extraction
-// ---------------------------------------------------------------------------
+// -- Inline JSON extraction --------------------------------------------------
 
 /**
  * Find the matching closing bracket for a JSON object or array.
@@ -177,10 +167,10 @@ function findMatchingBracket(text: string, startIdx: number): number {
  * Only matches blocks that start at the beginning of a line.
  *
  * @param text - Full input text
- * @param occupied - Set of character indices already claimed by other blocks
+ * @param intervals - Sorted array of `[start, end]` intervals already claimed by other blocks
  * @returns Array of extracted JSON blocks
  */
-function extractInlineJson(text: string, occupied: Set<number>): ExtractedBlock[] {
+function extractInlineJson(text: string, intervals: Array<[number, number]>): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
   const lines = text.split('\n');
   let offset = 0;
@@ -191,7 +181,7 @@ function extractInlineJson(text: string, occupied: Set<number>): ExtractedBlock[
 
     if (
       (trimmed.startsWith('{') || trimmed.startsWith('[')) &&
-      !occupied.has(offset + leadingSpaces)
+      !isOverlapping(offset + leadingSpaces, offset + leadingSpaces + 1, intervals)
     ) {
       const startIdx = offset + leadingSpaces;
       const closeIdx = findMatchingBracket(text, startIdx);
@@ -219,9 +209,7 @@ function extractInlineJson(text: string, occupied: Set<number>): ExtractedBlock[
   return blocks;
 }
 
-// ---------------------------------------------------------------------------
-// CSV-like tabular section extraction
-// ---------------------------------------------------------------------------
+// -- CSV-like tabular section extraction -------------------------------------
 
 /** Minimum number of consistent rows to consider a section as CSV. */
 const MIN_CSV_ROWS = 3;
@@ -252,43 +240,49 @@ function detectCsvDelimiter(lines: string[]): string | null {
  * Scans for runs of lines with consistent delimiters.
  *
  * @param text - Full input text
- * @param occupied - Set of character indices already claimed by other blocks
+ * @param intervals - Sorted array of `[start, end]` intervals already claimed by other blocks
  * @returns Array of extracted CSV blocks
  */
-function extractCsvSections(text: string, occupied: Set<number>): ExtractedBlock[] {
+function extractCsvSections(text: string, intervals: Array<[number, number]>): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
   const allLines = text.split('\n');
   let offset = 0;
   const lineOffsets: number[] = [];
 
-  // Build line offset map
   for (const line of allLines) {
+    // build per-line start offsets
     lineOffsets.push(offset);
     offset += line.length + 1;
   }
 
   let i = 0;
   while (i < allLines.length) {
+    const lineStart = lineOffsets[i] ?? 0;
+    const lineLen = allLines[i]?.length ?? 0;
+
     // Skip lines that are already occupied or empty
-    if (occupied.has(lineOffsets[i]!) || allLines[i]?.trim().length === 0) {
+    if (
+      isOverlapping(lineStart, lineStart + lineLen + 1, intervals) ||
+      allLines[i]?.trim().length === 0
+    ) {
       i++;
       continue;
     }
 
-    // Try to find a CSV run starting at line i
+    // Extend the run as long as lines are non-empty and unoccupied.
     let end = i + 1;
-    while (
-      end < allLines.length &&
-      !occupied.has(lineOffsets[end]!) &&
-      (allLines[end]?.trim().length ?? 0) > 0
-    ) {
+    while (end < allLines.length) {
+      const es = lineOffsets[end] ?? 0;
+      const el = allLines[end]?.length ?? 0;
+      if ((allLines[end]?.trim().length ?? 0) === 0 || isOverlapping(es, es + el + 1, intervals))
+        break;
       end++;
     }
 
     const candidateLines = allLines.slice(i, end);
     if (detectCsvDelimiter(candidateLines)) {
-      const startOffset = lineOffsets[i]!;
-      const endLineOffset = lineOffsets[end - 1]! + (allLines[end - 1]?.length ?? 0);
+      const startOffset = lineOffsets[i] ?? 0;
+      const endLineOffset = (lineOffsets[end - 1] ?? 0) + (allLines[end - 1]?.length ?? 0);
       const content = text.slice(startOffset, endLineOffset);
       blocks.push({
         format: 'csv',
@@ -305,24 +299,57 @@ function extractCsvSections(text: string, occupied: Set<number>): ExtractedBlock
   return blocks;
 }
 
-// ---------------------------------------------------------------------------
-// Main extraction function
-// ---------------------------------------------------------------------------
+// -- Main extraction function ------------------------------------------------
 
 /**
- * Build a set of occupied character indices from existing blocks.
+ * Build a sorted array of `[startOffset, endOffset]` intervals from already-extracted
+ * blocks. Sorting by start enables O(log N) binary-search overlap checks.
  *
- * @param blocks - Already-extracted blocks
- * @returns Set of all character indices covered by existing blocks
+ * @param blocks - Already-extracted blocks whose ranges should be marked occupied
+ * @returns Sorted `[start, end]` intervals, one per block
  */
-function buildOccupiedSet(blocks: ExtractedBlock[]): Set<number> {
-  const occupied = new Set<number>();
-  for (const block of blocks) {
-    for (let i = block.startOffset; i < block.endOffset; i++) {
-      occupied.add(i);
+function buildOccupiedIntervals(blocks: ExtractedBlock[]): Array<[number, number]> {
+  return blocks
+    .map((block): [number, number] => [block.startOffset, block.endOffset])
+    .sort((a, b) => a[0] - b[0]);
+}
+
+/**
+ * O(log N) half-open range overlap check against a sorted interval list.
+ * Two ranges [a,b) and [c,d) overlap iff a < d && c < b.
+ *
+ * @param start - Inclusive start of query range
+ * @param end - Exclusive end of query range
+ * @param intervals - Sorted `[start, end]` intervals (ascending by start)
+ * @returns `true` if any stored interval overlaps `[start, end)`
+ */
+function isOverlapping(start: number, end: number, intervals: Array<[number, number]>): boolean {
+  let lo = 0;
+  let hi = intervals.length - 1;
+  let candidate = -1;
+
+  // Find rightmost interval whose start < end (only those can overlap).
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (intervals[mid]![0] < end) {
+      candidate = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
     }
   }
-  return occupied;
+
+  if (candidate === -1) return false;
+
+  // Walk left; stop as soon as an interval ends before our start (sorted order
+  // guarantees earlier intervals also end no later than this one).
+  for (let idx = candidate; idx >= 0; idx--) {
+    const ivEnd = intervals[idx]![1];
+    if (ivEnd > start) return true;
+    if (ivEnd <= start) break;
+  }
+
+  return false;
 }
 
 /**
@@ -358,18 +385,18 @@ export function extractBlocks(text: string): ExtractedBlock[] {
   const fenced = extractFencedBlocks(text);
   allBlocks.push(...fenced);
 
-  // Build occupied set to avoid overlaps
-  let occupied = buildOccupiedSet(allBlocks);
+  // Build occupied intervals to avoid overlaps (O(log N) per query vs O(N) Set)
+  let intervals = buildOccupiedIntervals(allBlocks);
 
   // 3. Inline JSON objects/arrays
-  const inlineJson = extractInlineJson(text, occupied);
+  const inlineJson = extractInlineJson(text, intervals);
   allBlocks.push(...inlineJson);
 
-  // Rebuild occupied set
-  occupied = buildOccupiedSet(allBlocks);
+  // Rebuild occupied intervals after adding inline JSON blocks
+  intervals = buildOccupiedIntervals(allBlocks);
 
   // 4. CSV-like tabular sections
-  const csvSections = extractCsvSections(text, occupied);
+  const csvSections = extractCsvSections(text, intervals);
   allBlocks.push(...csvSections);
 
   // Sort by startOffset and return

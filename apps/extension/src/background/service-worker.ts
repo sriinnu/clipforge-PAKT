@@ -4,9 +4,17 @@
  * - Creates context menu items for quick compression
  * - Handles messages from popup and content scripts
  * - Updates badge text with token savings (green when savings > 0)
+ * - Supports DECOMPRESS and AUTO message types for bidirectional flow
  */
 
-import { compress, countTokens, detect } from '@sriinnu/pakt';
+import {
+  compress,
+  compressMixed,
+  countTokens,
+  decompress,
+  decompressMixed,
+  detect,
+} from '@sriinnu/pakt';
 import { getSettings } from '../shared/storage';
 
 // ---------------------------------------------------------------------------
@@ -30,79 +38,131 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.action.setBadgeText({ text: '' });
 });
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  handleContextMenuClick(info, tab).catch((err) => {
+    console.error('[ClipForge] Context menu handler failed:', err);
+  });
+});
+
+/**
+ * Compresses the selected text according to its detected format.
+ *
+ * Routes text/markdown through `compressMixed`; structured formats (json/yaml/csv)
+ * through `compress`.
+ *
+ * @param text - The selected text to compress.
+ * @param settings - Extension settings for layer configuration.
+ * @returns Object with compressed text and savings percentage.
+ */
+async function compressSelection(
+  text: string,
+  settings: Awaited<ReturnType<typeof getSettings>>,
+): Promise<{ compressedText: string; savingsPercent: number }> {
+  const format = detect(text).format;
+  const layerOpts = {
+    structural: settings.layerStructural,
+    dictionary: settings.layerDictionary,
+    tokenizerAware: false,
+    semantic: false,
+  };
+
+  if (format === 'markdown' || format === 'text') {
+    const result = compressMixed(text, { layers: layerOpts });
+    return { compressedText: result.compressed, savingsPercent: result.savings.totalPercent };
+  }
+
+  const result = compress(text, { layers: layerOpts });
+  return { compressedText: result.compressed, savingsPercent: result.savings.totalPercent };
+}
+
+/**
+ * Handles a context-menu click event: compresses the selection and either
+ * copies it to clipboard or pushes it to the active input.
+ *
+ * @param info - Chrome context menu event info.
+ * @param tab - The tab in which the selection was made.
+ */
+async function handleContextMenuClick(
+  info: chrome.contextMenus.OnClickData,
+  tab: chrome.tabs.Tab | undefined,
+): Promise<void> {
   const selectedText = info.selectionText;
   if (!selectedText) return;
 
   const settings = await getSettings();
+  const { compressedText, savingsPercent } = await compressSelection(selectedText, settings);
 
-  try {
-    const result = compress(selectedText, {
-      layers: {
-        structural: settings.layerStructural,
-        dictionary: settings.layerDictionary,
-        tokenizerAware: false,
-        semantic: false,
-      },
-    });
-
-    if (info.menuItemId === 'clipforge-copy-pakt') {
-      // Write compressed text to clipboard via content script
-      if (tab?.id) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            type: 'COPY_TO_CLIPBOARD',
-            text: result.compressed,
-          });
-        } catch {
-          // Content script might not be loaded — ignore
-        }
-      }
-      updateBadge(result.savings.totalPercent, tab?.id);
+  if (info.menuItemId === 'clipforge-copy-pakt' && tab?.id) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: 'COPY_TO_CLIPBOARD', text: compressedText });
+    } catch {
+      // Content script might not be loaded — ignore
     }
-
-    if (info.menuItemId === 'clipforge-compress') {
-      // Send compressed result back to content script
-      if (tab?.id) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            type: 'SHOW_COMPRESSED',
-            compressed: result.compressed,
-            savings: result.savings.totalPercent,
-            originalTokens: result.originalTokens,
-            compressedTokens: result.compressedTokens,
-          });
-        } catch {
-          // Content script might not be loaded — ignore
-        }
-      }
-      updateBadge(result.savings.totalPercent, tab?.id);
-    }
-  } catch (err) {
-    console.error('[ClipForge] Compression failed:', err);
+    updateBadge(savingsPercent, tab.id);
   }
-});
+
+  if (info.menuItemId === 'clipforge-compress' && tab?.id) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: 'SHOW_COMPRESSED',
+        compressed: compressedText,
+        savings: savingsPercent,
+      });
+    } catch {
+      // Content script might not be loaded — ignore
+    }
+    updateBadge(savingsPercent, tab.id);
+  }
+}
 
 // ---------------------------------------------------------------------------
-// Message handling
+// Message interfaces
 // ---------------------------------------------------------------------------
 
+/** Message requesting PAKT compression of text. */
 export interface CompressMessage {
   type: 'COMPRESS';
   text: string;
 }
 
+/** Message requesting format detection of text. */
 export interface DetectMessage {
   type: 'DETECT';
   text: string;
 }
 
+/** Message requesting token count for text. */
 export interface CountTokensMessage {
   type: 'COUNT_TOKENS';
   text: string;
 }
 
-type ExtensionMessage = CompressMessage | DetectMessage | CountTokensMessage;
+/**
+ * Message requesting decompression of PAKT text.
+ * Tries `decompressMixed` first (for mixed content with PAKT markers),
+ * falls back to `decompress` for pure PAKT documents.
+ */
+export interface DecompressMessage {
+  type: 'DECOMPRESS';
+  text: string;
+}
+
+/**
+ * Message requesting automatic compress-or-decompress routing.
+ * Detects the format: if PAKT → decompresses; otherwise → compresses
+ * (using compressMixed for text/markdown, compress for structured formats).
+ */
+export interface AutoMessage {
+  type: 'AUTO';
+  text: string;
+}
+
+type ExtensionMessage =
+  | CompressMessage
+  | DetectMessage
+  | CountTokensMessage
+  | DecompressMessage
+  | AutoMessage;
 
 chrome.runtime.onMessage.addListener(
   (
@@ -119,6 +179,16 @@ chrome.runtime.onMessage.addListener(
   },
 );
 
+// ---------------------------------------------------------------------------
+// Message handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Routes incoming extension messages to the appropriate handler.
+ *
+ * @param message - The typed extension message.
+ * @returns A promise resolving to the handler result.
+ */
 async function handleMessage(message: ExtensionMessage): Promise<unknown> {
   const settings = await getSettings();
 
@@ -144,15 +214,115 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
       return { tokens: countTokens(message.text) };
     }
 
+    case 'DECOMPRESS': {
+      return handleDecompress(message.text);
+    }
+
+    case 'AUTO': {
+      return handleAuto(message.text, settings);
+    }
+
     default:
       return { error: 'Unknown message type' };
   }
 }
 
 // ---------------------------------------------------------------------------
+// Decompress helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Decompresses PAKT-encoded text.
+ *
+ * Tries `decompressMixed` first to handle documents with embedded PAKT markers.
+ * If no markers were found (output equals input), falls back to `decompress`
+ * for pure PAKT documents.
+ *
+ * @param text - The PAKT-encoded or mixed text to decompress.
+ * @returns An object with the restored `text` string.
+ */
+function handleDecompress(text: string): { text: string } {
+  // Try mixed decompression first (handles <!-- PAKT:format --> markers)
+  const mixedResult = decompressMixed(text);
+
+  if (mixedResult !== text) {
+    return { text: mixedResult };
+  }
+
+  // Fallback: plain decompress for pure PAKT documents
+  try {
+    const result = decompress(text, 'json');
+    return { text: result.text };
+  } catch {
+    // If decompress also fails, return original
+    return { text };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auto (compress-or-decompress) helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Automatically determines whether to compress or decompress the input.
+ *
+ * - If the detected format is `'pakt'`, decompresses via `handleDecompress`.
+ * - If the format is `'text'` or `'markdown'`, compresses via `compressMixed`.
+ * - Otherwise compresses via `compress` (for json/yaml/csv).
+ *
+ * @param text - The input text to process.
+ * @param settings - Current extension settings for layer configuration.
+ * @returns The processed result object.
+ */
+async function handleAuto(
+  text: string,
+  settings: Awaited<ReturnType<typeof getSettings>>,
+): Promise<unknown> {
+  const detection = detect(text);
+  const format = detection.format;
+
+  if (format === 'pakt') {
+    return handleDecompress(text);
+  }
+
+  if (format === 'markdown' || format === 'text') {
+    const result = compressMixed(text, {
+      layers: {
+        structural: settings.layerStructural,
+        dictionary: settings.layerDictionary,
+        tokenizerAware: false,
+        semantic: false,
+      },
+    });
+    updateBadge(result.savings.totalPercent);
+    return result;
+  }
+
+  // Structured formats (json/yaml/csv)
+  const result = compress(text, {
+    layers: {
+      structural: settings.layerStructural,
+      dictionary: settings.layerDictionary,
+      tokenizerAware: false,
+      semantic: false,
+    },
+  });
+  updateBadge(result.savings.totalPercent);
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Badge — shows savings percentage with green bg when > 0
 // ---------------------------------------------------------------------------
 
+/**
+ * Updates the extension badge with a savings percentage.
+ *
+ * Shows a green badge when savings > 0, clears it otherwise.
+ *
+ * @param savingsPercent - Token savings percentage (0–100).
+ * @param tabId - Optional tab ID to scope the badge to a specific tab.
+ */
 function updateBadge(savingsPercent: number, tabId?: number): void {
   const rounded = Math.round(savingsPercent);
 
