@@ -407,6 +407,25 @@ function decompressL4(input: string): DecompressResult
 function applyL4Transforms(input: string, options?: Partial<PaktOptions>): string
 ```
 
+### `PAKT_SYSTEM_PROMPT`
+
+A ready-made system prompt string that instructs an LLM to emit PAKT-compressed responses. Drop it into your messages array:
+
+```ts
+import { PAKT_SYSTEM_PROMPT } from '@sriinnu/pakt';
+
+const response = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [
+    { role: 'system', content: PAKT_SYSTEM_PROMPT },
+    { role: 'user', content: userMessage },
+  ],
+});
+
+// Decompress the model's PAKT response
+const result = decompress(response.choices[0].message.content, 'json');
+```
+
 ---
 
 ## Configuration
