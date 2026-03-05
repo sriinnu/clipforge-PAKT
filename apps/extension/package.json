@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch --mode development",
-    "build": "vite build",
+    "dev": "NODE_ENV=development node build.mjs",
+    "build": "node build.mjs",
     "clean": "rm -rf dist"
   },
   "dependencies": {
