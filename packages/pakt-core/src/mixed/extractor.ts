@@ -280,7 +280,7 @@ function extractCsvSections(text: string, occupied: Set<number>): ExtractedBlock
     while (
       end < allLines.length &&
       !occupied.has(lineOffsets[end]!) &&
-      allLines[end]?.trim().length > 0
+      (allLines[end]?.trim().length ?? 0) > 0
     ) {
       end++;
     }
@@ -288,7 +288,7 @@ function extractCsvSections(text: string, occupied: Set<number>): ExtractedBlock
     const candidateLines = allLines.slice(i, end);
     if (detectCsvDelimiter(candidateLines)) {
       const startOffset = lineOffsets[i]!;
-      const endLineOffset = lineOffsets[end - 1]! + allLines[end - 1]?.length;
+      const endLineOffset = lineOffsets[end - 1]! + (allLines[end - 1]?.length ?? 0);
       const content = text.slice(startOffset, endLineOffset);
       blocks.push({
         format: 'csv',

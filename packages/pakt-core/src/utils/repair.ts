@@ -93,7 +93,7 @@ function fixMissingDictEnd(lines: string[]): string[] {
   let lastDictEntryIdx = -1;
 
   for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i]?.trim();
+    const trimmed = (lines[i] ?? '').trim();
 
     if (trimmed === '@dict') {
       if (dictOpen) {
@@ -151,7 +151,7 @@ function fixCountMismatches(lines: string[]): string[] {
     // Inline array: key [N]: val1,val2,...
     const inlineMatch = trimmed.match(/^(\w[\w.]*)\s*\[\d+\]\s*:\s*(.+)$/);
     if (inlineMatch && !inlineMatch[2]?.match(/^\s*$/)) {
-      const items = inlineMatch[2]?.split(',').map((v) => v.trim());
+      const items = (inlineMatch[2] ?? '').split(',').map((v) => v.trim());
       result[i] = `${prefix}${inlineMatch[1]} [${items.length}]: ${inlineMatch[2]}`;
       continue;
     }
@@ -226,7 +226,7 @@ function fixMixedDelimiters(lines: string[]): string[] {
     const tabMatch = trimmed.match(/^(\w[\w.]*)\s*\[\d+\]\s*\{([^}]+)\}\s*:$/);
     if (tabMatch) {
       inTabular = true;
-      tabularFieldCount = tabMatch[2]?.split('|').length;
+      tabularFieldCount = (tabMatch[2] ?? '').split('|').length;
       tabularIndent = indent;
       continue;
     }

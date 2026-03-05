@@ -156,7 +156,7 @@ export function compressL2(
       const placeholder = `\${${aliasForIndex(selected.length - 1).slice(1)}}`;
       for (let i = 0; i < simValues.length; i++) {
         if (simValues[i]?.includes(c.value)) {
-          simValues[i] = simValues[i]?.split(c.value).join(placeholder);
+          simValues[i] = (simValues[i] ?? '').split(c.value).join(placeholder);
         }
       }
     }
