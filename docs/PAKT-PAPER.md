@@ -155,7 +155,7 @@ users [3]{name|role|active}:
   Carol|designer|false
 ```
 
-The dictionary entry costs 3 tokens but saves 2 tokens per occurrence (2 occurrences), for a net saving of 1 token. On larger datasets with more repetition, L2 savings compound significantly.
+The `$a: developer` alias costs 3 tokens to define but saves 1 token per occurrence (replacing `developer` with the shorter `$a`); across 2 occurrences that is a net saving of −1 token from the alias alone. The full 32→27 reduction combines this with whitespace and structural re-serialization during the body-clone pass. On larger datasets with more repetition, L2 savings compound significantly.
 
 ### 4.3 L3: Tokenizer-Aware Optimization
 
@@ -306,4 +306,4 @@ The key contributions are:
 
 [5] H. Jiang, Q. Wu, X. Luo, D. Li, C.-Y. Lin, Y. Yang, and L. Qiu, "LongLLMLingua: Accelerating and Enhancing LLMs in Long Context Scenarios via Prompt Compression," arXiv:2310.06839, 2023.
 
-[6] A. Chevalier, A. Wettig, A. Ajith, and D. Chen, "AutoCompressors: Language Models Are Lossless Compressors," arXiv:2305.14788, 2023.
+[6] A. Chevalier, A. Wettig, A. Ajith, and D. Chen, "Adapting Language Models to Compress Contexts," arXiv:2305.14788, 2023.

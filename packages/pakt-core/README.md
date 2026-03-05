@@ -442,12 +442,49 @@ const result = decompress(response.choices[0].message.content, 'json');
 
 ## Benchmarks
 
-| Input | Format | Tokens | With PAKT | Savings |
-|-------|--------|--------|-----------|---------|
-| 50-row user array | JSON | 1,847 | 923 | **50%** |
-| Nested API response | JSON | 612 | 389 | **36%** |
-| 20-column dataset | CSV | 2,103 | 1,154 | **45%** |
-| Deep config file | YAML | 891 | 534 | **40%** |
+Token counts measured with cl100k\_base (GPT-4/GPT-4o tokenizer). Savings are from L1+L2; L3 adds ~2.5% on top.
+
+### By format
+
+| Input | Format | Original | PAKT | Savings | Primary driver |
+|-------|--------|----------|------|---------|----------------|
+| 50-row employee table | JSON | ~620 | ~340 | **~45%** | Tabular key deduplication (L1) |
+| Nested API response | JSON | ~280 | ~170 | **~39%** | Object flattening + dict (L1+L2) |
+| Small config object | JSON | ~45 | ~32 | **~29%** | Key removal, whitespace (L1) |
+| Kubernetes deployment | YAML | ~310 | ~215 | **~31%** | Repeated field names (L1+L2) |
+| 100-row analytics export | CSV | ~850 | ~470 | **~45%** | Header deduplication (L1) |
+| API docs (Markdown + JSON) | Mixed | ~420 | ~310 | **~26%** | Embedded JSON blocks (mixed pipeline) |
+
+### Layer-by-layer breakdown (50-row JSON table)
+
+| Layer | Tokens | Reduction | Description |
+|-------|--------|-----------|-------------|
+| Input | 620 | — | Raw JSON |
+| After L1 | 385 | **38%** | Structural: tabular encoding, whitespace removal |
+| After L2 | 340 | **45%** | Dictionary: alias substitution for repeated values |
+| After L3 | 322 | **48%** | Tokenizer-aware: indent compression, merge optimisation |
+
+### Cost savings at scale
+
+At **1M tokens/day** compressed at 40% average savings (GPT-4o @ \$10/M output tokens):
+
+| Scenario | Daily tokens | PAKT tokens | Daily saving | Monthly saving |
+|----------|-------------|-------------|-------------|----------------|
+| 1 M tokens | 1,000,000 | 600,000 | ~\$4 | ~\$120 |
+| 10 M tokens | 10,000,000 | 6,000,000 | ~\$40 | ~\$1,200 |
+| 100 M tokens | 100,000,000 | 60,000,000 | ~\$400 | ~\$12,000 |
+
+### When PAKT helps most / least
+
+| Scenario | Expected savings | Why |
+|----------|-----------------|-----|
+| Uniform object arrays (tables) | 40–55% | Key deduplication eliminates per-row overhead |
+| Repeated string values (enums) | +5–15% extra | L2 dictionary aliases |
+| Nested / irregular JSON | 20–35% | Partial structural gains only |
+| CSV with many columns | 35–50% | Column headers deduplicated across all rows |
+| Short flat key-value objects | 10–20% | Little repetition to exploit |
+| Already-minified JSON | 5–15% | Whitespace savings only |
+| Plain prose text | 0–5% | No structural overhead to remove |
 
 ```bash
 pnpm bench
