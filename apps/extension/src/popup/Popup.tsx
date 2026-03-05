@@ -1,13 +1,13 @@
 /**
  * Main ClipForge popup component.
  *
- * Handles text input, format detection, compression/decompression,
- * auto-compress, keyboard shortcuts, and output copying.
+ * Handles text input, format detection, auto-compress, keyboard shortcuts,
+ * and output copying. Compression/decompression logic lives in `useCompression`.
  * Sub-components: ActionBar, StatsCard, Settings, icons, styles.
  */
 
-import { compress, countTokens, decompress, detect } from '@sriinnu/pakt';
-import type { DecompressResult, PaktFormat, PaktResult } from '@sriinnu/pakt';
+import { detect } from '@sriinnu/pakt';
+import type { PaktFormat } from '@sriinnu/pakt';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type ExtensionSettings, getSettings } from '../shared/storage';
 import { ActionBar } from './ActionBar';
@@ -35,6 +35,7 @@ import {
   topBarStyle,
   versionBadgeStyle,
 } from './styles';
+import { useCompression } from './useCompression';
 import { useTheme } from './useTheme';
 
 /** Detect macOS for keyboard shortcut display. */
@@ -104,68 +105,20 @@ export function Popup() {
     }
   }, [input]);
 
-  /* ---- Core compression handler ---- */
-  const runCompress = useCallback(
-    (text: string, isAuto = false) => {
-      if (!text.trim() || processing) return;
-      setStatusMsg(null);
-      setProcessing(true);
-      try {
-        const result: PaktResult = compress(text, {
-          layers: {
-            structural: settings?.layerStructural ?? true,
-            dictionary: settings?.layerDictionary ?? true,
-            tokenizerAware: false,
-            semantic: false,
-          },
-        });
-        setOutput(result.compressed);
-        setStats({
-          before: result.originalTokens,
-          after: result.compressedTokens,
-          savings: result.savings.totalPercent,
-        });
-        if (isAuto) {
-          setAutoNotice(true);
-          setTimeout(() => setAutoNotice(false), 2500);
-        }
-      } catch (err) {
-        setStatusMsg({
-          text: err instanceof Error ? err.message : 'Compression failed',
-          type: 'error',
-        });
-      } finally {
-        setProcessing(false);
-      }
-    },
-    [settings, processing],
+  /* ---- Compression / decompression hook ---- */
+  const { runCompress, handleDecompress } = useCompression(
+    settings,
+    processing,
+    detectedFormat,
+    input,
+    decompressFormat,
+    { setOutput, setStats, setStatusMsg, setProcessing },
   );
 
   /** Compress button click handler. */
   const handleCompress = useCallback(() => {
     runCompress(input);
   }, [input, runCompress]);
-
-  /** Decompress button click handler. */
-  const handleDecompress = useCallback(() => {
-    if (!input.trim() || processing) return;
-    setStatusMsg(null);
-    setProcessing(true);
-    try {
-      const result: DecompressResult = decompress(input, decompressFormat);
-      setOutput(result.text);
-      const beforeTokens = countTokens(input);
-      const afterTokens = countTokens(result.text);
-      setStats({ before: beforeTokens, after: afterTokens, savings: 0 });
-    } catch (err) {
-      setStatusMsg({
-        text: err instanceof Error ? err.message : 'Decompression failed',
-        type: 'error',
-      });
-    } finally {
-      setProcessing(false);
-    }
-  }, [input, decompressFormat, processing]);
 
   /** Copy output to clipboard. */
   const handleCopy = useCallback(async () => {
@@ -206,7 +159,14 @@ export function Popup() {
     }
     autoCompressedRef.current = true;
     /* Small delay so the UI shows the pasted text first */
-    const timer = setTimeout(() => runCompress(input, true), 150);
+    const timer = setTimeout(
+      () =>
+        runCompress(input, true, () => {
+          setAutoNotice(true);
+          setTimeout(() => setAutoNotice(false), 2500);
+        }),
+      150,
+    );
     return () => clearTimeout(timer);
   }, [input, settings?.autoCompress, runCompress]);
 

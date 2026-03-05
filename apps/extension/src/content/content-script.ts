@@ -2,12 +2,26 @@
  * ClipForge content script.
  *
  * Injected into supported LLM sites (ChatGPT, Claude.ai, Gemini).
- * Adds a small floating pill-shaped compress button near text input areas.
- * The button appears on hover near the input and fades in/out smoothly.
+ * Adds a floating pill-shaped button near text input areas.
+ *
+ * Button behaviour is bidirectional:
+ *  - Raw text / markdown → compress via compressMixed
+ *  - PAKT-compressed text → decompress via decompressMixed (with compress fallback)
+ *
+ * Button DOM management lives in `button.ts`.
  */
 
-import { compress, detect } from '@sriinnu/pakt';
+import { compress, compressMixed, decompress, decompressMixed, detect } from '@sriinnu/pakt';
 import { getSettings } from '../shared/storage';
+import {
+  flashSuccess,
+  getActiveInput,
+  resetToCompressMode,
+  scheduleHide,
+  setActiveInput,
+  setButtonClickHandler,
+  showButton,
+} from './button';
 
 // ---------------------------------------------------------------------------
 // Site-specific input selectors
@@ -29,122 +43,21 @@ const SITE_SELECTORS: Record<string, string[]> = {
 };
 
 // ---------------------------------------------------------------------------
-// State
+// Wire the button click to our handler
 // ---------------------------------------------------------------------------
 
-let compressBtn: HTMLButtonElement | null = null;
-let activeInput: HTMLElement | null = null;
-let hideTimeout: ReturnType<typeof setTimeout> | null = null;
-let isHoveringBtn = false;
-
-// ---------------------------------------------------------------------------
-// Button creation — small pill with compress icon
-// ---------------------------------------------------------------------------
-
-function createCompressButton(): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M11 3L3 11M3 11V5M3 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-  btn.title = 'Compress with ClipForge';
-
-  Object.assign(btn.style, {
-    position: 'absolute',
-    zIndex: '10000',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '28px',
-    height: '28px',
-    fontSize: '12px',
-    fontWeight: '600',
-    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-    backgroundColor: '#7c3aed',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '14px',
-    cursor: 'pointer',
-    opacity: '0',
-    transition: 'opacity 0.25s ease, background-color 0.2s ease, transform 0.2s ease',
-    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.4)',
-    lineHeight: '1',
-    pointerEvents: 'auto',
-    padding: '0',
-  });
-
-  btn.addEventListener('mouseenter', () => {
-    isHoveringBtn = true;
-    btn.style.opacity = '1';
-    btn.style.backgroundColor = '#6d28d9';
-    btn.style.transform = 'scale(1.1)';
-    if (hideTimeout) {
-      clearTimeout(hideTimeout);
-      hideTimeout = null;
-    }
-  });
-
-  btn.addEventListener('mouseleave', () => {
-    isHoveringBtn = false;
-    btn.style.backgroundColor = '#7c3aed';
-    btn.style.transform = 'scale(1)';
-    scheduleHide();
-  });
-
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleCompress();
-  });
-
-  return btn;
-}
-
-// ---------------------------------------------------------------------------
-// Show / hide with fade
-// ---------------------------------------------------------------------------
-
-function showButton(input: HTMLElement): void {
-  if (!compressBtn) {
-    compressBtn = createCompressButton();
-    document.body.appendChild(compressBtn);
-  }
-
-  if (hideTimeout) {
-    clearTimeout(hideTimeout);
-    hideTimeout = null;
-  }
-
-  positionButton(input);
-  compressBtn.style.opacity = '0.85';
-  compressBtn.style.pointerEvents = 'auto';
-}
-
-function scheduleHide(): void {
-  if (hideTimeout) clearTimeout(hideTimeout);
-  hideTimeout = setTimeout(() => {
-    if (compressBtn && !isHoveringBtn) {
-      compressBtn.style.opacity = '0';
-      compressBtn.style.pointerEvents = 'none';
-    }
-  }, 800);
-}
-
-// ---------------------------------------------------------------------------
-// Position the button near the active input (top-right corner, inside)
-// ---------------------------------------------------------------------------
-
-function positionButton(input: HTMLElement): void {
-  if (!compressBtn) return;
-
-  const rect = input.getBoundingClientRect();
-  compressBtn.style.top = `${window.scrollY + rect.top + 6}px`;
-  compressBtn.style.left = `${window.scrollX + rect.right - 36}px`;
-}
+setButtonClickHandler(handleCompressOrDecompress);
 
 // ---------------------------------------------------------------------------
 // Get / set text content of input elements
 // ---------------------------------------------------------------------------
 
+/**
+ * Reads the current text content of a form input or contenteditable element.
+ *
+ * @param el - The element to read from.
+ * @returns The current text value.
+ */
 function getInputText(el: HTMLElement): string {
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
     return el.value;
@@ -152,23 +65,37 @@ function getInputText(el: HTMLElement): string {
   return el.textContent ?? '';
 }
 
+/**
+ * Writes text into a form input or contenteditable element and dispatches
+ * an `input` event so the host app reacts to the change.
+ *
+ * @param el - The target element.
+ * @param text - The text to write.
+ */
 function setInputText(el: HTMLElement, text: string): void {
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
     el.value = text;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     return;
   }
-
-  // contenteditable elements
   el.textContent = text;
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 // ---------------------------------------------------------------------------
-// Compress handler
+// Compress / Decompress handler
 // ---------------------------------------------------------------------------
 
-async function handleCompress(): Promise<void> {
+/**
+ * Dispatches to either compression or decompression based on the detected
+ * format of the current active input.
+ *
+ * - `'pakt'`     → decompresses via `handleDecompressInput`
+ * - `'markdown'` / `'text'` → compresses via `compressMixed`
+ * - Other formats → compresses via `compress` (json/yaml/csv path)
+ */
+async function handleCompressOrDecompress(): Promise<void> {
+  const activeInput = getActiveInput();
   if (!activeInput) return;
 
   const text = getInputText(activeInput);
@@ -179,50 +106,95 @@ async function handleCompress(): Promise<void> {
   try {
     const detection = detect(text);
 
-    // Don't compress already-compressed PAKT content
-    if (detection.format === 'pakt') return;
+    // --- Decompress path ---
+    if (detection.format === 'pakt') {
+      await handleDecompressInput(activeInput, text);
+      return;
+    }
 
-    // Only compress structured formats that benefit from PAKT
-    if (detection.format === 'text' && detection.confidence < 0.5) return;
+    const format = detection.format;
 
-    const result = compress(text, {
-      layers: {
-        structural: settings.layerStructural,
-        dictionary: settings.layerDictionary,
-        tokenizerAware: false,
-        semantic: false,
-      },
-    });
+    // Skip very low-confidence plain text
+    if (format === 'text' && detection.confidence < 0.5) return;
+
+    let compressed: string;
+    let savingsPercent: number;
+
+    if (format === 'markdown' || format === 'text') {
+      // Mixed-content path: finds and compresses embedded JSON/YAML/CSV blocks
+      const result = compressMixed(text, {
+        layers: {
+          structural: settings.layerStructural,
+          dictionary: settings.layerDictionary,
+          tokenizerAware: false,
+          semantic: false,
+        },
+      });
+      compressed = result.compressed;
+      savingsPercent = result.savings.totalPercent;
+    } else {
+      // Structured format path (json/yaml/csv)
+      const result = compress(text, {
+        layers: {
+          structural: settings.layerStructural,
+          dictionary: settings.layerDictionary,
+          tokenizerAware: false,
+          semantic: false,
+        },
+      });
+      compressed = result.compressed;
+      savingsPercent = result.savings.totalPercent;
+    }
 
     // Only replace if we actually saved tokens
-    if (result.savings.totalPercent > 5) {
-      setInputText(activeInput, result.compressed);
-
-      // Flash the button green briefly to confirm
-      if (compressBtn) {
-        compressBtn.style.backgroundColor = '#22c55e';
-        compressBtn.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.4)';
-        compressBtn.innerHTML = `<span style="font-size:11px;font-weight:700">-${Math.round(result.savings.totalPercent)}%</span>`;
-        setTimeout(() => {
-          if (compressBtn) {
-            compressBtn.style.backgroundColor = '#7c3aed';
-            compressBtn.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.4)';
-            compressBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 3L3 11M3 11V5M3 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>`;
-          }
-        }, 2000);
-      }
+    if (savingsPercent > 5) {
+      setInputText(activeInput, compressed);
+      flashSuccess(savingsPercent);
     }
   } catch (err) {
-    console.error('[ClipForge] Content script compression failed:', err);
+    console.error('[ClipForge] Content script compress/decompress failed:', err);
+  }
+}
+
+/**
+ * Decompresses PAKT text from an input element and writes the result back.
+ *
+ * Tries `decompressMixed` first (handles embedded `<!-- PAKT:format -->` markers
+ * in mixed content); falls back to plain `decompress` for pure PAKT documents.
+ *
+ * @param el - The input element whose content should be decompressed.
+ * @param text - The current text of the element (passed to avoid re-reading).
+ */
+async function handleDecompressInput(el: HTMLElement, text: string): Promise<void> {
+  try {
+    const mixedResult = decompressMixed(text);
+
+    if (mixedResult !== text) {
+      // Mixed markers were resolved — write result back
+      setInputText(el, mixedResult);
+    } else {
+      // Fallback: plain decompress for pure PAKT documents
+      const result = decompress(text, 'json');
+      setInputText(el, result.text);
+    }
+
+    // Reset button icon to compress mode
+    resetToCompressMode();
+  } catch (err) {
+    console.error('[ClipForge] Content script decompression failed:', err);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Observe for input areas
+// Attach to input elements
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns all matching input elements on the current page using site-specific
+ * selectors.
+ *
+ * @returns Array of matching HTMLElements.
+ */
 function findInputs(): HTMLElement[] {
   const hostname = window.location.hostname;
   const selectors = SITE_SELECTORS[hostname];
@@ -238,14 +210,18 @@ function findInputs(): HTMLElement[] {
   return elements;
 }
 
+/**
+ * Attaches ClipForge hover/focus listeners to an input element.
+ * Safe to call multiple times — uses a data attribute guard.
+ *
+ * @param input - The input element to attach to.
+ */
 function attachToInput(input: HTMLElement): void {
-  // Avoid attaching twice
   if (input.dataset.clipforgeAttached) return;
   input.dataset.clipforgeAttached = 'true';
 
-  // Show button on hover near input
   input.addEventListener('mouseenter', () => {
-    activeInput = input;
+    setActiveInput(input);
     showButton(input);
   });
 
@@ -253,15 +229,14 @@ function attachToInput(input: HTMLElement): void {
     scheduleHide();
   });
 
-  // Also show on focus for keyboard users
   input.addEventListener('focus', () => {
-    activeInput = input;
+    setActiveInput(input);
     showButton(input);
-    // Auto-hide after a few seconds if not interacting with button
     scheduleHide();
   });
 }
 
+/** Scans the page for new inputs and attaches ClipForge to them. */
 function scanAndAttach(): void {
   const inputs = findInputs();
   for (const input of inputs) {
@@ -288,7 +263,7 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'SHOW_COMPRESSED' && message.compressed) {
-      // If there's an active input, replace its content
+      const activeInput = getActiveInput();
       if (activeInput) {
         setInputText(activeInput, message.compressed);
       }
@@ -310,11 +285,7 @@ scanAndAttach();
 const observer = new MutationObserver(() => {
   scanAndAttach();
 });
-
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-});
+observer.observe(document.body, { childList: true, subtree: true });
 
 // Re-scan on SPA navigation
 let lastUrl = location.href;

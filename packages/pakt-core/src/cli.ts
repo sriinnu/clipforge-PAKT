@@ -18,6 +18,7 @@
 
 import { readFileSync } from 'node:fs';
 import { VERSION, compareSavings, compress, countTokens, decompress, detect } from './index.js';
+import { compressMixed } from './mixed/index.js';
 import type { PaktFormat, PaktLayers } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,7 @@ const HELP = `pakt v${VERSION} — PAKT compression engine CLI
 Usage:
   pakt compress [file] [options]    Compress input to PAKT format
   pakt decompress [file] [options]  Decompress PAKT back to original format
+  pakt auto [file] [options]        Auto-detect and compress or decompress
   pakt detect [file]                Detect input format
   pakt tokens [file] [options]      Count tokens in input
   pakt savings [file] [options]     Show compression savings report
@@ -76,6 +78,8 @@ Examples:
   pakt detect mystery-file.txt
   pakt tokens data.json --model claude-sonnet
   pakt savings data.json --model gpt-4o
+  cat data.json | pakt auto
+  echo '@from json\nname: Alice' | pakt auto
 `;
 
 // ---------------------------------------------------------------------------
@@ -287,6 +291,56 @@ function cmdSavings(args: ParsedArgs): void {
   }
 }
 
+/**
+ * Handle the `auto` subcommand.
+ *
+ * Detects whether input is already PAKT or raw structured data and routes:
+ * - PAKT input → {@link decompress} → human-readable text on stdout.
+ * - Raw input → {@link compressMixed} → PAKT output on stdout.
+ *
+ * Savings metadata goes to stderr so piping stdout to another tool is clean.
+ *
+ * @param args - Parsed CLI arguments (file, --from, --to flags).
+ */
+function cmdAuto(args: ParsedArgs): void {
+  const input = readInput(args.file);
+
+  const fromOpt = args.options.get('from');
+  const toOpt = args.options.get('to');
+
+  // Use --from to override detection when the caller knows the format
+  const detected = detect(input);
+  const effectiveFormat = fromOpt
+    ? (FORMAT_MAP[fromOpt.toLowerCase()] ?? detected.format)
+    : detected.format;
+
+  if (effectiveFormat === 'pakt') {
+    // Input is already PAKT — decompress it
+    const outputFormat = toOpt ? parseFormat(toOpt, '--to') : undefined;
+    const result = decompress(input, outputFormat);
+
+    process.stdout.write(result.text);
+    if (!result.text.endsWith('\n')) {
+      process.stdout.write('\n');
+    }
+
+    process.stderr.write('\x1b[90m# Decompressed PAKT input\x1b[0m\n');
+  } else {
+    // Raw input — compress with mixed-content pipeline
+    const result = compressMixed(input);
+
+    process.stdout.write(result.compressed);
+    if (!result.compressed.endsWith('\n')) {
+      process.stdout.write('\n');
+    }
+
+    const saved = result.originalTokens - result.compressedTokens;
+    process.stderr.write(
+      `\x1b[90m# Saved ${String(result.savings.totalPercent)}% (${String(result.originalTokens)}\u2192${String(result.compressedTokens)} tokens, \u2212${String(saved)})\x1b[0m\n`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -314,6 +368,9 @@ function main(): void {
       break;
     case 'decompress':
       cmdDecompress(args);
+      break;
+    case 'auto':
+      cmdAuto(args);
       break;
     case 'detect':
       cmdDetect(args);
