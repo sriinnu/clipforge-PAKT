@@ -341,12 +341,11 @@ function isOverlapping(start: number, end: number, intervals: Array<[number, num
 
   if (candidate === -1) return false;
 
-  // Walk left; stop as soon as an interval ends before our start (sorted order
-  // guarantees earlier intervals also end no later than this one).
+  // Walk left from candidate: intervals are sorted by START, not by end,
+  // so we cannot break early -- a wider interval earlier in the list may
+  // still overlap [start, end) even when a later one does not.
   for (let idx = candidate; idx >= 0; idx--) {
-    const ivEnd = intervals[idx]![1];
-    if (ivEnd > start) return true;
-    if (ivEnd <= start) break;
+    if (intervals[idx]![1] > start) return true;
   }
 
   return false;

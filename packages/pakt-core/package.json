@@ -1,6 +1,6 @@
 {
   "name": "@sriinnu/pakt",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "PAKT compression engine — lossless format conversion for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",
