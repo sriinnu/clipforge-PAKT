@@ -5,7 +5,7 @@ Lossless prompt compression for LLMs. 30-50% fewer tokens. Perfect round-trippin
 [![npm version](https://img.shields.io/npm/v/@sriinnu/pakt?color=6366f1&label=npm)](https://www.npmjs.com/package/@sriinnu/pakt)
 [![license](https://img.shields.io/badge/license-MIT-8b5cf6)](https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)
-![tests](https://img.shields.io/badge/tests-540%20passing-22c55e)
+![tests](https://img.shields.io/badge/tests-661%20passing-22c55e)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@sriinnu/pakt?color=f59e0b&label=size)](https://bundlephobia.com/package/@sriinnu/pakt)
 
 ---
@@ -133,6 +133,76 @@ console.log(report.costSaved?.input);  // 0.0003 (USD)
 console.log(report.costSaved?.output); // 0.0012 (USD)
 ```
 
+### Async & Batch
+
+```ts
+import { compressAsync, decompressAsync, compressBatch } from '@sriinnu/pakt';
+
+// Async — yields to the event loop, safe for AI inference chains
+const result = await compressAsync(largeJson);
+
+// Batch — bounded concurrency, per-item error isolation
+const results = await compressBatch(inputs, {
+  concurrency: 5,
+  onProgress: (done, total) => console.log(`${done}/${total}`),
+});
+```
+
+### Mixed-Content Compression
+
+Compress structured data blocks (JSON, YAML, CSV) embedded inside markdown or plain text:
+
+```ts
+import { compressMixed, decompressMixed, extractBlocks } from '@sriinnu/pakt';
+
+// Detect blocks without compressing
+const blocks = extractBlocks(markdownDoc);
+
+// Compress structured blocks in-place, leave prose untouched
+const result = compressMixed(markdownDoc);
+console.log(result.compressed);
+
+// Restore original
+const restored = decompressMixed(result.compressed);
+```
+
+### Context Window Packer
+
+Fit the maximum number of items into a context window budget:
+
+```ts
+import { pack } from '@sriinnu/pakt';
+
+const result = pack({
+  items: [
+    { id: 'sys', content: systemPrompt, priority: 100 },
+    { id: 'doc1', content: largeDoc, priority: 50 },
+    { id: 'doc2', content: anotherDoc, priority: 40 },
+  ],
+  tokenBudget: 4096,
+  strategy: 'priority',   // 'priority' | 'recency' | 'balanced'
+  model: 'gpt-4o',
+});
+
+console.log(result.packed);    // items that fit
+console.log(result.dropped);   // items that were cut
+console.log(result.stats.usedTokens);
+```
+
+### Pluggable Tokenizer
+
+Register a custom tokenizer to replace the default GPT BPE counter:
+
+```ts
+import { registerTokenCounter, countTokens } from '@sriinnu/pakt';
+
+registerTokenCounter('claude', {
+  count: (text) => Math.ceil(text.length / 3.5), // simplified example
+});
+
+countTokens('Hello, world!', 'claude'); // uses your tokenizer
+```
+
 ---
 
 ## CLI
@@ -183,7 +253,7 @@ PAKT compresses text through a 4-layer pipeline. Each layer is independent and t
 
 Layers 1-3 guarantee **100% lossless round-tripping**: `decompress(compress(input)) === input`.
 
-> **Note:** L3 and L4 are gated stubs for future release. L1 and L2 are fully implemented.
+> **Note:** L3 (tokenizer-aware) is a gated stub pending release. L1, L2, and L4 are fully implemented.
 
 ```ts
 compress(data, {
@@ -289,6 +359,52 @@ function compareSavings(original: string, compressed: string, model?: string): S
 
 ```ts
 function prettyPrint(ast: DocumentNode, options?: PrettyOptions): string
+```
+
+### `compressAsync(input, options?)` / `decompressAsync(pakt, format?)`
+
+```ts
+function compressAsync(input: string, options?: Partial<PaktOptions>): Promise<PaktResult>
+function decompressAsync(pakt: string, format?: PaktFormat): Promise<DecompressResult>
+```
+
+### `compressBatch(inputs, options?)`
+
+```ts
+function compressBatch(inputs: string[], options?: BatchOptions): Promise<BatchItemResult[]>
+```
+
+`BatchOptions` adds `concurrency` (default 10) and `onProgress` callback on top of `PaktOptions`.
+
+### `compressMixed(input)` / `decompressMixed(input)` / `extractBlocks(input)`
+
+```ts
+function extractBlocks(input: string): ExtractedBlock[]
+function compressMixed(input: string): MixedCompressResult
+function decompressMixed(input: string): string
+```
+
+### `pack(options)`
+
+```ts
+function pack(options: PackerOptions): PackerResult
+```
+
+`PackerOptions` requires `items: PackerItem[]`, `tokenBudget: number`. Optional: `strategy` (`'priority' | 'recency' | 'balanced'`), `model`, `compressItems`.
+
+### `registerTokenCounter(name, counter)` / `getTokenCounter(name?)`
+
+```ts
+function registerTokenCounter(name: string, counter: TokenCounter | TokenCounterFactory): void
+function getTokenCounter(name?: string): TokenCounter
+```
+
+### `compressL4(input, options?)` / `decompressL4(input)` / `applyL4Transforms(input, options?)`
+
+```ts
+function compressL4(input: string, options?: Partial<PaktOptions>): PaktResult
+function decompressL4(input: string): DecompressResult
+function applyL4Transforms(input: string, options?: Partial<PaktOptions>): string
 ```
 
 ---
