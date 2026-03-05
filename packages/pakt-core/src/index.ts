@@ -27,7 +27,7 @@
  */
 
 /** Library version */
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 
 // ---------------------------------------------------------------------------
 // Core functions
@@ -103,6 +103,24 @@ export type {
 // ---------------------------------------------------------------------------
 
 export { PAKT_SYSTEM_PROMPT } from './prompt.js';
+
+// ---------------------------------------------------------------------------
+// MCP (Model Context Protocol) tools
+// ---------------------------------------------------------------------------
+
+export { PAKT_MCP_TOOLS, handlePaktTool } from './mcp/index.js';
+export type {
+  McpToolDefinition,
+  McpToolInputSchema,
+  McpToolProperty,
+  PaktCompressArgs,
+  PaktCompressResult,
+  PaktAutoArgs,
+  PaktAutoResult,
+  PaktToolName,
+  PaktToolArgs,
+  PaktToolResult,
+} from './mcp/index.js';
 
 // ---------------------------------------------------------------------------
 // Types

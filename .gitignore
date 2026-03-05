@@ -47,6 +47,12 @@ apps/extension/dist/
 report.html
 *.zip
 
+# Local assets (banners, screenshots — use GitHub releases for hosting)
+docs/*.png
+docs/*.jpg
+docs/*.gif
+docs/*.webp
+
 # Tauri generated schemas (local only)
 apps/desktop/src-tauri/gen/
 
