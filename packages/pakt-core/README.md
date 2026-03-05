@@ -56,16 +56,33 @@ const n = countTokens('{"hello":"world"}', 'gpt-4o');
 console.log(n);              // token count
 ```
 
+### MCP Server (Claude Desktop, Cursor, Claude Code)
+
+Add 5 lines to your MCP config — no extra files or SDK needed:
+
+```json
+{
+  "mcpServers": {
+    "pakt": {
+      "command": "npx",
+      "args": ["-y", "@sriinnu/pakt", "serve", "--stdio"]
+    }
+  }
+}
+```
+
+Your AI agent gets `pakt_compress` and `pakt_auto` tools automatically.
+
 ### CLI
 
 ```bash
-# Install globally
 npm install -g @sriinnu/pakt
 
 pakt compress data.json                      # compress to PAKT
 pakt decompress data.pakt --to json          # decompress
 cat data.json | pakt auto                    # auto-detect + compress or decompress
 pakt savings data.json --model gpt-4o        # token savings report
+pakt serve --stdio                           # start MCP server
 ```
 
 ---

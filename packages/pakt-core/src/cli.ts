@@ -12,6 +12,7 @@
  *   pakt detect [file]
  *   pakt tokens [file] [--model gpt-4o|claude-sonnet|...]
  *   pakt savings [file] [--model gpt-4o|claude-sonnet|...]
+ *   pakt serve --stdio
  *   pakt --version
  *   pakt --help
  */
@@ -26,6 +27,7 @@ import {
   cmdSavings,
   cmdTokens,
 } from './cli-commands.js';
+import { startServe } from './cli-serve.js';
 import { VERSION } from './index.js';
 import type { PaktLayers } from './types.js';
 
@@ -50,6 +52,7 @@ Usage:
   pakt compress [file] [options]    Compress input to PAKT format
   pakt decompress [file] [options]  Decompress PAKT back to original format
   pakt auto [file] [options]        Auto-detect and compress or decompress
+  pakt serve --stdio                Start MCP server over stdio
   pakt detect [file]                Detect input format
   pakt tokens [file] [options]      Count tokens in input
   pakt savings [file] [options]     Show compression savings report
@@ -233,6 +236,9 @@ function main(): void {
     case 'auto':
       cmdAuto(args, readInput);
       break;
+    case 'serve':
+      startServe();
+      return; // serve runs indefinitely
     case 'detect':
       cmdDetect(args, readInput);
       break;

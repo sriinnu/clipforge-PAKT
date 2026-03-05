@@ -105,79 +105,80 @@ PAKT input is decompressed; raw input is compressed.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 
-Register PAKT as a local MCP server in your Claude Desktop config. Create or
-edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
-or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+PAKT ships with a built-in MCP server. Add 5 lines to your Claude Desktop
+config at `~/Library/Application Support/Claude/claude_desktop_config.json`
+(macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
   "mcpServers": {
     "pakt": {
-      "command": "node",
-      "args": ["./path/to/pakt-mcp-server.mjs"]
+      "command": "npx",
+      "args": ["-y", "@sriinnu/pakt", "serve", "--stdio"]
     }
   }
 }
 ```
 
-The server file (`pakt-mcp-server.mjs`) is described in the
-[Generic MCP Server](#any-mcp-compatible-client-generic) section below.
+Restart Claude Desktop. The `pakt_compress` and `pakt_auto` tools appear
+automatically.
 
 ### Cursor / VS Code with Continue.dev
 
-Both Cursor and Continue.dev read tool definitions from `.cursor/mcp.json` or
-`.continue/config.json`. Add PAKT as a stdio server:
+Add to `.cursor/mcp.json` or `.continue/config.json`:
 
 ```json
 {
   "mcpServers": {
     "pakt": {
-      "command": "node",
-      "args": ["./path/to/pakt-mcp-server.mjs"],
-      "disabled": false
+      "command": "npx",
+      "args": ["-y", "@sriinnu/pakt", "serve", "--stdio"]
     }
   }
 }
 ```
 
-Cursor will auto-discover the `pakt_compress` and `pakt_auto` tools from the
-server's `tools/list` response.
+### Claude Code (`.mcp.json`)
+
+Add to your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "pakt": {
+      "command": "npx",
+      "args": ["-y", "@sriinnu/pakt", "serve", "--stdio"]
+    }
+  }
+}
+```
 
 ### Any MCP-compatible client (generic)
 
-PAKT ships tool definitions and a handler function. To expose them as an MCP
-server, create a small Node.js entry point using `@modelcontextprotocol/sdk`:
+`pakt serve --stdio` implements the MCP protocol over stdin/stdout with zero
+extra dependencies. Works with any MCP client supporting stdio transport.
+
+For custom servers (middleware, routing), use the exported APIs directly:
 
 ```typescript
-// pakt-mcp-server.ts
+// Advanced: custom server with @modelcontextprotocol/sdk
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { PAKT_MCP_TOOLS, handlePaktTool } from '@sriinnu/pakt';
 import type { PaktToolName } from '@sriinnu/pakt';
 
-const server = new McpServer({
-  name: 'pakt',
-  version: '0.4.0',
-});
+const server = new McpServer({ name: 'pakt', version: '0.4.0' });
 
-/** Register each PAKT tool with the MCP server. */
 for (const tool of PAKT_MCP_TOOLS) {
-  server.tool(
-    tool.name,
-    tool.description,
-    tool.inputSchema.properties,
+  server.tool(tool.name, tool.description, tool.inputSchema.properties,
     (args: Record<string, string>) => {
       const result = handlePaktTool(tool.name as PaktToolName, args);
       return { content: [{ type: 'text', text: JSON.stringify(result) }] };
-    },
-  );
+    });
 }
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+await server.connect(new StdioServerTransport());
 ```
-
-Build and reference this file as the `command` in any MCP client config.
 
 **Raw JSON tool definitions** (from `PAKT_MCP_TOOLS`):
 
