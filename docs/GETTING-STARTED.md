@@ -55,7 +55,7 @@ Everything above, plus:
 ## 2. Clone & Install
 
 ```bash
-git clone https://github.com/yugenlab/clipforge-pakt.git
+git clone https://github.com/sriinnu/clipforge-pakt.git
 cd clipforge-pakt
 pnpm install
 ```
@@ -221,7 +221,7 @@ For when you are ready to publish `@sriinnu/pakt` to npm:
 - [ ] All 322+ tests pass
 - [ ] `pnpm build` completes cleanly with no warnings
 - [ ] `pnpm pack --filter @sriinnu/pakt` produces a clean tarball
-- [ ] Test the tarball in a fresh project: `npm install ./yugenlab-pakt-0.1.0.tgz`
+- [ ] Test the tarball in a fresh project: `npm install ./sriinnu-pakt-0.1.0.tgz`
 - [ ] Verify ESM import works: `import { compress } from '@sriinnu/pakt'`
 - [ ] Verify CJS require works: `const { compress } = require('@sriinnu/pakt')`
 - [ ] README is accurate and up-to-date

@@ -9,22 +9,17 @@
 
 import { detect } from '../detect.js';
 import type { PaktFormat } from '../types.js';
+import {
+  type ExtractedBlock,
+  buildOccupiedIntervals,
+  detectCsvDelimiter,
+  findMatchingBracket,
+  isOverlapping,
+} from './extractor-helpers.js';
 
-// -- Public types -------------------------------------------------------------
+// -- Public types (re-exported from extractor-helpers) -----------------------
 
-/** A block of structured data found within mixed content. */
-export interface ExtractedBlock {
-  /** Format of this block ('json', 'yaml', 'csv'). */
-  format: PaktFormat;
-  /** The raw content of the block. */
-  content: string;
-  /** Start offset in the original text. */
-  startOffset: number;
-  /** End offset in the original text. */
-  endOffset: number;
-  /** If from a fenced code block, the language tag (e.g., 'json', 'yaml'). */
-  languageTag?: string;
-}
+export type { ExtractedBlock } from './extractor-helpers.js';
 
 // -- Language tag to PaktFormat mapping --------------------------------------
 
@@ -47,8 +42,8 @@ const FENCED_RE = /^(`{3,})([\w.-]*)\s*\n([\s\S]*?)^\1\s*$/gm;
  * Extract fenced code blocks with structured language tags.
  * Falls back to auto-detection for blocks without a recognized tag.
  *
- * @param text - Full input text
- * @returns Array of extracted blocks from fenced code blocks
+ * @param text - Full input text.
+ * @returns Array of extracted blocks from fenced code blocks.
  */
 function extractFencedBlocks(text: string): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
@@ -100,8 +95,8 @@ const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---(?:\n|$)/;
 /**
  * Extract YAML frontmatter from the beginning of the text.
  *
- * @param text - Full input text
- * @returns An extracted block for the frontmatter, or null if none found
+ * @param text - Full input text.
+ * @returns An extracted block for the frontmatter, or null if none found.
  */
 function extractFrontmatter(text: string): ExtractedBlock | null {
   const match = FRONTMATTER_RE.exec(text);
@@ -121,54 +116,13 @@ function extractFrontmatter(text: string): ExtractedBlock | null {
 // -- Inline JSON extraction --------------------------------------------------
 
 /**
- * Find the matching closing bracket for a JSON object or array.
- * Handles nested brackets and string literals.
- *
- * @param text - Text to scan
- * @param startIdx - Index of the opening bracket
- * @returns Index of the closing bracket, or -1 if not found
- */
-function findMatchingBracket(text: string, startIdx: number): number {
-  const open = text[startIdx];
-  const close = open === '{' ? '}' : ']';
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = startIdx; i < text.length; i++) {
-    const ch = text[i]!;
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (ch === '\\') {
-        escaped = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = true;
-    } else if (ch === open) {
-      depth++;
-    } else if (ch === close) {
-      depth--;
-      if (depth === 0) return i;
-    }
-  }
-
-  return -1;
-}
-
-/**
  * Extract standalone inline JSON objects/arrays from the text.
- * Only matches blocks that start at the beginning of a line.
+ * Only matches blocks that start at the beginning of a line (after optional
+ * leading whitespace) and are not already claimed by another block.
  *
- * @param text - Full input text
- * @param intervals - Sorted array of `[start, end]` intervals already claimed by other blocks
- * @returns Array of extracted JSON blocks
+ * @param text - Full input text.
+ * @param intervals - Sorted `[start, end]` intervals already claimed by other blocks.
+ * @returns Array of extracted JSON blocks.
  */
 function extractInlineJson(text: string, intervals: Array<[number, number]>): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
@@ -211,37 +165,14 @@ function extractInlineJson(text: string, intervals: Array<[number, number]>): Ex
 
 // -- CSV-like tabular section extraction -------------------------------------
 
-/** Minimum number of consistent rows to consider a section as CSV. */
-const MIN_CSV_ROWS = 3;
-
-/**
- * Check if a set of consecutive lines looks like a CSV table.
- * Requires consistent comma or tab delimiters across all rows.
- *
- * @param lines - Array of text lines to check
- * @returns The delimiter character if CSV-like, or null
- */
-function detectCsvDelimiter(lines: string[]): string | null {
-  if (lines.length < MIN_CSV_ROWS) return null;
-
-  for (const delim of [',', '\t']) {
-    const counts = lines.map((l) => l.split(delim).length);
-    const first = counts[0]!;
-    // Need at least 2 columns and all rows must match
-    if (first >= 2 && counts.every((c) => c === first)) {
-      return delim;
-    }
-  }
-  return null;
-}
-
 /**
  * Extract CSV-like tabular sections from the text.
- * Scans for runs of lines with consistent delimiters.
+ * Scans for runs of lines with consistent delimiters that are not already
+ * claimed by fenced or JSON blocks.
  *
- * @param text - Full input text
- * @param intervals - Sorted array of `[start, end]` intervals already claimed by other blocks
- * @returns Array of extracted CSV blocks
+ * @param text - Full input text.
+ * @param intervals - Sorted `[start, end]` intervals already claimed by other blocks.
+ * @returns Array of extracted CSV blocks.
  */
 function extractCsvSections(text: string, intervals: Array<[number, number]>): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
@@ -302,68 +233,18 @@ function extractCsvSections(text: string, intervals: Array<[number, number]>): E
 // -- Main extraction function ------------------------------------------------
 
 /**
- * Build a sorted array of `[startOffset, endOffset]` intervals from already-extracted
- * blocks. Sorting by start enables O(log N) binary-search overlap checks.
- *
- * @param blocks - Already-extracted blocks whose ranges should be marked occupied
- * @returns Sorted `[start, end]` intervals, one per block
- */
-function buildOccupiedIntervals(blocks: ExtractedBlock[]): Array<[number, number]> {
-  return blocks
-    .map((block): [number, number] => [block.startOffset, block.endOffset])
-    .sort((a, b) => a[0] - b[0]);
-}
-
-/**
- * O(log N) half-open range overlap check against a sorted interval list.
- * Two ranges [a,b) and [c,d) overlap iff a < d && c < b.
- *
- * @param start - Inclusive start of query range
- * @param end - Exclusive end of query range
- * @param intervals - Sorted `[start, end]` intervals (ascending by start)
- * @returns `true` if any stored interval overlaps `[start, end)`
- */
-function isOverlapping(start: number, end: number, intervals: Array<[number, number]>): boolean {
-  let lo = 0;
-  let hi = intervals.length - 1;
-  let candidate = -1;
-
-  // Find rightmost interval whose start < end (only those can overlap).
-  while (lo <= hi) {
-    const mid = (lo + hi) >>> 1;
-    if (intervals[mid]![0] < end) {
-      candidate = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-
-  if (candidate === -1) return false;
-
-  // Walk left from candidate: intervals are sorted by START, not by end,
-  // so we cannot break early -- a wider interval earlier in the list may
-  // still overlap [start, end) even when a later one does not.
-  for (let idx = candidate; idx >= 0; idx--) {
-    if (intervals[idx]![1] > start) return true;
-  }
-
-  return false;
-}
-
-/**
  * Extract structured data blocks from mixed content.
  *
  * Detects:
  * - Fenced code blocks (```json ... ```, ```yaml ... ```, ```csv ... ```)
- * - Inline JSON objects/arrays (standalone { } or [ ] blocks)
- * - YAML frontmatter (--- ... ---)
+ * - Inline JSON objects/arrays (standalone `{ }` or `[ ]` blocks)
+ * - YAML frontmatter (`--- ... ---`)
  * - CSV-like tabular sections
  *
  * Blocks do not overlap. Results are sorted by startOffset.
  *
- * @param text - The mixed content to scan
- * @returns Array of extracted blocks sorted by position
+ * @param text - The mixed content to scan.
+ * @returns Array of extracted blocks sorted by position.
  *
  * @example
  * ```ts
@@ -402,3 +283,12 @@ export function extractBlocks(text: string): ExtractedBlock[] {
   allBlocks.sort((a, b) => a.startOffset - b.startOffset);
   return allBlocks;
 }
+
+// -- Re-exports for backward compatibility -----------------------------------
+
+export {
+  buildOccupiedIntervals,
+  detectCsvDelimiter,
+  findMatchingBracket,
+  isOverlapping,
+} from './extractor-helpers.js';
