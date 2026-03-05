@@ -16,21 +16,28 @@
 import { execSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+/**
+ * Note: CLI subprocess tests are slow (2-5 s each) due to Node.js cold-start
+ * + BPE tokeniser initialisation. The global testTimeout in vitest.config.ts
+ * is set to 15 s to prevent flakes on CI and WSL environments.
+ */
 
 // ---------------------------------------------------------------------------
 // Paths & helpers
 // ---------------------------------------------------------------------------
 
+/** Resolve paths relative to the package root, not the developer's machine. */
+const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
 /** Absolute path to the built CLI entry point. */
-const CLI_PATH = join(
-  '/mnt/c/sriinnu/personal/Kaala-brahma/clipforge-PAKT',
-  'packages/pakt-core/dist/cli.js',
-);
+const CLI_PATH = join(PACKAGE_ROOT, 'dist/cli.js');
 
 /** Working directory for the CLI subprocess. */
-const CWD = join('/mnt/c/sriinnu/personal/Kaala-brahma/clipforge-PAKT', 'packages/pakt-core');
+const CWD = PACKAGE_ROOT;
 
 /** Temporary directory for file-based tests. */
 let tempDir: string;

@@ -39,8 +39,12 @@ import type {
 // Validation helpers
 // ---------------------------------------------------------------------------
 
-/** Set of valid format values for runtime validation of the `format` parameter. */
-const VALID_FORMATS = new Set<PaktFormat>(['json', 'yaml', 'csv', 'markdown', 'text']);
+/**
+ * Valid format values for the `format` parameter.
+ * Includes 'pakt' so that callers explicitly passing format:'pakt' get a
+ * passthrough result rather than a misleading "Invalid format" error.
+ */
+const VALID_FORMATS = new Set<PaktFormat>(['json', 'yaml', 'csv', 'markdown', 'text', 'pakt']);
 
 /**
  * Validate that a value is a non-empty string.
@@ -91,7 +95,11 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   const format = validateFormat(args.format);
 
   if (format) {
-    // Caller specified a format -- use direct compression
+    // Already-PAKT input with explicit format:'pakt' -- return as-is
+    if (format === 'pakt') {
+      return { compressed: args.text, savings: 0, format: 'pakt' };
+    }
+    // Caller specified a concrete format -- use direct compression
     const options: Partial<PaktOptions> = { fromFormat: format };
     const result = compress(args.text, options);
     return {
@@ -195,6 +203,8 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
 export function handlePaktTool(name: PaktToolName, args: Record<string, unknown>): PaktToolResult {
   switch (name) {
     case 'pakt_compress':
+      // Record<string,unknown> → PaktCompressArgs: runtime validation is done
+      // inside handleCompress via assertNonEmptyString / validateFormat.
       return handleCompress(args as unknown as PaktCompressArgs);
     case 'pakt_auto':
       return handleAuto(args as unknown as PaktAutoArgs);

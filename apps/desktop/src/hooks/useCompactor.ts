@@ -168,22 +168,24 @@ export function useCompactor(): CompactorState {
         const origTokens = countTokens(input);
 
         if (PAKT_MARKER_RE.test(input)) {
-          // Mixed content with PAKT markers -- restore blocks in-place
+          // Mixed content with PAKT markers -- restore blocks in-place.
+          // On decompress: input is the smaller PAKT form, output is the larger
+          // original. Swap args so savings stays positive (compressed < original).
           const restored = decompressMixed(input);
           const outTokens = countTokens(restored);
           setOutput(restored);
-          setOriginalTokens(origTokens);
-          setCompressedTokens(outTokens);
-          setSavings(calcSavings(origTokens, outTokens));
+          setOriginalTokens(outTokens); // decompressed form = "original"
+          setCompressedTokens(origTokens); // PAKT form = "compressed"
+          setSavings(calcSavings(outTokens, origTokens));
           setFormat('text');
         } else {
           // Plain PAKT document -- standard decompress
           const result = decompress(input, outputFormat);
           const outTokens = countTokens(result.text);
           setOutput(result.text);
-          setOriginalTokens(origTokens);
-          setCompressedTokens(outTokens);
-          setSavings(calcSavings(origTokens, outTokens));
+          setOriginalTokens(outTokens); // decompressed form = "original"
+          setCompressedTokens(origTokens); // PAKT form = "compressed"
+          setSavings(calcSavings(outTokens, origTokens));
           setFormat(result.originalFormat);
         }
       } catch (err) {

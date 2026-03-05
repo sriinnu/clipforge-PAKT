@@ -33,7 +33,7 @@ fi
 # ---------------------------------------------------------------------------
 pakt_send() {
   if [ -n "$1" ]; then
-    echo "$1" | pakt auto
+    printf '%s\n' "$1" | pakt auto
   else
     # Read from stdin when no argument is provided
     pakt auto
@@ -51,7 +51,7 @@ pakt_send() {
 # ---------------------------------------------------------------------------
 pakt_receive() {
   if [ -n "$1" ]; then
-    echo "$1" | pakt auto
+    printf '%s\n' "$1" | pakt auto
   else
     pakt auto
   fi
@@ -86,11 +86,13 @@ pakt_llm_call() {
   compressed=$(pakt_send "$prompt" 2>/dev/null)
 
   # Step 2: Send to the LLM
+  # NOTE: $llm_cmd must be a single command name (not a pipeline or compound
+  # command). Arguments are not supported; use a wrapper function instead.
   local raw_response
-  raw_response=$(echo "$compressed" | $llm_cmd)
+  raw_response=$(printf '%s\n' "$compressed" | "$llm_cmd")
 
-  # Step 3: Decompress the response (suppress stderr)
-  pakt_receive "$raw_response" 2>/dev/null
+  # Step 3: Decompress the response (suppress savings stderr)
+  printf '%s\n' "$raw_response" | pakt auto 2>/dev/null
 }
 
 # ---------------------------------------------------------------------------

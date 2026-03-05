@@ -5,8 +5,9 @@ Lossless prompt compression for LLMs. 30-50% fewer tokens. Perfect round-trippin
 [![npm version](https://img.shields.io/npm/v/@sriinnu/pakt?color=6366f1&label=npm)](https://www.npmjs.com/package/@sriinnu/pakt)
 [![license](https://img.shields.io/badge/license-MIT-8b5cf6)](https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)
-![tests](https://img.shields.io/badge/tests-661%20passing-22c55e)
+![tests](https://img.shields.io/badge/tests-692%20passing-22c55e)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@sriinnu/pakt?color=f59e0b&label=size)](https://bundlephobia.com/package/@sriinnu/pakt)
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sriinnu/clipforge-PAKT)
 
 ---
 
