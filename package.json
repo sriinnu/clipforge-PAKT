@@ -15,7 +15,9 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "nuke": "find . -name 'node_modules' -not -path '*/.git/*' -prune -exec rm -rf {} + ; find . -name 'dist' -not -path '*/.git/*' -not -path '*/node_modules/*' -prune -exec rm -rf {} + ; find . -name 'target' -not -path '*/.git/*' -not -path '*/node_modules/*' -prune -exec rm -rf {} + ; rm -rf .turbo",
+    "fresh": "pnpm nuke && pnpm install && pnpm build"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
