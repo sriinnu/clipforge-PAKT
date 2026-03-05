@@ -127,12 +127,20 @@ export function buildOccupiedIntervals(blocks: ExtractedBlock[]): Array<[number,
 }
 
 /**
- * O(log N) half-open range overlap check against a sorted interval list.
- * Two ranges [a,b) and [c,d) overlap iff a < d && c < b.
+ * O(log N) half-open range overlap check against a sorted, non-overlapping
+ * interval list. Two ranges `[a,b)` and `[c,d)` overlap iff `a < d && c < b`.
+ *
+ * **Algorithm:** Binary-search for the rightmost interval whose `start < qe`.
+ * Because the intervals are non-overlapping and sorted by start, they are also
+ * implicitly sorted by end. If the single candidate does not satisfy
+ * `candidate.end > qs`, no earlier interval can either — its end is strictly
+ * smaller (non-overlapping guarantees `prev.end <= candidate.start`).
+ *
+ * Complexity: O(log N) time, O(1) space.
  *
  * @param start - Inclusive start of query range.
  * @param end - Exclusive end of query range.
- * @param intervals - Sorted `[start, end]` intervals (ascending by start).
+ * @param intervals - Sorted, non-overlapping `[start, end]` intervals (ascending by start).
  * @returns `true` if any stored interval overlaps `[start, end)`.
  */
 export function isOverlapping(
@@ -144,7 +152,7 @@ export function isOverlapping(
   let hi = intervals.length - 1;
   let candidate = -1;
 
-  // Find rightmost interval whose start < end (only those can overlap).
+  // Binary search: find the rightmost interval whose start < end.
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
     if (intervals[mid]![0] < end) {
@@ -157,12 +165,9 @@ export function isOverlapping(
 
   if (candidate === -1) return false;
 
-  // Walk left from candidate: intervals are sorted by START, not by end,
-  // so we cannot break early — a wider interval earlier in the list may
-  // still overlap [start, end) even when a later one does not.
-  for (let idx = candidate; idx >= 0; idx--) {
-    if (intervals[idx]![1] > start) return true;
-  }
-
-  return false;
+  // For non-overlapping intervals sorted by start, only the candidate
+  // needs checking. Earlier intervals have smaller ends (non-overlapping
+  // guarantee: prev.end <= candidate.start), so if candidate.end <= qs,
+  // all earlier ends are also <= qs.
+  return intervals[candidate]![1] > start;
 }
