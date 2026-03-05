@@ -17,22 +17,17 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { VERSION, compareSavings, compress, countTokens, decompress, detect } from './index.js';
-import { compressMixed } from './mixed/index.js';
-import type { PaktFormat, PaktLayers } from './types.js';
-
-// ---------------------------------------------------------------------------
-// Format mapping
-// ---------------------------------------------------------------------------
-
-const FORMAT_MAP: Record<string, PaktFormat> = {
-  json: 'json',
-  yaml: 'yaml',
-  csv: 'csv',
-  md: 'markdown',
-  markdown: 'markdown',
-  text: 'text',
-};
+import {
+  type ParsedArgs,
+  cmdAuto,
+  cmdCompress,
+  cmdDecompress,
+  cmdDetect,
+  cmdSavings,
+  cmdTokens,
+} from './cli-commands.js';
+import { VERSION } from './index.js';
+import type { PaktLayers } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Layer number mapping
@@ -86,13 +81,14 @@ Examples:
 // Argument parsing
 // ---------------------------------------------------------------------------
 
-interface ParsedArgs {
-  command: string | undefined;
-  file: string | undefined;
-  options: Map<string, string>;
-  flags: Set<string>;
-}
-
+/**
+ * Parse `process.argv`-style argument arrays into a structured object.
+ *
+ * Positional convention: `[subcommand] [file] [--key value | --flag ...]`
+ *
+ * @param argv - Raw argument strings (typically `process.argv.slice(2)`).
+ * @returns Structured parsed arguments.
+ */
 function parseArgs(argv: string[]): ParsedArgs {
   const result: ParsedArgs = {
     command: undefined,
@@ -147,6 +143,13 @@ function parseArgs(argv: string[]): ParsedArgs {
 // Input reading
 // ---------------------------------------------------------------------------
 
+/**
+ * Read input from a file path or stdin.
+ * Throws if stdin is a TTY and no file is provided.
+ *
+ * @param file - Optional file path; if omitted reads from stdin fd 0.
+ * @returns The file/stdin contents as a UTF-8 string.
+ */
 function readInput(file: string | undefined): string {
   if (file) {
     return readFileSync(file, 'utf8');
@@ -166,6 +169,13 @@ function readInput(file: string | undefined): string {
 // Layer parsing
 // ---------------------------------------------------------------------------
 
+/**
+ * Parse a comma-separated layer string (e.g., "1,2,4") into a partial PaktLayers object.
+ * Throws with a descriptive message if any layer number is invalid.
+ *
+ * @param layerStr - Comma-separated layer numbers from the --layers flag.
+ * @returns Partial PaktLayers with the specified layers set to true.
+ */
 function parseLayers(layerStr: string): Partial<PaktLayers> {
   const layers: PaktLayers = {
     structural: false,
@@ -193,155 +203,6 @@ function parseLayers(layerStr: string): Partial<PaktLayers> {
 }
 
 // ---------------------------------------------------------------------------
-// Format parsing
-// ---------------------------------------------------------------------------
-
-function parseFormat(value: string, optionName: string): PaktFormat {
-  const mapped = FORMAT_MAP[value.toLowerCase()];
-  if (!mapped) {
-    const valid = Object.keys(FORMAT_MAP).join(', ');
-    throw new Error(`Invalid ${optionName} format: "${value}". Valid formats: ${valid}`);
-  }
-  return mapped;
-}
-
-// ---------------------------------------------------------------------------
-// Subcommand handlers
-// ---------------------------------------------------------------------------
-
-function cmdCompress(args: ParsedArgs): void {
-  const input = readInput(args.file);
-
-  const fromOpt = args.options.get('from');
-  const layersOpt = args.options.get('layers');
-
-  const options: Parameters<typeof compress>[1] = {};
-
-  if (fromOpt) {
-    options.fromFormat = parseFormat(fromOpt, '--from');
-  }
-
-  if (layersOpt) {
-    options.layers = parseLayers(layersOpt);
-  }
-
-  const result = compress(input, options);
-
-  process.stdout.write(result.compressed);
-  if (!result.compressed.endsWith('\n')) {
-    process.stdout.write('\n');
-  }
-
-  process.stderr.write(
-    `Compressed: ${String(result.originalTokens)} tokens \u2192 ${String(result.compressedTokens)} tokens (${String(result.savings.totalPercent)}% savings)\n`,
-  );
-}
-
-function cmdDecompress(args: ParsedArgs): void {
-  const input = readInput(args.file);
-
-  const toOpt = args.options.get('to');
-  const outputFormat = toOpt ? parseFormat(toOpt, '--to') : undefined;
-
-  const result = decompress(input, outputFormat);
-
-  process.stdout.write(result.text);
-  if (!result.text.endsWith('\n')) {
-    process.stdout.write('\n');
-  }
-}
-
-function cmdDetect(args: ParsedArgs): void {
-  const input = readInput(args.file);
-  const result = detect(input);
-
-  process.stdout.write(`Format:     ${result.format}\n`);
-  process.stdout.write(`Confidence: ${String(Math.round(result.confidence * 100))}%\n`);
-  process.stdout.write(`Reason:     ${result.reason}\n`);
-}
-
-function cmdTokens(args: ParsedArgs): void {
-  const input = readInput(args.file);
-  const model = args.options.get('model') ?? 'gpt-4o';
-  const tokens = countTokens(input, model);
-
-  process.stdout.write(`${String(tokens)}\n`);
-}
-
-function cmdSavings(args: ParsedArgs): void {
-  const input = readInput(args.file);
-  const model = args.options.get('model') ?? 'gpt-4o';
-
-  const result = compress(input);
-  const report = compareSavings(input, result.compressed, model);
-
-  process.stdout.write(`Model:            ${report.model}\n`);
-  process.stdout.write(`Original tokens:  ${String(report.originalTokens)}\n`);
-  process.stdout.write(`Compressed tokens: ${String(report.compressedTokens)}\n`);
-  process.stdout.write(`Saved tokens:     ${String(report.savedTokens)}\n`);
-  process.stdout.write(`Savings:          ${String(report.savedPercent)}%\n`);
-
-  if (report.costSaved) {
-    process.stdout.write(
-      `Cost saved (input):  $${report.costSaved.input.toFixed(6)} ${report.costSaved.currency}\n`,
-    );
-    process.stdout.write(
-      `Cost saved (output): $${report.costSaved.output.toFixed(6)} ${report.costSaved.currency}\n`,
-    );
-  }
-}
-
-/**
- * Handle the `auto` subcommand.
- *
- * Detects whether input is already PAKT or raw structured data and routes:
- * - PAKT input → {@link decompress} → human-readable text on stdout.
- * - Raw input → {@link compressMixed} → PAKT output on stdout.
- *
- * Savings metadata goes to stderr so piping stdout to another tool is clean.
- *
- * @param args - Parsed CLI arguments (file, --from, --to flags).
- */
-function cmdAuto(args: ParsedArgs): void {
-  const input = readInput(args.file);
-
-  const fromOpt = args.options.get('from');
-  const toOpt = args.options.get('to');
-
-  // Use --from to override detection when the caller knows the format
-  const detected = detect(input);
-  const effectiveFormat = fromOpt
-    ? (FORMAT_MAP[fromOpt.toLowerCase()] ?? detected.format)
-    : detected.format;
-
-  if (effectiveFormat === 'pakt') {
-    // Input is already PAKT — decompress it
-    const outputFormat = toOpt ? parseFormat(toOpt, '--to') : undefined;
-    const result = decompress(input, outputFormat);
-
-    process.stdout.write(result.text);
-    if (!result.text.endsWith('\n')) {
-      process.stdout.write('\n');
-    }
-
-    process.stderr.write('\x1b[90m# Decompressed PAKT input\x1b[0m\n');
-  } else {
-    // Raw input — compress with mixed-content pipeline
-    const result = compressMixed(input);
-
-    process.stdout.write(result.compressed);
-    if (!result.compressed.endsWith('\n')) {
-      process.stdout.write('\n');
-    }
-
-    const saved = result.originalTokens - result.compressedTokens;
-    process.stderr.write(
-      `\x1b[90m# Saved ${String(result.savings.totalPercent)}% (${String(result.originalTokens)}\u2192${String(result.compressedTokens)} tokens, \u2212${String(saved)})\x1b[0m\n`,
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -364,22 +225,22 @@ function main(): void {
   // Route to subcommand
   switch (args.command) {
     case 'compress':
-      cmdCompress(args);
+      cmdCompress(args, readInput, parseLayers);
       break;
     case 'decompress':
-      cmdDecompress(args);
+      cmdDecompress(args, readInput);
       break;
     case 'auto':
-      cmdAuto(args);
+      cmdAuto(args, readInput);
       break;
     case 'detect':
-      cmdDetect(args);
+      cmdDetect(args, readInput);
       break;
     case 'tokens':
-      cmdTokens(args);
+      cmdTokens(args, readInput);
       break;
     case 'savings':
-      cmdSavings(args);
+      cmdSavings(args, readInput);
       break;
     default:
       process.stderr.write(`Unknown command: "${args.command}"\n\n`);
