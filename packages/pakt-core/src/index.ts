@@ -39,6 +39,14 @@ export { detect } from './detect.js';
 export { validate, repair } from './utils/validate.js';
 
 // ---------------------------------------------------------------------------
+// Async & batch API
+// ---------------------------------------------------------------------------
+
+export { compressAsync, decompressAsync } from './async.js';
+export { compressBatch } from './batch.js';
+export type { BatchOptions, BatchItemResult } from './batch.js';
+
+// ---------------------------------------------------------------------------
 // Serializer
 // ---------------------------------------------------------------------------
 
@@ -52,10 +60,43 @@ export type { PrettyOptions } from './serializer/index.js';
 export { compressL4, decompressL4, applyL4Transforms } from './layers/index.js';
 
 // ---------------------------------------------------------------------------
+// Mixed-content compression
+// ---------------------------------------------------------------------------
+
+export { compressMixed, decompressMixed, extractBlocks } from './mixed/index.js';
+export type { MixedCompressResult, MixedBlockResult, ExtractedBlock } from './mixed/index.js';
+
+// ---------------------------------------------------------------------------
 // Token utilities
 // ---------------------------------------------------------------------------
 
 export { countTokens, compareSavings } from './tokens/index.js';
+
+// ---------------------------------------------------------------------------
+// Pluggable tokenizer
+// ---------------------------------------------------------------------------
+
+export { GptTokenCounter } from './tokens/index.js';
+export {
+  registerTokenCounter,
+  getTokenCounter,
+  resetTokenCounterRegistry,
+} from './tokens/index.js';
+export type { TokenCounter, TokenCounterFactory } from './tokens/index.js';
+
+// ---------------------------------------------------------------------------
+// Context Window Packer
+// ---------------------------------------------------------------------------
+
+export { pack } from './packer/index.js';
+export type {
+  PackerItem,
+  PackerOptions,
+  PackerResult,
+  PackedItem,
+  DroppedItem,
+  PackerStats,
+} from './packer/index.js';
 
 // ---------------------------------------------------------------------------
 // LLM Integration
@@ -90,4 +131,5 @@ export type {
 // Constants
 // ---------------------------------------------------------------------------
 
-export { DEFAULT_OPTIONS, DEFAULT_LAYERS, MODEL_PRICING } from './types.js';
+/** Re-export constants from the dedicated constants module. */
+export { DEFAULT_OPTIONS, DEFAULT_LAYERS, MODEL_PRICING } from './constants.js';

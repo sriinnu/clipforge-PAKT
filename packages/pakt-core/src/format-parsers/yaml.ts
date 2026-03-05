@@ -132,7 +132,7 @@ export function parseYamlList(
       obj[kvMatch[1]!] = yamlScalar(kvMatch[2]!);
       const itemIndent = line.indent + 2;
       let j = i + 1;
-      while (j < end && lines[j]?.indent >= itemIndent) j++;
+      while (j < end && (lines[j]?.indent ?? 0) >= itemIndent) j++;
       if (j > i + 1) {
         const nested = parseYamlObject(lines, i + 1, j, itemIndent);
         if (typeof nested === 'object' && nested !== null && !Array.isArray(nested))
@@ -147,7 +147,7 @@ export function parseYamlList(
       if (key && !val) {
         const itemIndent = line.indent + 2;
         let j = i + 1;
-        while (j < end && lines[j]?.indent >= itemIndent) j++;
+        while (j < end && (lines[j]?.indent ?? 0) >= itemIndent) j++;
         const nested = parseYamlBlock(lines, i + 1, j, itemIndent);
         result.push({ [key]: nested });
         i = j;
@@ -196,7 +196,7 @@ export function parseYamlObject(
     } else {
       const childIndent = baseIndent + 2;
       let j = i + 1;
-      while (j < end && lines[j]?.indent >= childIndent) j++;
+      while (j < end && (lines[j]?.indent ?? 0) >= childIndent) j++;
       obj[key] = j > i + 1 ? parseYamlBlock(lines, i + 1, j, childIndent) : null;
       i = j;
     }
