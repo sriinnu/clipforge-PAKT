@@ -1,7 +1,7 @@
 # PAKT: A Lossless-First Multi-Layer Compression Format for LLM Context Windows
 
 **Authors:** Sriinnu
-**Version:** 0.4.2
+**Version:** 0.4.3
 **Date:** March 2026
 
 ---

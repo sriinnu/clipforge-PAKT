@@ -1,6 +1,6 @@
-# Benchmark Snapshot (v0.4.2)
+# Benchmark Snapshot (v0.4.3)
 
-Release-facing benchmark summary for `@sriinnu/pakt@0.4.2`.
+Release-facing benchmark summary for `@sriinnu/pakt@0.4.3`.
 
 ## Scope
 
