@@ -81,7 +81,7 @@ const worst = rows.reduce((loser, row) =>
 const lines = [
   '# Benchmark Snapshot',
   '',
-  'Release-facing fixture snapshot for `@sriinnu/pakt@0.4.2`.',
+  'Release-facing fixture snapshot for `@sriinnu/pakt@0.4.3`.',
   '',
   '## Method',
   '',
