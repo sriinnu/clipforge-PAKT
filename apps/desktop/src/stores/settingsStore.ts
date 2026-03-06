@@ -6,11 +6,13 @@ interface SettingsState {
   outputFormat: PaktFormat;
   model: string;
   autoCompress: boolean;
+  historyEnabled: boolean;
   theme: 'system' | 'light' | 'dark';
   layers: PaktLayers;
   setOutputFormat: (f: PaktFormat) => void;
   setModel: (m: string) => void;
   setAutoCompress: (v: boolean) => void;
+  setHistoryEnabled: (v: boolean) => void;
   setTheme: (t: 'system' | 'light' | 'dark') => void;
   toggleLayer: (key: keyof PaktLayers) => void;
 }
@@ -21,6 +23,7 @@ export const useSettingsStore = create<SettingsState>()(
       outputFormat: 'json',
       model: 'gpt-4o',
       autoCompress: false,
+      historyEnabled: false,
       theme: 'system',
       layers: {
         structural: true,
@@ -31,6 +34,7 @@ export const useSettingsStore = create<SettingsState>()(
       setOutputFormat: (f) => set({ outputFormat: f }),
       setModel: (m) => set({ model: m }),
       setAutoCompress: (v) => set({ autoCompress: v }),
+      setHistoryEnabled: (v) => set({ historyEnabled: v }),
       setTheme: (t) => set({ theme: t }),
       toggleLayer: (key) =>
         set((state) => ({

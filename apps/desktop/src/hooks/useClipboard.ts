@@ -30,9 +30,9 @@ export interface ClipboardState {
   /** Last-read clipboard text content. */
   content: string;
   /** Read text from the system clipboard into `content`. */
-  readClipboard: () => Promise<void>;
+  readClipboard: () => Promise<string | null>;
   /** Write text to the system clipboard. */
-  writeClipboard: (text: string) => Promise<void>;
+  writeClipboard: (text: string) => Promise<boolean>;
 }
 
 /**
@@ -47,13 +47,16 @@ export function useClipboard(): ClipboardState {
       const tauri = await getTauriClipboard();
       if (tauri) {
         const text = await tauri.readText();
-        setContent(text ?? '');
-      } else {
-        const text = await navigator.clipboard.readText();
-        setContent(text);
+        const next = text ?? '';
+        setContent(next);
+        return next;
       }
+      const text = await navigator.clipboard.readText();
+      setContent(text);
+      return text;
     } catch {
       // Clipboard access denied or unavailable
+      return null;
     }
   }, []);
 
@@ -65,8 +68,10 @@ export function useClipboard(): ClipboardState {
       } else {
         await navigator.clipboard.writeText(text);
       }
+      return true;
     } catch {
       // Clipboard write failed
+      return false;
     }
   }, []);
 

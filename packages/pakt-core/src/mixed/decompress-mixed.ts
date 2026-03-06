@@ -20,7 +20,14 @@ import { decompress } from '../decompress.js';
  *
  * Pattern: <!-- PAKT:format -->\n...content...\n<!-- /PAKT -->
  */
-const PAKT_MARKER_RE = /<!-- PAKT:(\w+) -->\n([\s\S]*?)\n<!-- \/PAKT -->/g;
+const PAKT_MARKER_RE = /<!-- PAKT:(\w+)(?: ([^\n]*?))? -->\n([\s\S]*?)\n<!-- \/PAKT -->/g;
+
+interface MixedMarkerMeta {
+  wrapper?: 'fence' | 'frontmatter';
+  fence?: string;
+  languageTag?: string;
+  trailingNewline?: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Main function
@@ -50,13 +57,44 @@ export function decompressMixed(input: string): string {
   // Reset lastIndex before iteration
   PAKT_MARKER_RE.lastIndex = 0;
 
-  return input.replace(PAKT_MARKER_RE, (_fullMatch, format: string, paktContent: string) => {
-    try {
-      const result = decompress(paktContent, format as Parameters<typeof decompress>[1]);
-      return result.text;
-    } catch {
-      // Graceful degradation: leave the original PAKT block in place
-      return _fullMatch;
-    }
-  });
+  return input.replace(
+    PAKT_MARKER_RE,
+    (_fullMatch, format: string, rawMeta: string | undefined, paktContent: string) => {
+      const meta = parseMarkerMeta(rawMeta);
+
+      try {
+        const result = decompress(paktContent, format as Parameters<typeof decompress>[1]);
+        return restoreWrapper(result.text, meta);
+      } catch {
+        // Graceful degradation: leave the original PAKT block in place
+        return _fullMatch;
+      }
+    },
+  );
+}
+
+function parseMarkerMeta(rawMeta: string | undefined): MixedMarkerMeta | null {
+  if (!rawMeta) return null;
+
+  try {
+    return JSON.parse(rawMeta) as MixedMarkerMeta;
+  } catch {
+    return null;
+  }
+}
+
+function restoreWrapper(text: string, meta: MixedMarkerMeta | null): string {
+  if (meta?.wrapper === 'fence') {
+    const fence = meta.fence ?? '```';
+    const languageTag = meta.languageTag ?? '';
+    const restored = `${fence}${languageTag}\n${text}\n${fence}`;
+    return meta.trailingNewline ? `${restored}\n` : restored;
+  }
+
+  if (meta?.wrapper === 'frontmatter') {
+    const restored = `---\n${text}\n---`;
+    return meta.trailingNewline ? `${restored}\n` : restored;
+  }
+
+  return text;
 }

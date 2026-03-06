@@ -80,6 +80,9 @@ function extractFencedBlocks(text: string): ExtractedBlock[] {
         startOffset,
         endOffset,
         languageTag: langTag || undefined,
+        wrapper: 'fence',
+        fence: match[1] ?? '```',
+        trailingNewline: match[0].endsWith('\n'),
       });
     }
   }
@@ -110,6 +113,8 @@ function extractFrontmatter(text: string): ExtractedBlock | null {
     content,
     startOffset: match.index,
     endOffset: match.index + match[0].length,
+    wrapper: 'frontmatter',
+    trailingNewline: match[0].endsWith('\n'),
   };
 }
 
@@ -150,6 +155,7 @@ function extractInlineJson(text: string, intervals: Array<[number, number]>): Ex
             content,
             startOffset: startIdx,
             endOffset: closeIdx + 1,
+            wrapper: 'inline',
           });
         } catch {
           // Not valid JSON, skip
@@ -220,6 +226,7 @@ function extractCsvSections(text: string, intervals: Array<[number, number]>): E
         content,
         startOffset,
         endOffset: endLineOffset,
+        wrapper: 'inline',
       });
       i = end;
     } else {

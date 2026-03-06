@@ -153,7 +153,9 @@ export function useCompression(
       setOutput(outputText);
       const beforeTokens = countTokens(input);
       const afterTokens = countTokens(outputText);
-      setStats({ before: beforeTokens, after: afterTokens, savings: 0 });
+      const savingsPercent =
+        afterTokens > 0 ? Math.round(((afterTokens - beforeTokens) / afterTokens) * 100) : 0;
+      setStats({ before: beforeTokens, after: afterTokens, savings: savingsPercent });
     } catch (err) {
       setStatusMsg({
         text: err instanceof Error ? err.message : 'Decompression failed',

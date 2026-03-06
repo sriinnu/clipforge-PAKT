@@ -426,4 +426,27 @@ describe('Edge cases', () => {
     const dec = decompress(result.compressed, 'json');
     expect(JSON.parse(dec.text)).toEqual(JSON.parse(input));
   });
+
+  it('returns input unchanged when structural compression is disabled', () => {
+    const input = JSON.stringify({
+      users: Array.from({ length: 4 }, (_, i) => ({
+        id: i + 1,
+        role: 'developer',
+        team: 'platform',
+      })),
+    });
+
+    const result = compress(input, {
+      layers: {
+        structural: false,
+        dictionary: true,
+      },
+    });
+
+    expect(result.compressed).toBe(input);
+    expect(result.originalTokens).toBe(result.compressedTokens);
+    expect(result.savings.totalPercent).toBe(0);
+    expect(result.detectedFormat).toBe('json');
+    expect(result.dictionary).toEqual([]);
+  });
 });
