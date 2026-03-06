@@ -108,20 +108,7 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
 
   // 0. Early return for empty / whitespace-only input — no valid structure to compress
   if (!input || input.trim().length === 0) {
-    const tokens = countTokens(input ?? '', targetModel);
-    return {
-      compressed: input ?? '',
-      originalTokens: tokens,
-      compressedTokens: tokens,
-      savings: {
-        totalPercent: 0,
-        totalTokens: 0,
-        byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
-      },
-      reversible: true,
-      detectedFormat: 'text',
-      dictionary: [],
-    };
+    return buildUnchangedResult(input ?? '', countTokens(input ?? '', targetModel), 'text');
   }
 
   // Graceful degradation: wrap the entire pipeline in try-catch so that
@@ -129,20 +116,11 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   try {
     return compressPipeline(input, options, targetModel);
   } catch {
-    const tokens = countTokens(input, targetModel);
-    return {
-      compressed: input,
-      originalTokens: tokens,
-      compressedTokens: tokens,
-      savings: {
-        totalPercent: 0,
-        totalTokens: 0,
-        byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
-      },
-      reversible: true,
-      detectedFormat: options?.fromFormat ?? 'text',
-      dictionary: [],
-    };
+    return buildUnchangedResult(
+      input,
+      countTokens(input, targetModel),
+      options?.fromFormat ?? 'text',
+    );
   }
 }
 
@@ -170,6 +148,12 @@ function compressPipeline(
   // 2. Detect format (use user-specified if provided, else auto-detect)
   const detection = detect(input);
   const detectedFormat: PaktFormat = fromFormat ?? detection.format;
+
+  // L1 is the prerequisite for all downstream PAKT transforms. If structural
+  // compression is disabled, return the original input unchanged.
+  if (!layers.structural) {
+    return buildUnchangedResult(input, countTokens(input, targetModel), detectedFormat);
+  }
 
   // 2b. Handle envelope (e.g. HTTP headers wrapping a JSON body)
   //     Strip the preamble so we only compress the body.
@@ -199,20 +183,7 @@ function compressPipeline(
     }
 
     // No mixed blocks found or no savings — return as-is
-    const tokens = countTokens(input, targetModel);
-    return {
-      compressed: input,
-      originalTokens: tokens,
-      compressedTokens: tokens,
-      savings: {
-        totalPercent: 0,
-        totalTokens: 0,
-        byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
-      },
-      reversible: true,
-      detectedFormat,
-      dictionary: [],
-    };
+    return buildUnchangedResult(input, countTokens(input, targetModel), detectedFormat);
   }
 
   // 4. Parse the raw input into a JS value (body only, envelope stripped)
@@ -293,8 +264,8 @@ function compressPipeline(
   //     Sets reversible = false when L4 actually modifies the output.
   let semanticSaved = 0;
   let isReversible = true;
-  if (layers.semantic && (options?.semanticBudget ?? 0) > 0) {
-    const semanticBudget = options?.semanticBudget!;
+  const semanticBudget = options?.semanticBudget ?? 0;
+  if (layers.semantic && semanticBudget > 0) {
     const preSemanticText = compressed;
     const preSemanticTokens = countTokens(preSemanticText, targetModel);
 
@@ -343,5 +314,25 @@ function compressPipeline(
     reversible: isReversible,
     detectedFormat,
     dictionary,
+  };
+}
+
+function buildUnchangedResult(
+  input: string,
+  tokens: number,
+  detectedFormat: PaktFormat,
+): PaktResult {
+  return {
+    compressed: input,
+    originalTokens: tokens,
+    compressedTokens: tokens,
+    savings: {
+      totalPercent: 0,
+      totalTokens: 0,
+      byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
+    },
+    reversible: true,
+    detectedFormat,
+    dictionary: [],
   };
 }

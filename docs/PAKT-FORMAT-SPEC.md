@@ -36,7 +36,7 @@
 
 ### 1.1 What Is PAKT
 
-PAKT stands for **Prompt-Adapted Knowledge Transfer**. It is a text-based data
+PAKT stands for **Pipe-Aligned Kompact Text**. It is a text-based data
 serialization format purpose-built for minimal LLM token consumption while
 remaining human-readable and 100% lossless across its core compression layers
 (Layers 1 through 3).
@@ -59,8 +59,9 @@ to tokenizers:
   structures
 
 PAKT targets the intersection: **structured data that must be sent to or received
-from an LLM, where token cost matters**. It achieves 40-60% token reduction on
-typical structured payloads while maintaining full data fidelity.
+from an LLM, where token cost matters**. It achieves a typical 30-50% token
+reduction on structured payloads, with higher gains on repetitive and tabular
+data, while maintaining full data fidelity.
 
 ### 1.3 Design Principles
 
@@ -1273,7 +1274,7 @@ required or recommended. If a BOM is present, parsers MUST strip it silently.
 
 | Feature | PAKT | JSON | YAML | CSV | TOON |
 |---------|------|------|------|-----|------|
-| **Token efficiency** | Excellent (40-60% savings) | Baseline (0%) | Moderate (5-15% savings) | Good for flat data | Good (similar to PAKT L1) |
+| **Token efficiency** | Excellent (typical 30-50% savings) | Baseline (0%) | Moderate (5-15% savings) | Good for flat data | Good (similar to PAKT L1) |
 | **Human readability** | High | Moderate | High | Low for complex data | High |
 | **Lossless round-trip** | Yes (L1-L3) | Yes | Yes (with caveats) | Lossy for nested data | Yes |
 | **Tabular data** | Native (`[N]{fields}:` rows) | Verbose (repeated keys) | Verbose (repeated keys) | Native but flat only | Native |

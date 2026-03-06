@@ -32,6 +32,12 @@ export interface ExtractedBlock {
   endOffset: number;
   /** If from a fenced code block, the language tag (e.g., 'json', 'yaml'). */
   languageTag?: string;
+  /** Wrapper kind used to reconstruct the original mixed-content shape. */
+  wrapper?: 'fence' | 'frontmatter' | 'inline';
+  /** Fence delimiter used by fenced code blocks (e.g. ``` or ````). */
+  fence?: string;
+  /** Whether the extracted wrapper consumed a trailing newline. */
+  trailingNewline?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,7 +60,8 @@ export function findMatchingBracket(text: string, startIdx: number): number {
   let escaped = false;
 
   for (let i = startIdx; i < text.length; i++) {
-    const ch = text[i]!;
+    const ch = text[i];
+    if (ch === undefined) break;
 
     if (inString) {
       if (escaped) {
@@ -100,7 +107,8 @@ export function detectCsvDelimiter(lines: string[]): string | null {
 
   for (const delim of [',', '\t']) {
     const counts = lines.map((l) => l.split(delim).length);
-    const first = counts[0]!;
+    const [first] = counts;
+    if (first === undefined) continue;
     // Need at least 2 columns and all rows must match
     if (first >= 2 && counts.every((c) => c === first)) {
       return delim;
@@ -155,7 +163,8 @@ export function isOverlapping(
   // Binary search: find the rightmost interval whose start < end.
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
-    if (intervals[mid]![0] < end) {
+    const interval = intervals[mid];
+    if (interval && interval[0] < end) {
       candidate = mid;
       lo = mid + 1;
     } else {
@@ -169,5 +178,6 @@ export function isOverlapping(
   // needs checking. Earlier intervals have smaller ends (non-overlapping
   // guarantee: prev.end <= candidate.start), so if candidate.end <= qs,
   // all earlier ends are also <= qs.
-  return intervals[candidate]![1] > start;
+  const interval = intervals[candidate];
+  return interval ? interval[1] > start : false;
 }

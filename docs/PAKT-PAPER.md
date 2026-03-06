@@ -1,14 +1,14 @@
 # PAKT: A Lossless-First Multi-Layer Compression Format for LLM Context Windows
 
 **Authors:** Sriinnu
-**Version:** 0.4.0
+**Version:** 0.4.2
 **Date:** March 2026
 
 ---
 
 ## Abstract
 
-Large language model APIs charge per token and operate within finite context windows, yet the dominant data serialization formats -- JSON, YAML, CSV -- were designed decades before token economics existed and carry substantial structural overhead invisible to humans but expensive to tokenizers. We present PAKT (Prompt-Adapted Knowledge Transfer), a multi-layer compression format that achieves 30--50% token reduction on structured data while maintaining full round-trip fidelity across its core layers. Unlike prior prompt compression methods that require LLM inference for scoring (LLMLingua) or supervised training (RECOMP), PAKT operates at the format level with zero-shot, deterministic transforms. The system implements four progressively aggressive layers -- structural normalization, dictionary deduplication, tokenizer-aware optimization, and opt-in semantic compression -- enabling users to trade fidelity for space only when explicitly requested.
+Large language model APIs charge per token and operate within finite context windows, yet the dominant data serialization formats -- JSON, YAML, CSV -- were designed decades before token economics existed and carry substantial structural overhead invisible to humans but expensive to tokenizers. We present PAKT (Pipe-Aligned Kompact Text), a multi-layer compression format that achieves a typical 30--50% token reduction on structured data, with higher gains on repetitive and tabular payloads, while maintaining full round-trip fidelity across its core layers. Unlike prior prompt compression methods that require LLM inference for scoring (LLMLingua) or supervised training (RECOMP), PAKT operates at the format level with zero-shot, deterministic transforms. The system implements four progressively aggressive layers -- structural normalization, dictionary deduplication, tokenizer-aware optimization, and opt-in semantic compression -- enabling users to trade fidelity for space only when explicitly requested.
 
 ---
 

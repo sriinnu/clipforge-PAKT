@@ -1,7 +1,8 @@
 import type { PaktFormat } from '@sriinnu/pakt';
-import { type FC, useCallback, useEffect, useState } from 'react';
+import { type FC, useCallback, useEffect, useRef, useState } from 'react';
 import { useClipboard } from '../hooks/useClipboard';
 import { useCompactor } from '../hooks/useCompactor';
+import type { CompactorRunResult } from '../hooks/useCompactor';
 import { useHistoryStore } from '../stores/historyStore';
 import type { HistoryEntry } from '../stores/historyStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -25,16 +26,21 @@ const MenuBarPanel: FC = () => {
   const compactor = useCompactor();
   const clipboard = useClipboard();
   const layers = useSettingsStore((s) => s.layers);
+  const model = useSettingsStore((s) => s.model);
   const outputFormat = useSettingsStore((s) => s.outputFormat);
+  const setOutputFormat = useSettingsStore((s) => s.setOutputFormat);
+  const autoCompress = useSettingsStore((s) => s.autoCompress);
+  const setAutoCompress = useSettingsStore((s) => s.setAutoCompress);
+  const historyEnabled = useSettingsStore((s) => s.historyEnabled);
   const addEntry = useHistoryStore((s) => s.addEntry);
 
   const [panel, setPanel] = useState<Panel>('main');
-  const [selectedFormat, setSelectedFormat] = useState<PaktFormat>(outputFormat);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
+  const suppressedClipboardTextRef = useRef<string | null>(null);
 
   // Load clipboard on mount — sync effect below handles pushing content to compactor
   useEffect(() => {
-    clipboard.readClipboard();
+    void clipboard.readClipboard();
   }, [clipboard.readClipboard]);
 
   // Sync clipboard content to input when it changes
@@ -44,39 +50,74 @@ const MenuBarPanel: FC = () => {
     }
   }, [clipboard.content, compactor.setInput]);
 
-  const handleCompress = useCallback(() => {
-    compactor.compress({ layers, fromFormat: undefined });
-  }, [compactor, layers]);
-
-  const handleDecompress = useCallback(() => {
-    compactor.decompress(selectedFormat);
-  }, [compactor, selectedFormat]);
-
-  // Save to history on successful output
-  useEffect(() => {
-    if (compactor.output && compactor.originalTokens > 0) {
+  const recordHistory = useCallback(
+    (result: CompactorRunResult | null) => {
+      if (!historyEnabled || !result) return result;
       addEntry({
-        input: compactor.input,
-        output: compactor.output,
-        format: compactor.format,
-        savedTokens: compactor.originalTokens - compactor.compressedTokens,
+        input: result.input,
+        output: result.output,
+        format: result.format,
+        savedTokens: result.originalTokens - result.compressedTokens,
       });
-    }
-  }, [
-    compactor.output,
-    compactor.input,
-    compactor.format,
-    compactor.originalTokens,
-    compactor.compressedTokens,
-    addEntry,
-  ]);
+      return result;
+    },
+    [historyEnabled, addEntry],
+  );
+
+  const handleCompress = useCallback(
+    (sourceText?: string) =>
+      recordHistory(
+        compactor.compress(
+          {
+            layers,
+            fromFormat: undefined,
+            targetModel: model,
+          },
+          sourceText,
+        ),
+      ),
+    [compactor, layers, model, recordHistory],
+  );
+
+  const handleDecompress = useCallback(
+    (sourceText?: string) => recordHistory(compactor.decompress(outputFormat, sourceText, model)),
+    [compactor, model, outputFormat, recordHistory],
+  );
+
+  const setTimedCopyState = useCallback((state: 'success' | 'error') => {
+    setCopyState(state);
+    setTimeout(() => setCopyState('idle'), 1500);
+  }, []);
+
+  const writeResultToClipboard = useCallback(
+    async (output: string) => {
+      const success = await clipboard.writeClipboard(output);
+      if (success) {
+        suppressedClipboardTextRef.current = output;
+      }
+      setTimedCopyState(success ? 'success' : 'error');
+      return success;
+    },
+    [clipboard, setTimedCopyState],
+  );
+
+  const runClipboardShortcut = useCallback(
+    async (transform: (text: string) => CompactorRunResult | null) => {
+      const text = (await clipboard.readClipboard()) ?? compactor.input;
+      if (!text?.trim()) return;
+
+      const result = transform(text);
+      if (result) {
+        await writeResultToClipboard(result.output);
+      }
+    },
+    [clipboard, compactor.input, writeResultToClipboard],
+  );
 
   const handleCopy = useCallback(async () => {
     if (!compactor.output) return;
-    await clipboard.writeClipboard(compactor.output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }, [compactor.output, clipboard]);
+    await writeResultToClipboard(compactor.output);
+  }, [compactor.output, writeResultToClipboard]);
 
   const handleHistorySelect = useCallback(
     (entry: HistoryEntry) => {
@@ -86,12 +127,98 @@ const MenuBarPanel: FC = () => {
     [compactor],
   );
 
+  useEffect(() => {
+    let active = true;
+    let cleanup: (() => void) | undefined;
+
+    async function setupShortcutListeners() {
+      if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+
+      const [{ listen }, { invoke }] = await Promise.all([
+        import('@tauri-apps/api/event'),
+        import('@tauri-apps/api/core'),
+      ]);
+
+      if (!active) return;
+
+      const unlisteners = await Promise.all([
+        listen('shortcut-compress', () => void runClipboardShortcut(handleCompress)),
+        listen('shortcut-decompress', () => void runClipboardShortcut(handleDecompress)),
+        listen('shortcut-history', () => {
+          setPanel('history');
+        }),
+        listen('shortcut-toggle-auto', () => {
+          setAutoCompress(!autoCompress);
+        }),
+        listen('open-settings', () => {
+          setPanel('settings');
+        }),
+      ]);
+
+      cleanup = () => {
+        for (const unlisten of unlisteners) {
+          unlisten();
+        }
+      };
+
+      void invoke('stop_clipboard_watch').catch(() => {});
+    }
+
+    void setupShortcutListeners();
+
+    return () => {
+      active = false;
+      cleanup?.();
+    };
+  }, [autoCompress, handleCompress, handleDecompress, runClipboardShortcut, setAutoCompress]);
+
+  useEffect(() => {
+    let active = true;
+    let stopWatcher: (() => void) | undefined;
+
+    async function setupClipboardWatch() {
+      if (!autoCompress) return;
+      if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+
+      const [{ listen }, { invoke }] = await Promise.all([
+        import('@tauri-apps/api/event'),
+        import('@tauri-apps/api/core'),
+      ]);
+
+      await invoke('start_clipboard_watch');
+      const unlisten = await listen<string>('clipboard-changed', (event) => {
+        if (!active || !event.payload.trim()) return;
+        if (event.payload === suppressedClipboardTextRef.current) {
+          suppressedClipboardTextRef.current = null;
+          return;
+        }
+        handleCompress(event.payload);
+      });
+
+      stopWatcher = () => {
+        unlisten();
+        void invoke('stop_clipboard_watch').catch(() => {});
+      };
+    }
+
+    void setupClipboardWatch();
+
+    return () => {
+      active = false;
+      stopWatcher?.();
+    };
+  }, [autoCompress, handleCompress]);
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-gray-900 text-gray-100">
       {/* Overlays */}
       {panel === 'settings' && <SettingsPanel onClose={() => setPanel('main')} />}
       {panel === 'history' && (
-        <HistoryPanel onSelect={handleHistorySelect} onClose={() => setPanel('main')} />
+        <HistoryPanel
+          onSelect={handleHistorySelect}
+          onClose={() => setPanel('main')}
+          onOpenSettings={() => setPanel('settings')}
+        />
       )}
 
       {/* Header */}
@@ -162,7 +289,9 @@ const MenuBarPanel: FC = () => {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={handleCompress}
+            onClick={() => {
+              handleCompress();
+            }}
             disabled={compactor.isProcessing || !compactor.input.trim()}
             className="flex-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -170,15 +299,17 @@ const MenuBarPanel: FC = () => {
           </button>
           <button
             type="button"
-            onClick={handleDecompress}
+            onClick={() => {
+              handleDecompress();
+            }}
             disabled={compactor.isProcessing || !compactor.input.trim()}
             className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Decompress
           </button>
           <select
-            value={selectedFormat}
-            onChange={(e) => setSelectedFormat(e.target.value as PaktFormat)}
+            value={outputFormat}
+            onChange={(e) => setOutputFormat(e.target.value as PaktFormat)}
             className="rounded-lg border border-gray-700 bg-gray-800 px-1.5 py-1.5 text-xs text-gray-300 focus:border-indigo-500 focus:outline-none"
           >
             {OUTPUT_FORMATS.map((f) => (
@@ -208,7 +339,7 @@ const MenuBarPanel: FC = () => {
               title="Copy to clipboard"
               className="absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-medium text-gray-400 hover:bg-gray-700 hover:text-gray-200"
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copyState === 'success' ? 'Copied!' : copyState === 'error' ? 'Copy failed' : 'Copy'}
             </button>
           )}
         </div>

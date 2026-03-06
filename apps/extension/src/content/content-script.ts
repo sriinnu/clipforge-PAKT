@@ -74,12 +74,79 @@ function getInputText(el: HTMLElement): string {
  */
 function setInputText(el: HTMLElement, text: string): void {
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
-    el.value = text;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+    const valueSetter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
+    valueSetter?.call(el, text);
+    el.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }),
+    );
     return;
   }
-  el.textContent = text;
-  el.dispatchEvent(new Event('input', { bubbles: true }));
+
+  replaceContentEditableText(el, text);
+}
+
+function replaceContentEditableText(el: HTMLElement, text: string): void {
+  el.focus();
+
+  const selection = window.getSelection();
+  if (!selection) {
+    el.textContent = text;
+    el.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }),
+    );
+    return;
+  }
+
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  el.dispatchEvent(
+    new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: text,
+    }),
+  );
+
+  try {
+    if (
+      typeof document.execCommand === 'function' &&
+      document.execCommand('insertText', false, text)
+    ) {
+      el.dispatchEvent(
+        new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }),
+      );
+      return;
+    }
+  } catch {
+    // Fall through to manual DOM replacement.
+  }
+
+  range.deleteContents();
+  range.insertNode(buildContentFragment(text));
+  selection.removeAllRanges();
+  const endRange = document.createRange();
+  endRange.selectNodeContents(el);
+  endRange.collapse(false);
+  selection.addRange(endRange);
+  el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+}
+
+function buildContentFragment(text: string): DocumentFragment {
+  const fragment = document.createDocumentFragment();
+  const lines = text.split('\n');
+
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      fragment.append(document.createElement('br'));
+    }
+    fragment.append(document.createTextNode(line));
+  });
+
+  return fragment;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +241,7 @@ async function handleDecompressInput(el: HTMLElement, text: string): Promise<voi
       setInputText(el, mixedResult);
     } else {
       // Fallback: plain decompress for pure PAKT documents
-      const result = decompress(text, 'json');
+      const result = decompress(text);
       setInputText(el, result.text);
     }
 
