@@ -39,6 +39,7 @@ LLMs charge by the token. Structured data wastes tokens on syntax: braces, quote
 ClipForge is the product suite built around PAKT. In this repository, that means:
 
 - **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. Install it from npm and use it in Node.js or TypeScript projects.
+- **[ClipForge Playground](./apps/playground/)** -- A lightweight web UI for trying JSON, YAML, CSV, and mixed markdown compression locally before wiring PAKT into a real workflow.
 - **[ClipForge Desktop](./apps/desktop/)** -- A Tauri tray app for reading clipboard text, compressing or decompressing it, copying results back, optionally watching clipboard updates, and storing local history when you opt in.
 - **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini.
 
@@ -68,6 +69,7 @@ clipforge-PAKT/
   packages/
     pakt-core/          Core compression engine, CLI, and MCP server
   apps/
+    playground/         Local web playground for trying PAKT inputs
     desktop/            ClipForge tray app (Tauri v2 + React)
     extension/          Experimental Chrome extension for supported LLM UIs
   docs/                 Format spec and guides
@@ -109,6 +111,21 @@ console.log(detected.format); // 'csv'
 ```
 
 See the **[pakt-core README](./packages/pakt-core/README.md)** for comprehensive API documentation, CLI usage, format specification, and examples.
+
+Release-facing benchmark numbers live in **[docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md)**.
+
+To try the local playground:
+
+```bash
+pnpm -C apps/playground dev
+```
+
+Playground notes for release testing:
+
+- Mixed-content restores embedded structured blocks semantically; exact original formatting may normalize.
+- CSV is not always a win; some already-compact CSV can expand.
+- The playground runs locally in the browser session and does not upload payloads.
+- For mixed-content decompress, paste the PAKT-marked output back into the input area, then run `Decompress`.
 
 ---
 

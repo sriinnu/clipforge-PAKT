@@ -12,6 +12,7 @@
     "test": "turbo run test",
     "test:watch": "turbo run test:watch",
     "bench": "turbo run bench",
+    "bench:snapshot": "pnpm --filter @sriinnu/pakt build && node scripts/release/generate-benchmark-snapshot.mjs",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
