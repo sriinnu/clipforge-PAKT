@@ -6,8 +6,8 @@ MCP-compatible client or server, direct TypeScript usage, and shell workflows.
 
 ## Overview
 
-PAKT (Pipe-Aligned Key Tables) compresses JSON, YAML, CSV, and Markdown into a
-compact pipe-delimited format that uses **30-50% fewer tokens**. Two MCP tools
+PAKT (Pipe-Aligned Kompact Text) compresses JSON, YAML, CSV, and Markdown into a
+compact pipe-delimited format that uses **typically 30-50% fewer tokens**. Two MCP tools
 let any AI agent compress prompts before sending and decompress responses after
 receiving:
 
@@ -167,7 +167,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { PAKT_MCP_TOOLS, handlePaktTool } from '@sriinnu/pakt';
 import type { PaktToolName } from '@sriinnu/pakt';
 
-const server = new McpServer({ name: 'pakt', version: '0.4.0' });
+const server = new McpServer({ name: 'pakt', version: '0.4.2' });
 
 for (const tool of PAKT_MCP_TOOLS) {
   server.tool(tool.name, tool.description, tool.inputSchema.properties,

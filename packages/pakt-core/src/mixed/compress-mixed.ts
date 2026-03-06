@@ -13,6 +13,7 @@ import { DEFAULT_OPTIONS } from '../constants.js';
 import { countTokens } from '../tokens/index.js';
 import type { PaktFormat, PaktOptions, PaktSavings } from '../types.js';
 import { extractBlocks } from './extractor.js';
+import type { ExtractedBlock } from './extractor.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -51,7 +52,12 @@ export interface MixedCompressResult {
 // ---------------------------------------------------------------------------
 
 /** Opening marker for a compressed PAKT block within mixed content. */
-const PAKT_OPEN = (fmt: string): string => `<!-- PAKT:${fmt} -->`;
+const PAKT_OPEN = (fmt: string, block: ExtractedBlock): string => {
+  const meta = buildMarkerMeta(block);
+  return meta === undefined
+    ? `<!-- PAKT:${fmt} -->`
+    : `<!-- PAKT:${fmt} ${JSON.stringify(meta)} -->`;
+};
 
 /** Closing marker for a compressed PAKT block within mixed content. */
 const PAKT_CLOSE = '<!-- /PAKT -->';
@@ -118,7 +124,7 @@ export function compressMixed(input: string, options?: Partial<PaktOptions>): Mi
 
     // Only replace if compression actually saved tokens
     if (blockCompTokens < blockOrigTokens) {
-      const wrapped = [PAKT_OPEN(block.format), result.compressed, PAKT_CLOSE].join('\n');
+      const wrapped = [PAKT_OPEN(block.format, block), result.compressed, PAKT_CLOSE].join('\n');
 
       replacements.push({
         startOffset: block.startOffset,
@@ -146,7 +152,8 @@ export function compressMixed(input: string, options?: Partial<PaktOptions>): Mi
   // Reassemble the text with compressed blocks (work backwards to preserve offsets)
   let compressed = input;
   for (let i = replacements.length - 1; i >= 0; i--) {
-    const r = replacements[i]!;
+    const r = replacements[i];
+    if (!r) continue;
     compressed = compressed.slice(0, r.startOffset) + r.replacement + compressed.slice(r.endOffset);
   }
 
@@ -198,4 +205,37 @@ function buildPassthrough(input: string, tokens: number): MixedCompressResult {
     blocks: [],
     reversible: true,
   };
+}
+
+/**
+ * Build optional wrapper metadata for a mixed-content block.
+ *
+ * Only wrappers that need reconstruction are encoded; inline replacements can
+ * be restored directly from the decompressed body.
+ */
+function buildMarkerMeta(block: ExtractedBlock):
+  | {
+      wrapper: 'fence' | 'frontmatter';
+      fence?: string;
+      languageTag?: string;
+      trailingNewline?: boolean;
+    }
+  | undefined {
+  if (block.wrapper === 'fence') {
+    return {
+      wrapper: 'fence',
+      fence: block.fence,
+      languageTag: block.languageTag,
+      trailingNewline: block.trailingNewline,
+    };
+  }
+
+  if (block.wrapper === 'frontmatter') {
+    return {
+      wrapper: 'frontmatter',
+      trailingNewline: block.trailingNewline,
+    };
+  }
+
+  return undefined;
 }

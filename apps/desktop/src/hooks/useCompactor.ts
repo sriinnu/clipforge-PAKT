@@ -44,9 +44,23 @@ export interface CompactorState {
   /** Set the input text and auto-detect its format. */
   setInput: (text: string) => void;
   /** Run compression with optional layer/format overrides. */
-  compress: (options?: Partial<PaktOptions>) => void;
+  compress: (options?: Partial<PaktOptions>, sourceText?: string) => CompactorRunResult | null;
   /** Run decompression, optionally forcing an output format. */
-  decompress: (format?: PaktFormat) => void;
+  decompress: (
+    format?: PaktFormat,
+    sourceText?: string,
+    targetModel?: string,
+  ) => CompactorRunResult | null;
+}
+
+export interface CompactorRunResult {
+  action: 'compress' | 'decompress';
+  input: string;
+  output: string;
+  format: string;
+  originalTokens: number;
+  compressedTokens: number;
+  savings: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,32 +134,55 @@ export function useCompactor(): CompactorState {
    * embedded blocks) or plain `compress` for structured formats.
    */
   const doCompress = useCallback(
-    (options?: Partial<PaktOptions>) => {
-      if (!input.trim()) return;
+    (options?: Partial<PaktOptions>, sourceText?: string) => {
+      const text = sourceText ?? input;
+      if (!text.trim()) return null;
+      if (sourceText !== undefined && sourceText !== input) {
+        setInputRaw(sourceText);
+      }
       setIsProcessing(true);
       try {
-        const detected = detect(input);
+        const detected = detect(text);
         const effectiveFormat = options?.fromFormat ?? detected.format;
 
         if (isStructuredFormat(effectiveFormat)) {
           // Pure structured data -- use direct compress pipeline
-          const result = compress(input, options);
+          const result = compress(text, options);
           setOutput(result.compressed);
           setOriginalTokens(result.originalTokens);
           setCompressedTokens(result.compressedTokens);
           setSavings(result.savings.totalPercent);
           setFormat(result.detectedFormat);
-        } else {
-          // Text/markdown -- use mixed-content pipeline
-          const result = compressMixed(input, options);
-          setOutput(result.compressed);
-          setOriginalTokens(result.originalTokens);
-          setCompressedTokens(result.compressedTokens);
-          setSavings(result.savings.totalPercent);
-          setFormat(effectiveFormat);
+          return {
+            action: 'compress' as const,
+            input: text,
+            output: result.compressed,
+            format: result.detectedFormat,
+            originalTokens: result.originalTokens,
+            compressedTokens: result.compressedTokens,
+            savings: result.savings.totalPercent,
+          };
         }
+
+        // Text/markdown -- use mixed-content pipeline
+        const result = compressMixed(text, options);
+        setOutput(result.compressed);
+        setOriginalTokens(result.originalTokens);
+        setCompressedTokens(result.compressedTokens);
+        setSavings(result.savings.totalPercent);
+        setFormat(effectiveFormat);
+        return {
+          action: 'compress' as const,
+          input: text,
+          output: result.compressed,
+          format: effectiveFormat,
+          originalTokens: result.originalTokens,
+          compressedTokens: result.compressedTokens,
+          savings: result.savings.totalPercent,
+        };
       } catch (err) {
         setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);
+        return null;
       } finally {
         setIsProcessing(false);
       }
@@ -161,35 +198,60 @@ export function useCompactor(): CompactorState {
    * the standard `decompress` for plain PAKT documents.
    */
   const doDecompress = useCallback(
-    (outputFormat?: PaktFormat) => {
-      if (!input.trim()) return;
+    (outputFormat?: PaktFormat, sourceText?: string, targetModel?: string) => {
+      const text = sourceText ?? input;
+      if (!text.trim()) return null;
+      if (sourceText !== undefined && sourceText !== input) {
+        setInputRaw(sourceText);
+      }
       setIsProcessing(true);
       try {
-        const origTokens = countTokens(input);
+        const origTokens = countTokens(text, targetModel);
 
-        if (PAKT_MARKER_RE.test(input)) {
+        if (PAKT_MARKER_RE.test(text)) {
           // Mixed content with PAKT markers -- restore blocks in-place.
           // On decompress: input is the smaller PAKT form, output is the larger
           // original. Swap args so savings stays positive (compressed < original).
-          const restored = decompressMixed(input);
-          const outTokens = countTokens(restored);
+          const restored = decompressMixed(text);
+          const outTokens = countTokens(restored, targetModel);
           setOutput(restored);
           setOriginalTokens(outTokens); // decompressed form = "original"
           setCompressedTokens(origTokens); // PAKT form = "compressed"
-          setSavings(calcSavings(outTokens, origTokens));
+          const nextSavings = calcSavings(outTokens, origTokens);
+          setSavings(nextSavings);
           setFormat('text');
-        } else {
-          // Plain PAKT document -- standard decompress
-          const result = decompress(input, outputFormat);
-          const outTokens = countTokens(result.text);
-          setOutput(result.text);
-          setOriginalTokens(outTokens); // decompressed form = "original"
-          setCompressedTokens(origTokens); // PAKT form = "compressed"
-          setSavings(calcSavings(outTokens, origTokens));
-          setFormat(result.originalFormat);
+          return {
+            action: 'decompress' as const,
+            input: text,
+            output: restored,
+            format: 'text',
+            originalTokens: outTokens,
+            compressedTokens: origTokens,
+            savings: nextSavings,
+          };
         }
+
+        // Plain PAKT document -- standard decompress
+        const result = decompress(text, outputFormat);
+        const outTokens = countTokens(result.text, targetModel);
+        setOutput(result.text);
+        setOriginalTokens(outTokens); // decompressed form = "original"
+        setCompressedTokens(origTokens); // PAKT form = "compressed"
+        const nextSavings = calcSavings(outTokens, origTokens);
+        setSavings(nextSavings);
+        setFormat(result.originalFormat);
+        return {
+          action: 'decompress' as const,
+          input: text,
+          output: result.text,
+          format: outputFormat ?? result.originalFormat,
+          originalTokens: outTokens,
+          compressedTokens: origTokens,
+          savings: nextSavings,
+        };
       } catch (err) {
         setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);
+        return null;
       } finally {
         setIsProcessing(false);
       }

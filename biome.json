@@ -57,6 +57,7 @@
       ".turbo",
       "coverage",
       ".claude",
+      "prompter",
       "**/gen/",
       "**/*.d.ts"
     ]

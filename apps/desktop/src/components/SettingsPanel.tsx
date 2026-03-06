@@ -1,6 +1,7 @@
 import type { PaktFormat } from '@sriinnu/pakt';
 import { VERSION } from '@sriinnu/pakt';
 import type { FC } from 'react';
+import { useHistoryStore } from '../stores/historyStore';
 import { useSettingsStore } from '../stores/settingsStore';
 
 const OUTPUT_FORMATS: { value: PaktFormat; label: string }[] = [
@@ -27,6 +28,15 @@ interface SettingsPanelProps {
 
 const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
   const settings = useSettingsStore();
+  const clearHistory = useHistoryStore((s) => s.clearHistory);
+
+  const handleHistoryToggle = () => {
+    const nextValue = !settings.historyEnabled;
+    settings.setHistoryEnabled(nextValue);
+    if (!nextValue) {
+      clearHistory();
+    }
+  };
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col bg-gray-900">
@@ -81,9 +91,15 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
 
         {/* Auto-compress toggle */}
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-400">
-            Auto-compress on clipboard change
-          </span>
+          <div className="max-w-[220px] space-y-0.5">
+            <span className="block text-xs font-medium text-gray-400">
+              Watch clipboard and auto-compress
+            </span>
+            <span className="block text-[10px] text-gray-600">
+              Desktop-only. New clipboard text is loaded into the panel and compressed automatically
+              without overwriting the clipboard.
+            </span>
+          </div>
           <button
             type="button"
             role="switch"
@@ -96,6 +112,33 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
             <span
               className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
                 settings.autoCompress ? 'translate-x-4.5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* History toggle */}
+        <div className="flex items-center justify-between">
+          <div className="max-w-[220px] space-y-0.5">
+            <span className="block text-xs font-medium text-gray-400">
+              Store clipboard history locally
+            </span>
+            <span className="block text-[10px] text-gray-600">
+              Off by default. When disabled, saved entries are cleared from local storage.
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.historyEnabled}
+            onClick={handleHistoryToggle}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              settings.historyEnabled ? 'bg-indigo-500' : 'bg-gray-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                settings.historyEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
               }`}
             />
           </button>
@@ -120,6 +163,10 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
               </button>
             ))}
           </div>
+          <p className="mt-1 text-[10px] text-gray-600">
+            Stored now for future native styling. The current tray panel still uses the built-in
+            dark shell.
+          </p>
         </fieldset>
 
         {/* About */}

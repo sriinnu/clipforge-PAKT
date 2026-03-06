@@ -55,8 +55,8 @@ Everything above, plus:
 ## 2. Clone & Install
 
 ```bash
-git clone https://github.com/sriinnu/clipforge-pakt.git
-cd clipforge-pakt
+git clone https://github.com/sriinnu/clipforge-PAKT.git
+cd clipforge-PAKT
 pnpm install
 ```
 
@@ -68,7 +68,7 @@ pnpm install
 # Build all packages
 pnpm build
 
-# Run all 322 tests
+# Run all tests
 pnpm test
 
 # Build only the core library
@@ -120,7 +120,7 @@ const detected = detect('name: Alice\nage: 30');
 console.log(detected.format); // 'yaml'
 ```
 
-> **Note:** The package is not published to npm yet. Within this monorepo, `@sriinnu/pakt` resolves via pnpm workspace linking. To test in an external project, use `pnpm pack --filter @sriinnu/pakt` and install the resulting tarball.
+`@sriinnu/pakt` supports Node 18+ when consumed as a package. Monorepo development for this repository uses Node 22+.
 
 ---
 
@@ -173,13 +173,14 @@ clipforge-PAKT/
 ├── packages/
 │   └── pakt-core/           # @sriinnu/pakt library
 │       ├── src/              # Source code
-│       ├── tests/            # Vitest tests (322 tests)
+│       ├── tests/            # Vitest tests
 │       └── dist/             # Built output (ESM + CJS + DTS)
 ├── apps/
-│   └── desktop/              # ClipForge desktop app
-│       ├── src/              # React frontend
-│       ├── src-tauri/        # Rust backend (Tauri v2)
-│       └── dist/             # Built frontend
+│   ├── desktop/              # ClipForge desktop app
+│   │   ├── src/              # React frontend
+│   │   ├── src-tauri/        # Rust backend (Tauri v2)
+│   │   └── dist/             # Built frontend
+│   └── extension/            # Experimental browser extension
 ├── docs/
 │   ├── PAKT-FORMAT-SPEC.md   # Format specification
 │   └── GETTING-STARTED.md    # This file
@@ -218,7 +219,7 @@ clipforge-PAKT/
 
 For when you are ready to publish `@sriinnu/pakt` to npm:
 
-- [ ] All 322+ tests pass
+- [ ] All tests pass
 - [ ] `pnpm build` completes cleanly with no warnings
 - [ ] `pnpm pack --filter @sriinnu/pakt` produces a clean tarball
 - [ ] Test the tarball in a fresh project: `npm install ./sriinnu-pakt-0.1.0.tgz`

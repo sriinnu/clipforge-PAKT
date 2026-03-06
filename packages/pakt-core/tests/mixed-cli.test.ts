@@ -131,7 +131,7 @@ describe('compressMixed — markdown + JSON block', () => {
     const result = compressMixed(MARKDOWN_WITH_JSON);
 
     if (result.blocks.length > 0) {
-      expect(result.compressed).toContain('<!-- PAKT:json -->');
+      expect(result.compressed).toContain('<!-- PAKT:json');
       expect(result.compressed).toContain('<!-- /PAKT -->');
       expect(result.compressed).toContain('@from json');
     }
@@ -200,7 +200,7 @@ describe('decompressMixed — PAKT markers', () => {
       const restored = decompressMixed(compressed.compressed);
 
       // PAKT markers should be removed
-      expect(restored).not.toContain('<!-- PAKT:json -->');
+      expect(restored).not.toContain('<!-- PAKT:json');
       expect(restored).not.toContain('<!-- /PAKT -->');
 
       // Prose should still be there

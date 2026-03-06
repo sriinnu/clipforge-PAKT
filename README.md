@@ -5,7 +5,7 @@
 <h3 align="center">ClipForge PAKT</h3>
 
 <p align="center">
-  Lossless prompt compression for LLMs. 30-50% fewer tokens. Perfect round-tripping.<br/>
+  Lossless prompt compression for structured LLM data. Typical 30-50% fewer tokens.<br/>
   <i>Stop paying for syntax. Every token should carry meaning.</i>
 </p>
 
@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/repo%20Node.js-%3E%3D22-339933?logo=node.js&logoColor=white" alt="Repo Node.js" />
   <img src="https://img.shields.io/badge/Tauri-v2-24c8d8?logo=tauri&logoColor=white" alt="Tauri" />
   <img src="https://img.shields.io/badge/macOS-supported-8b5cf6?logo=apple&logoColor=white" alt="macOS" />
   <img src="https://img.shields.io/badge/Windows-supported-6366f1?logo=windows&logoColor=white" alt="Windows" />
@@ -30,17 +30,17 @@
 
 ## What is PAKT?
 
-**PAKT** (Pipe-Aligned Kompact Text) is a lossless compression format that converts JSON, YAML, CSV, and Markdown into a compact pipe-delimited syntax optimized for LLM token efficiency. It achieves **30-50% token savings** while maintaining perfect lossless round-tripping.
+**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. It delivers **typical 30-50% token savings**, with higher gains on repetitive and tabular payloads, while preserving data fidelity across its core layers.
 
 LLMs charge by the token. Structured data wastes tokens on syntax: braces, quotes, repeated keys, whitespace. PAKT eliminates the waste.
 
 ### About ClipForge
 
-ClipForge is a suite of tools built around PAKT, designed to make prompt compression accessible everywhere you work with LLMs:
+ClipForge is the product suite built around PAKT. In this repository, that means:
 
-- **[@sriinnu/pakt](./packages/pakt-core/)** -- The core compression library and CLI. Install it via npm and integrate PAKT into any Node.js or TypeScript project.
-- **[ClipForge Desktop](./apps/desktop/)** -- A cross-platform menubar application (built with Tauri v2 and React) that compresses clipboard content on the fly. Copy structured data, compress it with a keystroke, and paste the PAKT output directly into your LLM prompt.
-- **ClipForge Browser Extension** *(coming soon)* -- Inline compression for web-based LLM interfaces.
+- **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. Install it from npm and use it in Node.js or TypeScript projects.
+- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri tray app for reading clipboard text, compressing or decompressing it, copying results back, optionally watching clipboard updates, and storing local history when you opt in.
+- **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini.
 
 The goal is simple: every token you send to an LLM should carry meaning, not syntax.
 
@@ -66,9 +66,10 @@ This is a [pnpm workspace](https://pnpm.io/workspaces) monorepo.
 ```
 clipforge-PAKT/
   packages/
-    pakt-core/          Core compression engine + CLI
+    pakt-core/          Core compression engine, CLI, and MCP server
   apps/
-    desktop/            ClipForge menubar app (Tauri v2 + React)
+    desktop/            ClipForge tray app (Tauri v2 + React)
+    extension/          Experimental Chrome extension for supported LLM UIs
   docs/                 Format spec and guides
   assets/
     pakt-logo.svg       Logo assets
@@ -87,6 +88,8 @@ clipforge-PAKT/
 ```bash
 npm install @sriinnu/pakt
 ```
+
+`@sriinnu/pakt` supports **Node 18+**. Monorepo development for this repository uses **Node 22+**.
 
 ```ts
 import { compress, decompress, detect } from '@sriinnu/pakt';
@@ -113,10 +116,11 @@ See the **[pakt-core README](./packages/pakt-core/README.md)** for comprehensive
 
 - **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), Semantic (L4)
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
-- **Perfect lossless round-tripping** -- `decompress(compress(input)) === input` for L1+L2
-- **30-50% token savings** -- Real BPE token counting via gpt-tokenizer
+- **Lossless data round-tripping** -- core layers preserve data fidelity on decompress
+- **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
 - **CLI included** -- `pakt compress`, `pakt decompress`, `pakt detect`, `pakt tokens`, `pakt savings`
-- **Zero runtime dependencies** -- Only gpt-tokenizer for token counting
+- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress` and `pakt_auto`
+- **Minimal runtime dependencies** -- only `gpt-tokenizer` at runtime
 - **Full TypeScript support** -- All types exported, dual ESM/CJS builds
 
 ---
@@ -125,14 +129,14 @@ See the **[pakt-core README](./packages/pakt-core/README.md)** for comprehensive
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) >= 18
-- [pnpm](https://pnpm.io/) >= 8
+- [Node.js](https://nodejs.org/) >= 22
+- [pnpm](https://pnpm.io/) >= 9
 
 ### Setup
 
 ```bash
 git clone https://github.com/sriinnu/clipforge-PAKT.git
-cd clipforge-pakt
+cd clipforge-PAKT
 pnpm install
 ```
 
@@ -178,4 +182,3 @@ PAKT's core pipe-delimited syntax (Layer 1) is directly inspired by **[TOON Form
 ## License
 
 [MIT](./LICENSE) -- Srinivas Pendela
-

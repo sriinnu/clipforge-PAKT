@@ -1,10 +1,12 @@
 import { type FC, useMemo, useState } from 'react';
 import { type HistoryEntry, useHistoryStore } from '../stores/historyStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import FormatBadge from './FormatBadge';
 
 interface HistoryPanelProps {
   onSelect: (entry: HistoryEntry) => void;
   onClose: () => void;
+  onOpenSettings: () => void;
 }
 
 const MAX_DISPLAY = 50;
@@ -27,9 +29,10 @@ function snippet(text: string, maxLen = 60): string {
   return oneLine.length > maxLen ? `${oneLine.slice(0, maxLen)}...` : oneLine;
 }
 
-const HistoryPanel: FC<HistoryPanelProps> = ({ onSelect, onClose }) => {
+const HistoryPanel: FC<HistoryPanelProps> = ({ onSelect, onClose, onOpenSettings }) => {
   const entries = useHistoryStore((s) => s.entries);
   const clearHistory = useHistoryStore((s) => s.clearHistory);
+  const historyEnabled = useSettingsStore((s) => s.historyEnabled);
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -86,7 +89,21 @@ const HistoryPanel: FC<HistoryPanelProps> = ({ onSelect, onClose }) => {
 
       {/* Entries */}
       <div className="flex-1 overflow-y-auto">
-        {filtered.length === 0 ? (
+        {!historyEnabled ? (
+          <div className="space-y-3 p-4 text-center">
+            <p className="text-xs text-gray-400">
+              Local history is off. Enable it in Settings if you want ClipForge to store transformed
+              clipboard content on this device.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="rounded-md bg-indigo-500/20 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/30"
+            >
+              Open Settings
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <p className="p-4 text-center text-xs text-gray-500">
             {entries.length === 0 ? 'No history yet' : 'No matches'}
           </p>

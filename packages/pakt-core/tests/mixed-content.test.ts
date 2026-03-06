@@ -144,7 +144,7 @@ describe('compressMixed', () => {
     // Should have found and compressed the JSON block
     expect(result.blocks.length).toBeGreaterThan(0);
     expect(result.savings.totalPercent).toBeGreaterThan(0);
-    expect(result.compressed).toContain('<!-- PAKT:json -->');
+    expect(result.compressed).toContain('<!-- PAKT:json');
     expect(result.compressed).toContain('<!-- /PAKT -->');
     expect(result.compressed).toContain('@from json');
     expect(result.reversible).toBe(true);
@@ -223,6 +223,32 @@ describe('decompressMixed', () => {
       // If no compression happened (small data), text should be unchanged
       expect(restored).toBe(md);
     }
+  });
+
+  it('preserves fenced code blocks exactly through round-trip', () => {
+    const md = [
+      '# Team Report',
+      '',
+      '```json',
+      '{"users":[{"name":"Alice"}]}',
+      '```',
+      '',
+      'End.',
+    ].join('\n');
+
+    const compressed = compressMixed(md);
+    const restored = decompressMixed(compressed.compressed);
+
+    expect(restored).toBe(md);
+  });
+
+  it('preserves YAML frontmatter exactly through round-trip', () => {
+    const doc = ['---', 'title: Demo', 'tags:', '  - ai', '---', '', '# Body'].join('\n');
+
+    const compressed = compressMixed(doc);
+    const restored = decompressMixed(compressed.compressed);
+
+    expect(restored).toBe(doc);
   });
 
   it('returns input unchanged when no PAKT markers present', () => {
@@ -315,7 +341,7 @@ describe('compress() with mixed content integration', () => {
     // The compress function should detect this as markdown with mixed content
     // and use compressMixed internally
     if (result.savings.totalPercent > 0) {
-      expect(result.compressed).toContain('<!-- PAKT:json -->');
+      expect(result.compressed).toContain('<!-- PAKT:json');
       expect(result.compressed).toContain('Employee Report');
     }
   });
