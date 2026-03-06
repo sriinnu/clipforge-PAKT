@@ -29,8 +29,7 @@ body,
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% 12%, rgba(246, 183, 60, 0.28), transparent 24%),
+  background: radial-gradient(circle at 12% 12%, rgba(246, 183, 60, 0.28), transparent 24%),
     radial-gradient(circle at 85% 10%, rgba(96, 165, 250, 0.2), transparent 26%),
     radial-gradient(circle at 50% 110%, rgba(255, 122, 24, 0.22), transparent 32%),
     linear-gradient(180deg, #182331 0%, #10171d 46%, #0b1115 100%);
@@ -42,8 +41,12 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.03) 48%, transparent 100%),
+  background: linear-gradient(
+      120deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.03) 48%,
+      transparent 100%
+    ),
     repeating-linear-gradient(
       135deg,
       rgba(255, 255, 255, 0.015) 0,
@@ -144,8 +147,7 @@ h1 {
 .hero-card {
   display: grid;
   gap: 12px;
-  background:
-    radial-gradient(circle at top right, rgba(246, 183, 60, 0.14), transparent 34%),
+  background: radial-gradient(circle at top right, rgba(246, 183, 60, 0.14), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
 }
 

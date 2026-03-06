@@ -323,7 +323,9 @@ export default function App() {
             <img className="brand-logo" src={paktLogo} alt="PAKT logo" />
             <div className="brand-copy">
               <p className="eyebrow">ClipForge PAKT Playground</p>
-              <p className="maker-note">Built by Srinivas Pendela. Local browser lab for structured prompt testing.</p>
+              <p className="maker-note">
+                Built by Srinivas Pendela. Local browser lab for structured prompt testing.
+              </p>
             </div>
           </div>
           <h1>See when structure actually compresses.</h1>
@@ -515,15 +517,14 @@ export default function App() {
               <strong>Original vs structural rewrite vs full PAKT</strong>
             </div>
             <span className="compare-caption">
-              Structural baseline is the closest apples-to-apples proxy for TOON-style compact syntax.
+              Structural baseline is the closest apples-to-apples proxy for TOON-style compact
+              syntax.
             </span>
           </div>
           {packedInputDetected ? (
             <div className="card compare-empty">
               <strong>Restore the payload first</strong>
-              <p>
-                Comparison mode expects a raw source document, not already-packed PAKT output.
-              </p>
+              <p>Comparison mode expects a raw source document, not already-packed PAKT output.</p>
             </div>
           ) : comparisonState.items ? (
             <div className="compare-grid">
@@ -544,7 +545,9 @@ export default function App() {
             </div>
           ) : (
             <div className="card compare-empty">
-              <strong>{comparisonState.error ? 'Comparison unavailable' : 'Paste a payload to compare'}</strong>
+              <strong>
+                {comparisonState.error ? 'Comparison unavailable' : 'Paste a payload to compare'}
+              </strong>
               <p>
                 {comparisonState.error ??
                   'Use JSON, YAML, CSV, or mixed markdown to see how each layer behaves.'}
