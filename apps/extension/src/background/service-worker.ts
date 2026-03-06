@@ -58,6 +58,17 @@ async function compressSelection(
   text: string,
   settings: Awaited<ReturnType<typeof getSettings>>,
 ): Promise<{ compressedText: string; savingsPercent: number }> {
+  const result = compressForDetectedFormat(text, settings);
+  return {
+    compressedText: result.compressed,
+    savingsPercent: result.savings.totalPercent,
+  };
+}
+
+function compressForDetectedFormat(
+  text: string,
+  settings: Awaited<ReturnType<typeof getSettings>>,
+) {
   const format = detect(text).format;
   const layerOpts = {
     structural: settings.layerStructural,
@@ -68,11 +79,18 @@ async function compressSelection(
 
   if (format === 'markdown' || format === 'text') {
     const result = compressMixed(text, { layers: layerOpts });
-    return { compressedText: result.compressed, savingsPercent: result.savings.totalPercent };
+    return {
+      compressed: result.compressed,
+      originalTokens: result.originalTokens,
+      compressedTokens: result.compressedTokens,
+      savings: result.savings,
+      reversible: result.reversible,
+      detectedFormat: format,
+      dictionary: [],
+    };
   }
 
-  const result = compress(text, { layers: layerOpts });
-  return { compressedText: result.compressed, savingsPercent: result.savings.totalPercent };
+  return compress(text, { layers: layerOpts });
 }
 
 /**
@@ -194,14 +212,7 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 
   switch (message.type) {
     case 'COMPRESS': {
-      const result = compress(message.text, {
-        layers: {
-          structural: settings.layerStructural,
-          dictionary: settings.layerDictionary,
-          tokenizerAware: false,
-          semantic: false,
-        },
-      });
+      const result = compressForDetectedFormat(message.text, settings);
       updateBadge(result.savings.totalPercent);
       return result;
     }
@@ -251,7 +262,7 @@ function handleDecompress(text: string): { text: string } {
 
   // Fallback: plain decompress for pure PAKT documents
   try {
-    const result = decompress(text, 'json');
+    const result = decompress(text);
     return { text: result.text };
   } catch {
     // If decompress also fails, return original
@@ -279,34 +290,11 @@ async function handleAuto(
   settings: Awaited<ReturnType<typeof getSettings>>,
 ): Promise<unknown> {
   const detection = detect(text);
-  const format = detection.format;
-
-  if (format === 'pakt') {
+  if (detection.format === 'pakt') {
     return handleDecompress(text);
   }
 
-  if (format === 'markdown' || format === 'text') {
-    const result = compressMixed(text, {
-      layers: {
-        structural: settings.layerStructural,
-        dictionary: settings.layerDictionary,
-        tokenizerAware: false,
-        semantic: false,
-      },
-    });
-    updateBadge(result.savings.totalPercent);
-    return result;
-  }
-
-  // Structured formats (json/yaml/csv)
-  const result = compress(text, {
-    layers: {
-      structural: settings.layerStructural,
-      dictionary: settings.layerDictionary,
-      tokenizerAware: false,
-      semantic: false,
-    },
-  });
+  const result = compressForDetectedFormat(text, settings);
   updateBadge(result.savings.totalPercent);
   return result;
 }

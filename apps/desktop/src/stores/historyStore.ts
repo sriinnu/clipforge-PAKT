@@ -29,6 +29,17 @@ export const useHistoryStore = create<HistoryState>()(
       entries: [],
       addEntry: (entry) =>
         set((state) => {
+          const latest = state.entries[0];
+          if (
+            latest &&
+            latest.input === entry.input &&
+            latest.output === entry.output &&
+            latest.format === entry.format &&
+            latest.savedTokens === entry.savedTokens
+          ) {
+            return state;
+          }
+
           const newEntry: HistoryEntry = {
             ...entry,
             id: generateId(),
