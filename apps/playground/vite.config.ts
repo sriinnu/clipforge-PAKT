@@ -16,4 +16,7 @@ export default defineConfig({
   server: {
     port: 4174,
   },
+  worker: {
+    format: 'es',
+  },
 });
