@@ -122,6 +122,12 @@ To try the local playground:
 pnpm -C apps/playground dev
 ```
 
+To run the playground regression checks:
+
+```bash
+pnpm -C apps/playground test
+```
+
 Playground notes for release testing:
 
 - Mixed-content restores embedded structured blocks semantically; exact original formatting may normalize.
