@@ -7,6 +7,7 @@ import {
   compressSource,
   computeComparison,
   decompressSource,
+  preloadPaktRuntime,
 } from './pakt-runtime';
 import { samples } from './samples';
 
@@ -145,6 +146,18 @@ export default function App() {
       ? 'Live preview is on. Typing recomputes the compact PAKT output immediately.'
       : 'Manual mode is on. Preview PAKT runs on the current Input payload, and Restore from PAKT expects packed text in Input.';
   const currentSample = samples.find((sample) => sample.id === selectedSample);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void preloadPaktRuntime().catch(() => {
+        // Warm-up is best-effort; explicit actions surface worker failures.
+      });
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
