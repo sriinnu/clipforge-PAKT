@@ -89,7 +89,18 @@ async function callWorker<T>(message: WorkerMessage): Promise<T> {
       resolve: (value) => resolve(value as T),
       reject,
     });
-    worker.postMessage({ ...message, id });
+    try {
+      worker.postMessage({ ...message, id });
+    } catch (error) {
+      pending.delete(id);
+      reject(
+        new Error(
+          error instanceof Error
+            ? error.message
+            : 'The playground worker request could not be sent.',
+        ),
+      );
+    }
   });
 }
 

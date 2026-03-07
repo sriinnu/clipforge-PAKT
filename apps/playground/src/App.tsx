@@ -47,6 +47,10 @@ function formatPercent(before: number, after: number): string {
   return `${percent}%`;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function getStatsTone(
   hasOutput: boolean,
   before: number,
@@ -119,6 +123,7 @@ export default function App() {
   const [decompressTo, setDecompressTo] = useState<PaktFormat>('json');
   const [liveCompress, setLiveCompress] = useState(true);
   const [lastAction, setLastAction] = useState<Action>(null);
+  const [pendingAction, setPendingAction] = useState<Action>(null);
   const [error, setError] = useState<string | null>(null);
   const [comparisonState, setComparisonState] = useState<ComparisonState>({
     status: 'idle',
@@ -126,26 +131,39 @@ export default function App() {
     error: null,
   });
   const suppressPreviewOnceRef = useRef(false);
+  const manualRequestIdRef = useRef(0);
   const deferredInput = useDeferredValue(input);
 
   const statsTone = getStatsTone(output.length > 0, inputTokens, outputTokens);
   const actionSummary = getActionSummary(lastAction, liveCompress, packedInputDetected);
   const outputLabel = getOutputLabel(lastAction, liveCompress, packedInputDetected);
   const livePreviewEnabled = liveCompress && !packedInputDetected;
+  const manualActionInFlight = pendingAction !== null;
   const compareModeActive = viewMode === 'compare';
   const currentYear = new Date().getFullYear();
   const compressButtonLabel = livePreviewEnabled
     ? 'Live preview running'
-    : packedInputDetected
-      ? 'Input already packed'
-      : 'Preview PAKT';
-  const compressButtonDisabled = !input.trim() || packedInputDetected || livePreviewEnabled;
+    : pendingAction === 'compress'
+      ? 'Compressing...'
+      : packedInputDetected
+        ? 'Input already packed'
+        : 'Preview PAKT';
+  const decompressButtonLabel =
+    pendingAction === 'decompress' ? 'Restoring...' : 'Restore from PAKT';
+  const compressButtonDisabled =
+    !input.trim() || packedInputDetected || livePreviewEnabled || manualActionInFlight;
+  const decompressButtonDisabled = !input.trim() || manualActionInFlight;
   const actionHint = packedInputDetected
     ? 'Input already looks like PAKT. Restore it from the current Input payload using the format selector.'
     : livePreviewEnabled
       ? 'Live preview is on. Typing recomputes the compact PAKT output immediately.'
       : 'Manual mode is on. Preview PAKT runs on the current Input payload, and Restore from PAKT expects packed text in Input.';
   const currentSample = samples.find((sample) => sample.id === selectedSample);
+
+  function invalidatePendingAction(): void {
+    manualRequestIdRef.current += 1;
+    setPendingAction(null);
+  }
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -163,24 +181,36 @@ export default function App() {
     let cancelled = false;
     const timeoutId = window.setTimeout(
       async () => {
-        const next = await analyzePreview(deferredInput, liveCompress);
-        if (cancelled) return;
+        try {
+          const next = await analyzePreview(deferredInput, liveCompress);
+          if (cancelled) return;
 
-        startTransition(() => {
-          setDetectedFormat(next.detectedFormat);
-          setInputTokens(next.inputTokens);
-          setPackedInputDetected(next.packedInputDetected);
+          startTransition(() => {
+            setDetectedFormat(next.detectedFormat);
+            setInputTokens(next.inputTokens);
+            setPackedInputDetected(next.packedInputDetected);
 
-          if (suppressPreviewOnceRef.current) {
+            if (suppressPreviewOnceRef.current) {
+              suppressPreviewOnceRef.current = false;
+              return;
+            }
+
+            setOutput(next.output);
+            setOutputTokens(next.outputTokens);
+            setLastAction(next.lastAction);
+            setError(next.error);
+          });
+        } catch (error) {
+          if (cancelled) return;
+
+          startTransition(() => {
             suppressPreviewOnceRef.current = false;
-            return;
-          }
-
-          setOutput(next.output);
-          setOutputTokens(next.outputTokens);
-          setLastAction(next.lastAction);
-          setError(next.error);
-        });
+            setOutput('');
+            setOutputTokens(0);
+            setLastAction(null);
+            setError(getErrorMessage(error, 'Preview unavailable'));
+          });
+        }
       },
       liveCompress ? 120 : 0,
     );
@@ -213,12 +243,24 @@ export default function App() {
     });
 
     const timeoutId = window.setTimeout(async () => {
-      const next = await computeComparison(deferredInput);
-      if (cancelled) return;
+      try {
+        const next = await computeComparison(deferredInput);
+        if (cancelled) return;
 
-      startTransition(() => {
-        setComparisonState(next);
-      });
+        startTransition(() => {
+          setComparisonState(next);
+        });
+      } catch (error) {
+        if (cancelled) return;
+
+        startTransition(() => {
+          setComparisonState({
+            status: 'ready',
+            items: null,
+            error: getErrorMessage(error, 'Comparison unavailable'),
+          });
+        });
+      }
     }, 180);
 
     return () => {
@@ -228,6 +270,14 @@ export default function App() {
   }, [compareModeActive, deferredInput, packedInputDetected]);
 
   function loadSample(id: string): void {
+    invalidatePendingAction();
+
+    if (!id) {
+      setSelectedSample('');
+      setError(null);
+      return;
+    }
+
     const next = samples.find((sample) => sample.id === id);
     if (!next) return;
     setSelectedSample(id);
@@ -242,6 +292,7 @@ export default function App() {
   }
 
   function handleInputChange(nextValue: string): void {
+    invalidatePendingAction();
     if (currentSample && nextValue !== currentSample.text) {
       setSelectedSample('');
     }
@@ -255,8 +306,15 @@ export default function App() {
       return;
     }
 
+    const requestId = manualRequestIdRef.current + 1;
+    manualRequestIdRef.current = requestId;
+    setPendingAction('compress');
+    setError(null);
+
     try {
       const next = await compressSource(input);
+      if (manualRequestIdRef.current !== requestId) return;
+
       setDetectedFormat(next.detectedFormat);
       setInputTokens(next.inputTokens);
       setPackedInputDetected(next.packedInputDetected);
@@ -265,15 +323,27 @@ export default function App() {
       setLastAction('compress');
       setError(null);
     } catch (err) {
+      if (manualRequestIdRef.current !== requestId) return;
       setError(err instanceof Error ? err.message : 'Compression failed');
+    } finally {
+      if (manualRequestIdRef.current === requestId) {
+        setPendingAction(null);
+      }
     }
   }
 
   async function handleDecompress(): Promise<void> {
     if (!input.trim()) return;
 
+    const requestId = manualRequestIdRef.current + 1;
+    manualRequestIdRef.current = requestId;
+    setPendingAction('decompress');
+    setError(null);
+
     try {
       const next = await decompressSource(input, decompressTo);
+      if (manualRequestIdRef.current !== requestId) return;
+
       setDetectedFormat(next.detectedFormat);
       setInputTokens(next.inputTokens);
       setPackedInputDetected(next.packedInputDetected);
@@ -282,7 +352,12 @@ export default function App() {
       setLastAction('decompress');
       setError(null);
     } catch (err) {
+      if (manualRequestIdRef.current !== requestId) return;
       setError(err instanceof Error ? err.message : 'Decompression failed');
+    } finally {
+      if (manualRequestIdRef.current === requestId) {
+        setPendingAction(null);
+      }
     }
   }
 
@@ -299,6 +374,7 @@ export default function App() {
   function handleSwap(): void {
     if (!output) return;
 
+    invalidatePendingAction();
     suppressPreviewOnceRef.current = true;
     setSelectedSample('');
     setInput(output);
@@ -434,8 +510,13 @@ export default function App() {
                 >
                   {compressButtonLabel}
                 </button>
-                <button className="secondary" type="button" onClick={handleDecompress}>
-                  Restore from PAKT
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={handleDecompress}
+                  disabled={decompressButtonDisabled}
+                >
+                  {decompressButtonLabel}
                 </button>
                 <label className="inline-control">
                   restore as
