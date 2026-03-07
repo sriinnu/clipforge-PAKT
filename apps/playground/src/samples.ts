@@ -1,7 +1,10 @@
+import type { PaktFormat } from '@sriinnu/pakt';
+
 export interface Sample {
   id: string;
   label: string;
   note: string;
+  format: PaktFormat;
   text: string;
 }
 
@@ -10,6 +13,7 @@ export const samples: Sample[] = [
     id: 'json-users',
     label: 'JSON users',
     note: 'Uniform objects show the L1 tabular gains clearly.',
+    format: 'json',
     text: JSON.stringify(
       {
         users: [
@@ -27,6 +31,7 @@ export const samples: Sample[] = [
     id: 'mixed-markdown',
     label: 'Mixed markdown',
     note: 'The prose stays readable while embedded structured blocks are compressed in place.',
+    format: 'markdown',
     text: [
       '# Incident summary',
       '',
@@ -49,6 +54,7 @@ export const samples: Sample[] = [
     id: 'yaml-services',
     label: 'YAML services',
     note: 'Small YAML configs can be near break-even. Try JSON users or Mixed markdown first for a stronger demo.',
+    format: 'yaml',
     text: [
       'services:',
       '  api:',
@@ -69,6 +75,7 @@ export const samples: Sample[] = [
     id: 'csv-sales',
     label: 'CSV edge case',
     note: 'Honesty check: flat CSV is already compact, so PAKT can be neutral or worse here.',
+    format: 'csv',
     text: [
       'order_id,region,rep,amount,status',
       'A-1001,EMEA,Alice,1299.50,won',
