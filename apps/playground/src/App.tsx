@@ -1,20 +1,16 @@
-import {
-  type PaktFormat,
-  type PaktOptions,
-  VERSION,
-  compress,
-  compressMixed,
-  countTokens,
-  decompress,
-  decompressMixed,
-  detect,
-} from '@sriinnu/pakt';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PaktFormat } from '@sriinnu/pakt';
+import { startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
 import paktLogo from '../../../assets/pakt-logo.svg';
+import {
+  type ComparisonState,
+  analyzePreview,
+  compressSource,
+  computeComparison,
+  decompressSource,
+} from './pakt-runtime';
 import { samples } from './samples';
 
 const DECOMPRESS_FORMATS: PaktFormat[] = ['json', 'yaml', 'csv', 'markdown', 'text'];
-const MIXED_MARKER = '<!-- PAKT:';
 const RELEASE_NOTES = [
   {
     title: 'Mixed content',
@@ -66,6 +62,7 @@ function getOutputLabel(
 ): string {
   if (liveCompress && packedInputDetected) return 'Ready to restore';
   if (liveCompress && lastAction === 'compress') return 'Live PAKT output';
+  if (!lastAction) return 'Output preview';
   return lastAction === 'compress' ? 'PAKT output' : 'Restored output';
 }
 
@@ -108,45 +105,28 @@ function getActionSummary(
   };
 }
 
-function compressDocument(
-  input: string,
-  format: PaktFormat,
-  options?: Partial<PaktOptions>,
-): { compressed: string; originalTokens: number; compressedTokens: number } {
-  const result =
-    format === 'markdown' || format === 'text'
-      ? compressMixed(input, { ...options, fromFormat: format })
-      : compress(input, { ...options, fromFormat: format });
-  return {
-    compressed: result.compressed,
-    originalTokens: result.originalTokens,
-    compressedTokens: result.compressedTokens,
-  };
-}
-
-function compressInput(input: string, format: PaktFormat): string {
-  return compressDocument(input, format).compressed;
-}
-
-function decompressInput(input: string, format: PaktFormat): string {
-  return input.includes(MIXED_MARKER) ? decompressMixed(input) : decompress(input, format).text;
-}
-
 export default function App() {
+  const initialSample = samples[0];
   const [viewMode, setViewMode] = useState<ViewMode>('playground');
-  const [selectedSample, setSelectedSample] = useState(samples[0]?.id ?? '');
-  const [input, setInput] = useState(samples[0]?.text ?? '');
+  const [selectedSample, setSelectedSample] = useState(initialSample?.id ?? '');
+  const [input, setInput] = useState(initialSample?.text ?? '');
+  const [detectedFormat, setDetectedFormat] = useState<PaktFormat>(initialSample?.format ?? 'json');
+  const [inputTokens, setInputTokens] = useState(0);
   const [output, setOutput] = useState('');
+  const [outputTokens, setOutputTokens] = useState(0);
+  const [packedInputDetected, setPackedInputDetected] = useState(false);
   const [decompressTo, setDecompressTo] = useState<PaktFormat>('json');
   const [liveCompress, setLiveCompress] = useState(true);
   const [lastAction, setLastAction] = useState<Action>(null);
   const [error, setError] = useState<string | null>(null);
-  const skipAutoRunRef = useRef(false);
+  const [comparisonState, setComparisonState] = useState<ComparisonState>({
+    status: 'idle',
+    items: null,
+    error: null,
+  });
+  const suppressPreviewOnceRef = useRef(false);
+  const deferredInput = useDeferredValue(input);
 
-  const detected = useMemo(() => detect(input), [input]);
-  const inputTokens = useMemo(() => countTokens(input), [input]);
-  const outputTokens = useMemo(() => countTokens(output), [output]);
-  const packedInputDetected = detected.format === 'pakt' || input.includes(MIXED_MARKER);
   const statsTone = getStatsTone(output.length > 0, inputTokens, outputTokens);
   const actionSummary = getActionSummary(lastAction, liveCompress, packedInputDetected);
   const outputLabel = getOutputLabel(lastAction, liveCompress, packedInputDetected);
@@ -164,119 +144,111 @@ export default function App() {
     : livePreviewEnabled
       ? 'Live preview is on. Typing recomputes the compact PAKT output immediately.'
       : 'Manual mode is on. Preview PAKT runs on the current Input payload, and Restore from PAKT expects packed text in Input.';
-  const comparisonState = useMemo(() => {
-    if (!compareModeActive || !input.trim() || packedInputDetected) {
-      return { items: null, error: null as string | null };
-    }
-
-    try {
-      const originalTokens = countTokens(input);
-      const l1Only = compressDocument(input, detected.format, {
-        layers: {
-          structural: true,
-          dictionary: false,
-          tokenizerAware: false,
-          semantic: false,
-        },
-      });
-      const fullPakt = compressDocument(input, detected.format, {
-        layers: {
-          structural: true,
-          dictionary: true,
-          tokenizerAware: false,
-          semantic: false,
-        },
-      });
-
-      return {
-        items: [
-          {
-            id: 'original',
-            label: 'Original',
-            tokens: originalTokens,
-            percent: 'Baseline',
-            delta: '0 tokens saved',
-            note: 'Raw source payload before any structural rewrite.',
-            text: input,
-          },
-          {
-            id: 'l1',
-            label: 'Structural baseline (TOON-like)',
-            tokens: l1Only.compressedTokens,
-            percent: `${formatPercent(originalTokens, l1Only.compressedTokens)} vs original`,
-            delta: formatDelta(originalTokens, l1Only.compressedTokens),
-            note: 'Structural rewrite only. Closest baseline to TOON-style compact syntax, without implying a first-party TOON encoder.',
-            text: l1Only.compressed,
-          },
-          {
-            id: 'full',
-            label: 'PAKT full',
-            tokens: fullPakt.compressedTokens,
-            percent: `${formatPercent(originalTokens, fullPakt.compressedTokens)} vs original`,
-            delta: formatDelta(originalTokens, fullPakt.compressedTokens),
-            note: 'Structural rewrite plus dictionary aliases for repeated keys and values.',
-            text: fullPakt.compressed,
-          },
-        ] as const,
-        error: null as string | null,
-      };
-    } catch (err) {
-      return {
-        items: null,
-        error: err instanceof Error ? err.message : 'Comparison failed',
-      };
-    }
-  }, [compareModeActive, detected.format, input, packedInputDetected]);
+  const currentSample = samples.find((sample) => sample.id === selectedSample);
 
   useEffect(() => {
-    if (skipAutoRunRef.current) {
-      skipAutoRunRef.current = false;
+    let cancelled = false;
+    const timeoutId = window.setTimeout(
+      async () => {
+        const next = await analyzePreview(deferredInput, liveCompress);
+        if (cancelled) return;
+
+        startTransition(() => {
+          setDetectedFormat(next.detectedFormat);
+          setInputTokens(next.inputTokens);
+          setPackedInputDetected(next.packedInputDetected);
+
+          if (suppressPreviewOnceRef.current) {
+            suppressPreviewOnceRef.current = false;
+            return;
+          }
+
+          setOutput(next.output);
+          setOutputTokens(next.outputTokens);
+          setLastAction(next.lastAction);
+          setError(next.error);
+        });
+      },
+      liveCompress ? 120 : 0,
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [deferredInput, liveCompress]);
+
+  useEffect(() => {
+    if (!compareModeActive || !deferredInput.trim() || packedInputDetected) {
+      startTransition(() => {
+        setComparisonState({
+          status: 'idle',
+          items: null,
+          error: null,
+        });
+      });
       return;
     }
 
-    if (!liveCompress || packedInputDetected) {
-      setOutput('');
-      setError(null);
-      setLastAction(null);
-      return;
-    }
+    let cancelled = false;
+    startTransition(() => {
+      setComparisonState({
+        status: 'loading',
+        items: null,
+        error: null,
+      });
+    });
 
-    if (!input.trim()) {
-      setOutput('');
-      setError(null);
-      setLastAction(null);
-      return;
-    }
+    const timeoutId = window.setTimeout(async () => {
+      const next = await computeComparison(deferredInput);
+      if (cancelled) return;
 
-    try {
-      setOutput(compressInput(input, detected.format));
-      setLastAction('compress');
-      setError(null);
-    } catch (err) {
-      setOutput('');
-      setLastAction('compress');
-      setError(err instanceof Error ? err.message : 'Compression failed');
-    }
-  }, [detected.format, input, liveCompress, packedInputDetected]);
+      startTransition(() => {
+        setComparisonState(next);
+      });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [compareModeActive, deferredInput, packedInputDetected]);
 
   function loadSample(id: string): void {
     const next = samples.find((sample) => sample.id === id);
     if (!next) return;
     setSelectedSample(id);
     setInput(next.text);
+    setDetectedFormat(next.format);
+    setInputTokens(0);
+    setPackedInputDetected(false);
     setOutput('');
+    setOutputTokens(0);
     setError(null);
     setLastAction(null);
   }
 
-  function handleCompress(): void {
+  function handleInputChange(nextValue: string): void {
+    if (currentSample && nextValue !== currentSample.text) {
+      setSelectedSample('');
+    }
+    setInput(nextValue);
+  }
+
+  async function handleCompress(): Promise<void> {
     if (!input.trim()) return;
     if (packedInputDetected) {
       setError('Input already looks like PAKT. Use Restore from PAKT instead.');
       return;
     }
+
     try {
-      setOutput(compressInput(input, detected.format));
+      const next = await compressSource(input);
+      setDetectedFormat(next.detectedFormat);
+      setInputTokens(next.inputTokens);
+      setPackedInputDetected(next.packedInputDetected);
+      setOutput(next.output);
+      setOutputTokens(next.outputTokens);
       setLastAction('compress');
       setError(null);
     } catch (err) {
@@ -284,10 +256,16 @@ export default function App() {
     }
   }
 
-  function handleDecompress(): void {
+  async function handleDecompress(): Promise<void> {
     if (!input.trim()) return;
+
     try {
-      setOutput(decompressInput(input, decompressTo));
+      const next = await decompressSource(input, decompressTo);
+      setDetectedFormat(next.detectedFormat);
+      setInputTokens(next.inputTokens);
+      setPackedInputDetected(next.packedInputDetected);
+      setOutput(next.output);
+      setOutputTokens(next.outputTokens);
       setLastAction('decompress');
       setError(null);
     } catch (err) {
@@ -307,13 +285,17 @@ export default function App() {
 
   function handleSwap(): void {
     if (!output) return;
-    skipAutoRunRef.current = true;
+
+    suppressPreviewOnceRef.current = true;
+    setSelectedSample('');
     setInput(output);
+    setInputTokens(outputTokens);
+    setPackedInputDetected(lastAction === 'compress');
+    setDetectedFormat(lastAction === 'compress' ? 'pakt' : decompressTo);
     setOutput(input);
+    setOutputTokens(inputTokens);
     setError(null);
   }
-
-  const currentSample = samples.find((sample) => sample.id === selectedSample);
 
   return (
     <div className="shell">
@@ -337,11 +319,11 @@ export default function App() {
         <div className="hero-card">
           <div className="hero-meta">
             <span>Version</span>
-            <strong>{VERSION}</strong>
+            <strong>{__PAKT_VERSION__}</strong>
           </div>
           <div className="hero-meta">
             <span>Detected input</span>
-            <strong>{detected.format}</strong>
+            <strong>{detectedFormat}</strong>
           </div>
           <div className="hero-meta">
             <span>Current sample</span>
@@ -350,12 +332,12 @@ export default function App() {
         </div>
       </div>
 
-      <div className="view-tabs" role="tablist" aria-label="Playground views">
+      <fieldset className="view-tabs">
+        <legend className="sr-only">Playground views</legend>
         <button
           className={`tab-button ${viewMode === 'playground' ? 'active' : ''}`}
           type="button"
-          role="tab"
-          aria-selected={viewMode === 'playground'}
+          aria-pressed={viewMode === 'playground'}
           onClick={() => setViewMode('playground')}
         >
           Playground
@@ -363,18 +345,18 @@ export default function App() {
         <button
           className={`tab-button ${viewMode === 'compare' ? 'active' : ''}`}
           type="button"
-          role="tab"
-          aria-selected={viewMode === 'compare'}
+          aria-pressed={viewMode === 'compare'}
           onClick={() => setViewMode('compare')}
         >
           Compare Layers
         </button>
-      </div>
+      </fieldset>
 
       <div className="controls card">
         <label>
           Sample payload
           <select value={selectedSample} onChange={(event) => loadSample(event.target.value)}>
+            <option value="">Custom payload</option>
             {samples.map((sample) => (
               <option key={sample.id} value={sample.id}>
                 {sample.label}
@@ -382,7 +364,7 @@ export default function App() {
             ))}
           </select>
         </label>
-        <p className="sample-note">{currentSample?.note}</p>
+        <p className="sample-note">{currentSample?.note ?? 'Editing a custom payload.'}</p>
       </div>
 
       <section className="card notes-card">
@@ -406,14 +388,18 @@ export default function App() {
             <section className="card panel">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Source input</p>
-                  <strong>{detected.format}</strong>
+                  <p id="source-panel-label" className="panel-label">
+                    Source input
+                  </p>
+                  <strong id="source-panel-status">{detectedFormat}</strong>
                 </div>
                 <span>{inputTokens.toLocaleString()} tokens</span>
               </div>
               <textarea
+                id="source-input"
+                aria-labelledby="source-panel-label source-panel-status"
                 value={input}
-                onChange={(event) => setInput(event.target.value)}
+                onChange={(event) => handleInputChange(event.target.value)}
                 spellCheck={false}
                 placeholder="Paste JSON, YAML, CSV, or markdown with embedded data blocks"
               />
@@ -458,12 +444,16 @@ export default function App() {
             <section className="card panel accent-panel">
               <div className="panel-header">
                 <div>
-                  <p className="panel-label">Output</p>
-                  <strong>{outputLabel}</strong>
+                  <p id="output-panel-label" className="panel-label">
+                    Output
+                  </p>
+                  <strong id="output-panel-status">{outputLabel}</strong>
                 </div>
                 <span>{output ? `${outputTokens.toLocaleString()} tokens` : 'Run an action'}</span>
               </div>
               <textarea
+                id="output-text"
+                aria-labelledby="output-panel-label output-panel-status"
                 value={output}
                 readOnly
                 spellCheck={false}
@@ -480,7 +470,10 @@ export default function App() {
                 <button
                   className="ghost"
                   type="button"
-                  onClick={() => setOutput('')}
+                  onClick={() => {
+                    setOutput('');
+                    setOutputTokens(0);
+                  }}
                   disabled={!output}
                 >
                   Clear output
@@ -543,6 +536,13 @@ export default function App() {
                 </article>
               ))}
             </div>
+          ) : comparisonState.status === 'loading' ? (
+            <div className="card compare-empty">
+              <strong>Calculating comparison</strong>
+              <p>
+                Large payloads are debounced so typing stays responsive while layers recalculate.
+              </p>
+            </div>
           ) : (
             <div className="card compare-empty">
               <strong>
@@ -557,10 +557,14 @@ export default function App() {
         </section>
       )}
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {error ? (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      ) : null}
 
       <footer className="footer">
-        <span>PAKT v{VERSION}</span>
+        <span>PAKT v{__PAKT_VERSION__}</span>
         <span>&copy; {currentYear} Srinivas Pendela</span>
         <span>Local browser playground for structured payload testing</span>
       </footer>

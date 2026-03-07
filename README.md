@@ -39,7 +39,7 @@ LLMs charge by the token. Structured data wastes tokens on syntax: braces, quote
 ClipForge is the product suite built around PAKT. In this repository, that means:
 
 - **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. Install it from npm and use it in Node.js or TypeScript projects.
-- **[ClipForge Playground](./apps/playground/)** -- A lightweight web UI for trying JSON, YAML, CSV, and mixed markdown compression locally before wiring PAKT into a real workflow.
+- **[ClipForge Playground](./apps/playground/)** -- A lightweight web UI for trying JSON, YAML, CSV, and mixed markdown compression locally before wiring PAKT into a real workflow. Hosted playground: [pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/).
 - **[ClipForge Desktop](./apps/desktop/)** -- A Tauri tray app for reading clipboard text, compressing or decompressing it, copying results back, optionally watching clipboard updates, and storing local history when you opt in.
 - **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini.
 
@@ -113,6 +113,8 @@ console.log(detected.format); // 'csv'
 See the **[pakt-core README](./packages/pakt-core/README.md)** for comprehensive API documentation, CLI usage, format specification, and examples.
 
 Release-facing benchmark numbers live in **[docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md)**.
+
+Try the hosted playground: **[pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/)**.
 
 To try the local playground:
 
