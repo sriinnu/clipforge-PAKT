@@ -60,9 +60,7 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
 
       <div className="desktop-overlay-content">
         <div className="desktop-overlay-summary">
-          <span className="desktop-hero-chip">
-            Output {settings.outputFormat.toUpperCase()}
-          </span>
+          <span className="desktop-hero-chip">Output {settings.outputFormat.toUpperCase()}</span>
           <span className="desktop-hero-chip">{settings.model}</span>
           <span className="desktop-hero-chip">
             {settings.autoCompress ? 'Watch on' : 'Watch off'}

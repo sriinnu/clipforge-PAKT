@@ -91,12 +91,9 @@ input:focus-visible {
   overflow: hidden;
   border: 1px solid rgba(92, 106, 133, 0.3);
   border-radius: 28px;
-  background:
-    linear-gradient(180deg, rgba(42, 56, 86, 0.18), transparent 16%),
+  background: linear-gradient(180deg, rgba(42, 56, 86, 0.18), transparent 16%),
     linear-gradient(180deg, var(--shell-bg-strong), var(--shell-bg));
-  box-shadow:
-    0 32px 78px var(--shell-shadow),
-    0 14px 28px rgba(0, 0, 0, 0.26);
+  box-shadow: 0 32px 78px var(--shell-shadow), 0 14px 28px rgba(0, 0, 0, 0.26);
   backdrop-filter: blur(32px) saturate(150%);
 }
 
@@ -110,9 +107,7 @@ input:focus-visible {
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 0 0 1px rgba(14, 19, 28, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), inset 0 0 0 1px rgba(14, 19, 28, 0.45);
 }
 
 .desktop-shell::after {
@@ -121,8 +116,7 @@ input:focus-visible {
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  background:
-    radial-gradient(circle at 18% 0%, rgba(112, 178, 255, 0.16), transparent 24%),
+  background: radial-gradient(circle at 18% 0%, rgba(112, 178, 255, 0.16), transparent 24%),
     radial-gradient(circle at 82% 0%, rgba(86, 96, 120, 0.14), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 22%);
 }
@@ -257,12 +251,8 @@ input:focus-visible {
   gap: 7px;
   padding: 0 12px;
   border-radius: 12px;
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background 140ms ease,
-    box-shadow 140ms ease,
-    opacity 140ms ease;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms
+    ease, opacity 140ms ease;
 }
 
 .desktop-icon-button {
@@ -285,9 +275,7 @@ input:focus-visible {
   background: linear-gradient(180deg, var(--shell-accent), var(--shell-accent-strong));
   color: #03101f;
   font-weight: 700;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 14px 26px rgba(52, 141, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 14px 26px rgba(52, 141, 255, 0.24);
 }
 
 .desktop-inline-action,
@@ -314,9 +302,7 @@ input:focus-visible {
 }
 
 .desktop-primary-button:hover {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 18px 30px rgba(52, 141, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 18px 30px rgba(52, 141, 255, 0.28);
 }
 
 .desktop-primary-button:disabled,
@@ -345,12 +331,9 @@ input:focus-visible {
 .desktop-card {
   border: 1px solid rgba(92, 106, 133, 0.24);
   border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(51, 71, 105, 0.16), transparent 20%),
+  background: linear-gradient(180deg, rgba(51, 71, 105, 0.16), transparent 20%),
     linear-gradient(180deg, var(--shell-surface-strong), var(--shell-surface));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.025),
-    inset 0 0 0 1px rgba(9, 12, 18, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025), inset 0 0 0 1px rgba(9, 12, 18, 0.3);
 }
 
 .desktop-summary-card,
@@ -525,9 +508,7 @@ input:focus-visible {
 .desktop-search:focus {
   border-color: rgba(112, 178, 255, 0.22);
   background: rgba(8, 12, 18, 0.94);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.02),
-    0 0 0 1px rgba(112, 178, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(112, 178, 255, 0.14);
 }
 
 .desktop-status-line {
@@ -612,10 +593,7 @@ input:focus-visible {
   border-radius: 16px;
   background: rgba(6, 9, 14, 0.56);
   text-align: left;
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background 140ms ease;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
 }
 
 .desktop-list-item {
@@ -769,8 +747,7 @@ input:focus-visible {
   z-index: 10;
   display: flex;
   flex-direction: column;
-  background:
-    linear-gradient(180deg, rgba(13, 17, 24, 0.98), rgba(7, 10, 15, 0.98)),
+  background: linear-gradient(180deg, rgba(13, 17, 24, 0.98), rgba(7, 10, 15, 0.98)),
     rgba(8, 11, 16, 0.96);
   backdrop-filter: blur(28px);
 }

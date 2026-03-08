@@ -48,7 +48,8 @@ const LAYERS: LayerInfo[] = [
     disabled: true,
     badge: 'Needs budget',
     badgeTone: 'warning',
-    disabledReason: 'Semantic compression needs a budget control, which the desktop app does not expose yet.',
+    disabledReason:
+      'Semantic compression needs a budget control, which the desktop app does not expose yet.',
     lossy: true,
   },
 ];

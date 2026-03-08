@@ -168,7 +168,10 @@ describe('pakt auto — raw input (compress path)', () => {
   });
 
   it('applies L4 when semanticBudget is provided', () => {
-    const stdout = runCliOk(['auto', '--from', 'json', '--semantic-budget', '24'], COMPRESSIBLE_JSON);
+    const stdout = runCliOk(
+      ['auto', '--from', 'json', '--semantic-budget', '24'],
+      COMPRESSIBLE_JSON,
+    );
     expect(stdout).toContain('@compress semantic');
     expect(stdout).toContain('@warning lossy');
   });
@@ -213,7 +216,10 @@ describe('pakt auto — PAKT input (decompress path)', () => {
 
 describe('pakt compress — semantic budget', () => {
   it('applies L4 when semanticBudget is provided directly', () => {
-    const stdout = runCliOk(['compress', '--from', 'json', '--semantic-budget', '24'], COMPRESSIBLE_JSON);
+    const stdout = runCliOk(
+      ['compress', '--from', 'json', '--semantic-budget', '24'],
+      COMPRESSIBLE_JSON,
+    );
     expect(stdout).toContain('@compress semantic');
     expect(stdout).toContain('@warning lossy');
   });

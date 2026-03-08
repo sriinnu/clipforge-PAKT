@@ -504,7 +504,9 @@ const MenuBarPanel: FC = () => {
               {hasOutput && !outputHasError ? (
                 <span className="desktop-hero-chip is-strong">{compactor.savings}% saved</span>
               ) : null}
-              {outputHasError ? <span className="desktop-hero-chip is-danger">Fix output</span> : null}
+              {outputHasError ? (
+                <span className="desktop-hero-chip is-danger">Fix output</span>
+              ) : null}
             </div>
           </section>
 
@@ -580,7 +582,11 @@ const MenuBarPanel: FC = () => {
                       ))}
                     </select>
                     {!outputHasError && hasOutput ? (
-                      <button type="button" onClick={() => void handleCopy()} className="desktop-primary-button">
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy()}
+                        className="desktop-primary-button"
+                      >
                         Copy output
                       </button>
                     ) : null}
@@ -629,7 +635,9 @@ const MenuBarPanel: FC = () => {
                   <div className="desktop-utility-item">
                     <span className="desktop-section-title">Clipboard Watch</span>
                     <div className="desktop-utility-toggle-row">
-                      <span className="desktop-utility-value">{autoCompress ? 'Enabled' : 'Disabled'}</span>
+                      <span className="desktop-utility-value">
+                        {autoCompress ? 'Enabled' : 'Disabled'}
+                      </span>
                       <button
                         type="button"
                         role="switch"

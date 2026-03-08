@@ -64,8 +64,7 @@ const PAKT_COMPRESS_TOOL: McpToolDefinition = {
       },
       semanticBudget: {
         type: 'number',
-        description:
-          'Optional positive token budget for opt-in lossy L4 semantic compression.',
+        description: 'Optional positive token budget for opt-in lossy L4 semantic compression.',
       },
     },
     required: ['text'],
