@@ -17,48 +17,35 @@ const TokenBar: FC<TokenBarProps> = ({ originalTokens, compressedTokens }) => {
   const isActive = originalTokens > 0 && compressedTokens > 0;
 
   return (
-    <div className="space-y-1.5">
-      {/* Labels row */}
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-400">
-          Before: <span className="font-mono text-gray-200">{originalTokens.toLocaleString()}</span>{' '}
-          tokens
+    <div className="desktop-card desktop-token-card">
+      <div className="desktop-token-row">
+        <span className="desktop-token-label">
+          Before <strong>{originalTokens.toLocaleString()}</strong>
         </span>
-        {isActive && (
-          <span
-            className={`rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold ${
-              savings > 0 ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
-            }`}
-          >
-            {savings > 0 ? `-${savings}%` : '0%'}
-          </span>
-        )}
-        <span className="text-gray-400">
-          After:{' '}
-          <span className="font-mono text-gray-200">{compressedTokens.toLocaleString()}</span>{' '}
-          tokens
+        {isActive ? (
+          <span className="desktop-savings-pill">{savings > 0 ? `-${savings}%` : '0% saved'}</span>
+        ) : null}
+        <span className="desktop-token-label">
+          After <strong>{compressedTokens.toLocaleString()}</strong>
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-700">
-        {/* Original bar (full width, dimmed) */}
-        <div className="absolute inset-0 rounded-full bg-gray-600" />
-        {/* Compressed bar (proportional width) */}
-        {isActive && (
+      <div className="desktop-progress">
+        {isActive ? (
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-indigo-500 transition-all duration-500 ease-out"
+            className="desktop-progress-fill transition-all duration-500 ease-out"
             style={{ width: `${compressedWidth}%` }}
           />
-        )}
+        ) : null}
       </div>
 
-      {/* Tokens saved */}
-      {isActive && savings > 0 && (
-        <p className="text-center text-[10px] text-gray-500">
-          {(originalTokens - compressedTokens).toLocaleString()} tokens saved
+      {isActive ? (
+        <p className="desktop-token-footnote">
+          {savings > 0
+            ? `${(originalTokens - compressedTokens).toLocaleString()} tokens removed from the payload`
+            : 'This payload is roughly break-even right now.'}
         </p>
-      )}
+      ) : null}
     </div>
   );
 };
