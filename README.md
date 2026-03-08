@@ -5,7 +5,7 @@
 <h3 align="center">ClipForge PAKT</h3>
 
 <p align="center">
-  Lossless prompt compression for structured LLM data. Typical 30-50% fewer tokens.<br/>
+  Lossless-first prompt compression for structured LLM data. Typical 30-50% fewer tokens across core L1-L3.<br/>
   <i>Stop paying for syntax. Every token should carry meaning.</i>
 </p>
 
@@ -21,16 +21,16 @@
 <p align="center">
   <img src="https://img.shields.io/badge/repo%20Node.js-%3E%3D22-339933?logo=node.js&logoColor=white" alt="Repo Node.js" />
   <img src="https://img.shields.io/badge/Tauri-v2-24c8d8?logo=tauri&logoColor=white" alt="Tauri" />
-  <img src="https://img.shields.io/badge/macOS-supported-8b5cf6?logo=apple&logoColor=white" alt="macOS" />
-  <img src="https://img.shields.io/badge/Windows-supported-6366f1?logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/Linux-supported-a855f7?logo=linux&logoColor=white" alt="Linux" />
+  <img src="https://img.shields.io/badge/macOS-validated-111827?logo=apple&logoColor=white" alt="macOS validated" />
+  <img src="https://img.shields.io/badge/Windows-tray%20target-2563eb?logo=windows&logoColor=white" alt="Windows tray target" />
+  <img src="https://img.shields.io/badge/Linux-tray%20target-6d28d9?logo=linux&logoColor=white" alt="Linux tray target" />
 </p>
 
 ---
 
 ## What is PAKT?
 
-**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. It delivers **typical 30-50% token savings**, with higher gains on repetitive and tabular payloads, while preserving data fidelity across its core layers.
+**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. It delivers **typical 30-50% token savings**, with higher gains on repetitive and tabular payloads, while preserving data fidelity across core lossless layers `L1-L3`. `L4` is separately opt-in, budgeted, and lossy.
 
 LLMs charge by the token. Structured data wastes tokens on syntax: braces, quotes, repeated keys, whitespace. PAKT eliminates the waste.
 
@@ -40,7 +40,7 @@ ClipForge is the product suite built around PAKT. In this repository, that means
 
 - **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. Install it from npm and use it in Node.js or TypeScript projects.
 - **[ClipForge Playground](./apps/playground/)** -- A lightweight web UI for trying JSON, YAML, CSV, and mixed markdown compression locally before wiring PAKT into a real workflow. Hosted playground: [pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/).
-- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri tray app for reading clipboard text, compressing or decompressing it, copying results back, optionally watching clipboard updates, and storing local history when you opt in.
+- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri desktop shell for clipboard compression workflows. The current release validation is macOS menu bar first; Windows and Linux tray targets exist in source but are not part of the validated release path yet.
 - **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini.
 
 The goal is simple: every token you send to an LLM should carry meaning, not syntax.
@@ -112,7 +112,15 @@ console.log(detected.format); // 'csv'
 
 See the **[pakt-core README](./packages/pakt-core/README.md)** for comprehensive API documentation, CLI usage, format specification, and examples.
 
+Core CLI example for opt-in lossy packing:
+
+```bash
+npx @sriinnu/pakt compress data.json --semantic-budget 120
+```
+
 Release-facing benchmark numbers live in **[docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md)**.
+
+For LLM round-trips, the core package now also exposes `interpretModelOutput()` so your app can auto-detect PAKT in a model response, repair minor syntax issues, and decompress valid replies back to JSON/YAML/CSV.
 
 Try the hosted playground: **[pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/)**.
 
@@ -132,19 +140,24 @@ Playground notes for release testing:
 
 - Mixed-content restores embedded structured blocks semantically; exact original formatting may normalize.
 - CSV is not always a win; some already-compact CSV can expand.
+- Compare mode now includes an auto-pack lab; table-aware variants unlock for top-level CSV and top-level JSON arrays.
 - The playground runs locally in the browser session and does not upload payloads.
 - For mixed-content decompress, paste the PAKT-marked output back into the input area, then run `Decompress`.
+
+CLI/MCP note:
+
+- `semanticBudget` now cleanly opts into lossy `L4`; if you stay on `L1-L3`, the pipeline remains lossless.
 
 ---
 
 ## Key Features
 
-- **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), Semantic (L4)
+- **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), and an opt-in budgeted Semantic layer (L4)
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
-- **Lossless data round-tripping** -- core layers preserve data fidelity on decompress
+- **Lossless data round-tripping** -- L1-L3 preserve data fidelity on decompress; L4 is explicitly lossy
 - **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
 - **CLI included** -- `pakt compress`, `pakt decompress`, `pakt detect`, `pakt tokens`, `pakt savings`
-- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress` and `pakt_auto`
+- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress` and `pakt_auto`, both with optional `semanticBudget` for opt-in `L4`
 - **Minimal runtime dependencies** -- only `gpt-tokenizer` at runtime
 - **Full TypeScript support** -- All types exported, dual ESM/CJS builds
 

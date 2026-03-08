@@ -39,15 +39,18 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col bg-gray-900">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
-        <h2 className="text-sm font-semibold text-gray-100">Settings</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-        >
+    <div className="desktop-overlay">
+      <div className="desktop-toolbar desktop-overlay-toolbar">
+        <div className="desktop-toolbar-left">
+          <div className="desktop-brand-copy desktop-overlay-copy">
+            <p className="desktop-eyebrow">Settings</p>
+            <h2 className="desktop-brand-title">Menu bar preferences</h2>
+            <p className="desktop-copy">
+              Tune output defaults, clipboard watch, and local history.
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="desktop-icon-button">
           <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <title>Close</title>
             <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
@@ -55,15 +58,21 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 space-y-4 overflow-y-auto p-3">
-        {/* Output format */}
-        <label className="block">
-          <span className="text-xs font-medium text-gray-400">Default Output Format</span>
+      <div className="desktop-overlay-content">
+        <div className="desktop-overlay-summary">
+          <span className="desktop-hero-chip">Output {settings.outputFormat.toUpperCase()}</span>
+          <span className="desktop-hero-chip">{settings.model}</span>
+          <span className="desktop-hero-chip">
+            {settings.autoCompress ? 'Watch on' : 'Watch off'}
+          </span>
+        </div>
+
+        <label className="block desktop-card desktop-card-inner">
+          <span className="desktop-section-title">Default Output Format</span>
           <select
             value={settings.outputFormat}
             onChange={(e) => settings.setOutputFormat(e.target.value as PaktFormat)}
-            className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-xs text-gray-200 focus:border-indigo-500 focus:outline-none"
+            className="desktop-select"
           >
             {OUTPUT_FORMATS.map((f) => (
               <option key={f.value} value={f.value}>
@@ -73,13 +82,12 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
           </select>
         </label>
 
-        {/* Model selector */}
-        <label className="block">
-          <span className="text-xs font-medium text-gray-400">Token Counter Model</span>
+        <label className="block desktop-card desktop-card-inner">
+          <span className="desktop-section-title">Token Counter Model</span>
           <select
             value={settings.model}
             onChange={(e) => settings.setModel(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-xs text-gray-200 focus:border-indigo-500 focus:outline-none"
+            className="desktop-select"
           >
             {MODELS.map((m) => (
               <option key={m.value} value={m.value}>
@@ -89,93 +97,76 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
           </select>
         </label>
 
-        {/* Auto-compress toggle */}
-        <div className="flex items-center justify-between">
-          <div className="max-w-[220px] space-y-0.5">
-            <span className="block text-xs font-medium text-gray-400">
-              Watch clipboard and auto-compress
-            </span>
-            <span className="block text-[10px] text-gray-600">
-              Desktop-only. New clipboard text is loaded into the panel and compressed automatically
-              without overwriting the clipboard.
-            </span>
+        <div className="desktop-card desktop-card-inner">
+          <div className="desktop-card-header">
+            <div>
+              <p className="desktop-section-title">Auto clipboard</p>
+              <p className="desktop-copy">
+                Desktop-only. New clipboard text is loaded into the panel and compressed
+                automatically without overwriting the clipboard.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.autoCompress}
+              onClick={() => settings.setAutoCompress(!settings.autoCompress)}
+              className={`desktop-toggle ${settings.autoCompress ? 'is-on' : ''}`}
+            >
+              <span className="desktop-toggle-thumb" />
+            </button>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={settings.autoCompress}
-            onClick={() => settings.setAutoCompress(!settings.autoCompress)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              settings.autoCompress ? 'bg-indigo-500' : 'bg-gray-600'
-            }`}
-          >
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                settings.autoCompress ? 'translate-x-4.5' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
         </div>
 
-        {/* History toggle */}
-        <div className="flex items-center justify-between">
-          <div className="max-w-[220px] space-y-0.5">
-            <span className="block text-xs font-medium text-gray-400">
-              Store clipboard history locally
-            </span>
-            <span className="block text-[10px] text-gray-600">
-              Off by default. When disabled, saved entries are cleared from local storage.
-            </span>
+        <div className="desktop-card desktop-card-inner">
+          <div className="desktop-card-header">
+            <div>
+              <p className="desktop-section-title">Local history</p>
+              <p className="desktop-copy">
+                Off by default. When disabled, saved entries are cleared from local storage.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.historyEnabled}
+              onClick={handleHistoryToggle}
+              className={`desktop-toggle ${settings.historyEnabled ? 'is-on' : ''}`}
+            >
+              <span className="desktop-toggle-thumb" />
+            </button>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={settings.historyEnabled}
-            onClick={handleHistoryToggle}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              settings.historyEnabled ? 'bg-indigo-500' : 'bg-gray-600'
-            }`}
-          >
-            <span
-              className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                settings.historyEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
         </div>
 
-        {/* Theme */}
-        <fieldset className="block border-none p-0">
-          <legend className="text-xs font-medium text-gray-400">Theme</legend>
-          <div className="mt-1 flex gap-1">
+        <fieldset className="desktop-card desktop-card-inner border-none p-[14px]">
+          <legend className="desktop-section-title">Theme Preference</legend>
+          <div className="desktop-segmented">
             {THEMES.map((t) => (
               <button
                 key={t}
                 type="button"
-                onClick={() => settings.setTheme(t)}
-                className={`flex-1 rounded-lg px-2 py-1.5 text-xs capitalize transition-colors ${
-                  settings.theme === t
-                    ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}
+                disabled
+                className={`desktop-segment ${settings.theme === t ? 'is-active' : ''}`}
+                title="Theme switching is not wired into the current desktop shell yet."
               >
                 {t}
               </button>
             ))}
           </div>
-          <p className="mt-1 text-[10px] text-gray-600">
-            Stored now for future native styling. The current tray panel still uses the built-in
-            dark shell.
+          <p className="desktop-copy" style={{ marginTop: '10px' }}>
+            The current desktop shell always uses the dark glass layout. This stored preference is
+            not applied yet.
           </p>
         </fieldset>
 
-        {/* About */}
-        <div className="border-t border-gray-800 pt-3">
-          <p className="text-xs text-gray-500">
-            ClipForge <span className="text-gray-400">v{VERSION}</span>
+        <div className="desktop-card desktop-card-inner">
+          <p className="desktop-section-title">About</p>
+          <p className="desktop-brand-title">
+            ClipForge <span className="desktop-card-meta">v{VERSION}</span>
           </p>
-          <p className="mt-0.5 text-[10px] text-gray-600">
-            PAKT compression for your clipboard. By YugenLab.
+          <p className="desktop-copy" style={{ marginTop: '8px' }}>
+            macOS menu bar build validated in this repository. Windows and Linux tray targets exist
+            in source, but are not part of the current release validation pass.
           </p>
         </div>
       </div>

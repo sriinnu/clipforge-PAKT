@@ -6,7 +6,7 @@
 use tauri::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, Runtime,
+    AppHandle, Emitter, Manager, PhysicalPosition, Runtime,
 };
 
 /// Menu item identifiers for matching in the event handler.
@@ -69,12 +69,18 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
         ],
     )?;
 
-    let _tray = TrayIconBuilder::new()
+    let mut tray = TrayIconBuilder::new()
         .menu(&menu)
         .tooltip("ClipForge - Clipboard Compressor")
+        .show_menu_on_left_click(false)
         .on_menu_event(handle_menu_event)
-        .on_tray_icon_event(handle_tray_event)
-        .build(app)?;
+        .on_tray_icon_event(handle_tray_event);
+
+    if let Some(icon) = app.default_window_icon().cloned() {
+        tray = tray.icon(icon);
+    }
+
+    let _tray = tray.build(app)?;
 
     Ok(())
 }
@@ -82,7 +88,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
 /// Handle context menu item clicks.
 fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     match event.id().as_ref() {
-        MENU_OPEN => show_main_window(app),
+        MENU_OPEN => show_main_window(app, None),
         MENU_COMPRESS => {
             let _ = app.emit("shortcut-compress", ());
         }
@@ -90,9 +96,11 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
             let _ = app.emit("shortcut-decompress", ());
         }
         MENU_HISTORY => {
+            show_main_window(app, None);
             let _ = app.emit("shortcut-history", ());
         }
         MENU_SETTINGS => {
+            show_main_window(app, None);
             let _ = app.emit("open-settings", ());
         }
         MENU_QUIT => {
@@ -105,20 +113,39 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
 /// Handle tray icon click events — left click toggles the main window.
 fn handle_tray_event<R: Runtime>(tray: &TrayIcon<R>, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
+        position,
         button: MouseButton::Left,
         button_state: MouseButtonState::Up,
         ..
     } = event
     {
         let app = tray.app_handle();
-        show_main_window(app);
+        toggle_main_window(app, Some(position));
+    }
+}
+
+/// Toggle the main application window from the tray icon.
+fn toggle_main_window<R: Runtime>(app: &AppHandle<R>, anchor: Option<PhysicalPosition<f64>>) {
+    if let Some(window) = app.get_webview_window("main") {
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        } else {
+            show_main_window(app, anchor);
+        }
     }
 }
 
 /// Show and focus the main application window.
-fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
+fn show_main_window<R: Runtime>(app: &AppHandle<R>, anchor: Option<PhysicalPosition<f64>>) {
     if let Some(window) = app.get_webview_window("main") {
+        if let Some(point) = anchor {
+            super::position_window_near_anchor(&window, Some(point));
+        } else {
+            super::position_window_near_anchor(&window, None);
+        }
         let _ = window.show();
+        let _ = window.unminimize();
         let _ = window.set_focus();
+        let _ = app.emit("panel-opened", ());
     }
 }

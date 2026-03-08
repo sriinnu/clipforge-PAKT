@@ -1,9 +1,10 @@
 /**
  * @sriinnu/pakt — PAKT compression engine
  *
- * Lossless format conversion for LLM token optimization.
- * Compresses JSON, YAML, CSV, and Markdown into a compact
- * pipe-delimited format that uses 30-50% fewer tokens.
+ * Lossless-first structured compression for LLM token optimization.
+ * Core layers L1-L3 preserve round-trip fidelity; optional L4 is
+ * budgeted and lossy. Compresses JSON, YAML, CSV, and Markdown
+ * into a compact pipe-delimited format that often uses 30-50% fewer tokens.
  *
  * @packageDocumentation
  *
@@ -27,7 +28,7 @@
  */
 
 /** Library version */
-export const VERSION = '0.4.3';
+export const VERSION = '0.5.0';
 
 // ---------------------------------------------------------------------------
 // Core functions
@@ -103,6 +104,7 @@ export type {
 // ---------------------------------------------------------------------------
 
 export { PAKT_SYSTEM_PROMPT } from './prompt.js';
+export { interpretModelOutput } from './model-output.js';
 
 // ---------------------------------------------------------------------------
 // MCP (Model Context Protocol) tools
@@ -143,6 +145,9 @@ export type {
   ParserMode,
   HeaderType,
   EnvelopeInfo,
+  ModelOutputAction,
+  ModelOutputOptions,
+  ModelOutputResult,
 } from './types.js';
 
 // ---------------------------------------------------------------------------

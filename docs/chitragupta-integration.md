@@ -167,7 +167,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { PAKT_MCP_TOOLS, handlePaktTool } from '@sriinnu/pakt';
 import type { PaktToolName } from '@sriinnu/pakt';
 
-const server = new McpServer({ name: 'pakt', version: '0.4.3' });
+const server = new McpServer({ name: 'pakt', version: '0.5.0' });
 
 for (const tool of PAKT_MCP_TOOLS) {
   server.tool(tool.name, tool.description, tool.inputSchema.properties,
