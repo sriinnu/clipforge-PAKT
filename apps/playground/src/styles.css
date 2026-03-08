@@ -403,6 +403,43 @@ button:disabled {
   line-height: 1.5;
 }
 
+.recommendation-card {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border-color: rgba(246, 183, 60, 0.24);
+  background: radial-gradient(circle at top right, rgba(246, 183, 60, 0.12), transparent 34%),
+    rgba(11, 18, 24, 0.9);
+}
+
+.recommendation-copy {
+  margin: 10px 0 0;
+  max-width: 58ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.recommendation-meta {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  justify-items: start;
+}
+
+.recommendation-meta span {
+  color: var(--muted);
+}
+
+.recommendation-warning {
+  margin: 0;
+  max-width: 28ch;
+  color: var(--warning);
+  line-height: 1.5;
+}
+
 .compare-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

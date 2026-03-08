@@ -9,7 +9,7 @@
 
 import { compareSavings, compress, countTokens, decompress, detect } from './index.js';
 import { compressMixed } from './mixed/index.js';
-import type { PaktFormat } from './types.js';
+import type { PaktFormat, PaktOptions } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Internal types (re-used from cli.ts via import)
@@ -64,6 +64,74 @@ export function parseFormat(value: string, optionName: string): PaktFormat {
   return mapped;
 }
 
+/**
+ * Parse and validate the optional `--semantic-budget` flag.
+ *
+ * @param value - Raw CLI value from `--semantic-budget`
+ * @returns Parsed positive integer budget, or undefined if not provided
+ */
+function parseSemanticBudget(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const budget = Number.parseInt(value, 10);
+  if (!Number.isInteger(budget) || budget <= 0) {
+    throw new Error(
+      `Invalid --semantic-budget value: "${value}". Expected a positive integer token budget.`,
+    );
+  }
+
+  return budget;
+}
+
+/**
+ * Resolve shared compression flags into `compress()` / `compressMixed()` options.
+ *
+ * `--semantic-budget` is an explicit request for L4, so the helper auto-enables
+ * the semantic layer. Conversely, enabling layer 4 without a budget is rejected
+ * up front instead of silently no-oping.
+ *
+ * @param args - Parsed CLI arguments
+ * @param parseLayers - Optional layer parser for commands that support `--layers`
+ * @returns Resolved compression options
+ */
+function buildCompressionOptions(
+  args: ParsedArgs,
+  parseLayers?: (s: string) => Parameters<typeof compress>[1]['layers'],
+): Partial<PaktOptions> {
+  const fromOpt = args.options.get('from');
+  const layersOpt = args.options.get('layers');
+  const semanticBudget = parseSemanticBudget(args.options.get('semantic-budget'));
+
+  const options: Partial<PaktOptions> = {};
+
+  if (fromOpt) {
+    options.fromFormat = parseFormat(fromOpt, '--from');
+  }
+
+  if (layersOpt) {
+    if (!parseLayers) {
+      throw new Error('--layers is not available for this command');
+    }
+    options.layers = parseLayers(layersOpt);
+  }
+
+  if (semanticBudget !== undefined) {
+    options.semanticBudget = semanticBudget;
+    options.layers = {
+      ...options.layers,
+      semantic: true,
+    };
+  }
+
+  if (options.layers?.semantic && semanticBudget === undefined) {
+    throw new Error('Layer 4 semantic compression requires --semantic-budget <positive integer>.');
+  }
+
+  return options;
+}
+
 // ---------------------------------------------------------------------------
 // Subcommand: compress
 // ---------------------------------------------------------------------------
@@ -84,19 +152,7 @@ export function cmdCompress(
   parseLayers: (s: string) => Parameters<typeof compress>[1]['layers'],
 ): void {
   const input = readInput(args.file);
-
-  const fromOpt = args.options.get('from');
-  const layersOpt = args.options.get('layers');
-
-  const options: Parameters<typeof compress>[1] = {};
-
-  if (fromOpt) {
-    options.fromFormat = parseFormat(fromOpt, '--from');
-  }
-
-  if (layersOpt) {
-    options.layers = parseLayers(layersOpt);
-  }
+  const options = buildCompressionOptions(args, parseLayers);
 
   const result = compress(input, options);
 
@@ -234,11 +290,16 @@ export function cmdSavings(
  * @param args - Parsed CLI arguments (file, --from, --to flags).
  * @param readInput - Function that resolves a file path or stdin to a string.
  */
-export function cmdAuto(args: ParsedArgs, readInput: (file: string | undefined) => string): void {
+export function cmdAuto(
+  args: ParsedArgs,
+  readInput: (file: string | undefined) => string,
+  parseLayers: (s: string) => Parameters<typeof compress>[1]['layers'],
+): void {
   const input = readInput(args.file);
 
   const fromOpt = args.options.get('from');
   const toOpt = args.options.get('to');
+  const compressionOptions = buildCompressionOptions(args, parseLayers);
 
   // Use --from to override detection when the caller knows the format
   const detected = detect(input);
@@ -258,8 +319,14 @@ export function cmdAuto(args: ParsedArgs, readInput: (file: string | undefined) 
 
     process.stderr.write('\x1b[90m# Decompressed PAKT input\x1b[0m\n');
   } else {
-    // Raw input — compress with mixed-content pipeline
-    const result = compressMixed(input);
+    // Raw input — compress directly for structured formats, mixed pipeline otherwise.
+    const result =
+      effectiveFormat === 'json' || effectiveFormat === 'yaml' || effectiveFormat === 'csv'
+        ? compress(input, {
+            ...compressionOptions,
+            fromFormat: effectiveFormat,
+          })
+        : compressMixed(input, compressionOptions);
 
     process.stdout.write(result.compressed);
     if (!result.compressed.endsWith('\n')) {

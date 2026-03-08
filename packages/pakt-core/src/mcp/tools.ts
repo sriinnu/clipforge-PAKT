@@ -36,7 +36,7 @@ import type { McpToolDefinition } from './types.js';
  * Compresses input text into PAKT format. Supports optional format hints
  * to skip auto-detection when the caller knows the input format.
  *
- * Input: `{ text: string, format?: PaktFormat }`
+ * Input: `{ text: string, format?: PaktFormat, semanticBudget?: number }`
  * Output: `{ compressed: string, savings: number, format: string }`
  */
 const PAKT_COMPRESS_TOOL: McpToolDefinition = {
@@ -46,6 +46,7 @@ const PAKT_COMPRESS_TOOL: McpToolDefinition = {
     'Supports JSON, YAML, CSV, Markdown, and mixed content.',
     'Returns the compressed string and savings percentage.',
     'Use the optional `format` parameter to skip auto-detection.',
+    'Use `semanticBudget` to opt into lossy L4 semantic compression.',
   ].join(' '),
   inputSchema: {
     type: 'object',
@@ -60,6 +61,11 @@ const PAKT_COMPRESS_TOOL: McpToolDefinition = {
           'Optional format hint. Skips auto-detection when provided. ' +
           'Valid values: json, yaml, csv, markdown, text.',
         enum: ['json', 'yaml', 'csv', 'markdown', 'text'],
+      },
+      semanticBudget: {
+        type: 'number',
+        description:
+          'Optional positive token budget for opt-in lossy L4 semantic compression.',
       },
     },
     required: ['text'],
@@ -78,7 +84,7 @@ const PAKT_COMPRESS_TOOL: McpToolDefinition = {
  * - PAKT input is decompressed to human-readable format.
  * - Raw input is compressed to PAKT format.
  *
- * Input: `{ text: string }`
+ * Input: `{ text: string, semanticBudget?: number }`
  * Output: `{ result: string, action: 'compressed' | 'decompressed', savings?: number }`
  */
 const PAKT_AUTO_TOOL: McpToolDefinition = {
@@ -94,6 +100,11 @@ const PAKT_AUTO_TOOL: McpToolDefinition = {
       text: {
         type: 'string',
         description: 'The text to process. PAKT input is decompressed; raw input is compressed.',
+      },
+      semanticBudget: {
+        type: 'number',
+        description:
+          'Optional positive token budget for opt-in lossy L4 semantic compression on the compress path.',
       },
     },
     required: ['text'],

@@ -40,9 +40,3 @@ pub fn register_shortcuts<R: Runtime>(
 
     Ok(())
 }
-
-/// Unregister all global shortcuts.
-pub fn unregister_all<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
-    app.global_shortcut().unregister_all()?;
-    Ok(())
-}

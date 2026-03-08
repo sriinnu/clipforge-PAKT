@@ -90,6 +90,11 @@ export interface PaktCompressArgs {
    * and treats the input as this format.
    */
   format?: PaktFormat;
+  /**
+   * Optional token budget for L4 semantic compression.
+   * Providing this budget opts into lossy compression.
+   */
+  semanticBudget?: number;
 }
 
 /**
@@ -128,6 +133,11 @@ export interface PaktCompressResult {
 export interface PaktAutoArgs {
   /** The text to auto-process (compress if raw, decompress if PAKT). */
   text: string;
+  /**
+   * Optional token budget for L4 semantic compression.
+   * Only applies on the compress path; decompression ignores it.
+   */
+  semanticBudget?: number;
 }
 
 /**

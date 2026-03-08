@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" fill="none">
+  <defs>
+    <linearGradient id="cf-shell" x1="104" y1="104" x2="920" y2="920" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#071120" />
+      <stop offset="48%" stop-color="#1851db" />
+      <stop offset="100%" stop-color="#59c8ff" />
+    </linearGradient>
+    <radialGradient id="cf-top-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(292 180) rotate(30) scale(320 220)">
+      <stop stop-color="white" stop-opacity=".42" />
+      <stop offset="1" stop-color="white" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="cf-bottom-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(776 812) rotate(160) scale(320 280)">
+      <stop stop-color="#71e8ff" stop-opacity=".28" />
+      <stop offset="1" stop-color="#71e8ff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect x="84" y="84" width="856" height="856" rx="224" fill="url(#cf-shell)" />
+  <rect x="84" y="84" width="856" height="856" rx="224" stroke="white" stroke-opacity=".18" stroke-width="6" />
+  <ellipse cx="292" cy="180" rx="300" ry="206" fill="url(#cf-top-glow)" />
+  <ellipse cx="776" cy="812" rx="288" ry="240" fill="url(#cf-bottom-glow)" />
+  <rect x="296" y="244" width="432" height="548" rx="102" fill="#F6FAFF" />
+  <rect x="388" y="166" width="248" height="126" rx="56" fill="#F6FAFF" />
+  <rect x="432" y="206" width="160" height="42" rx="21" fill="#CFDDF4" fill-opacity=".82" />
+  <rect x="374" y="394" width="64" height="282" rx="30" fill="#1037AA" />
+  <rect x="480" y="394" width="64" height="282" rx="30" fill="#1C5FDD" />
+  <rect x="586" y="394" width="64" height="282" rx="30" fill="#2F89FF" />
+  <rect x="366" y="714" width="292" height="28" rx="14" fill="#D5E0F4" fill-opacity=".78" />
+  <circle cx="702" cy="256" r="34" fill="#6CEDFF" fill-opacity=".88" />
+  <circle cx="738" cy="192" r="18" fill="white" fill-opacity=".64" />
+</svg>

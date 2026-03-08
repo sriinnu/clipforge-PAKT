@@ -9,22 +9,31 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
         "title": "ClipForge",
-        "width": 400,
-        "height": 540,
-        "resizable": true,
-        "decorations": true
+        "width": 760,
+        "height": 700,
+        "visible": false,
+        "skipTaskbar": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "hiddenTitle": true,
+        "shadow": true
       }
     ]
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png", "icons/icon.ico"]
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
   },
   "plugins": {}
 }

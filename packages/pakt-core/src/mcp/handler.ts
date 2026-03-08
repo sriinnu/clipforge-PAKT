@@ -76,6 +76,44 @@ function validateFormat(value: unknown): PaktFormat | undefined {
   return value as PaktFormat;
 }
 
+/**
+ * Validate and narrow an optional semantic token budget.
+ * @param value - Untrusted input value
+ * @returns Positive integer budget, or undefined when not provided
+ * @throws Error if value is present but invalid
+ */
+function validateSemanticBudget(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw new Error('semanticBudget must be a positive integer');
+  }
+  return value;
+}
+
+/**
+ * Build shared compression options for MCP tool handlers.
+ * @param format - Optional format hint
+ * @param semanticBudget - Optional positive L4 budget
+ * @returns Compression options passed into the core engine
+ */
+function buildCompressionOptions(
+  format: PaktFormat | undefined,
+  semanticBudget: number | undefined,
+): Partial<PaktOptions> {
+  const options: Partial<PaktOptions> = {};
+
+  if (format && format !== 'pakt') {
+    options.fromFormat = format;
+  }
+
+  if (semanticBudget !== undefined) {
+    options.semanticBudget = semanticBudget;
+    options.layers = { semantic: true };
+  }
+
+  return options;
+}
+
 // ---------------------------------------------------------------------------
 // Tool handlers
 // ---------------------------------------------------------------------------
@@ -93,6 +131,8 @@ function validateFormat(value: unknown): PaktFormat | undefined {
 function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   assertNonEmptyString(args.text, 'text');
   const format = validateFormat(args.format);
+  const semanticBudget = validateSemanticBudget(args.semanticBudget);
+  const options = buildCompressionOptions(format, semanticBudget);
 
   if (format) {
     // Already-PAKT input with explicit format:'pakt' -- return as-is
@@ -100,7 +140,6 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
       return { compressed: args.text, savings: 0, format: 'pakt' };
     }
     // Caller specified a concrete format -- use direct compression
-    const options: Partial<PaktOptions> = { fromFormat: format };
     const result = compress(args.text, options);
     return {
       compressed: result.compressed,
@@ -123,7 +162,10 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
 
   // For structured formats, use direct compression
   if (detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv') {
-    const result = compress(args.text, { fromFormat: detected.format });
+    const result = compress(args.text, {
+      ...options,
+      fromFormat: detected.format,
+    });
     return {
       compressed: result.compressed,
       savings: result.savings.totalPercent,
@@ -132,7 +174,7 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   }
 
   // For text/markdown, try mixed-content compression
-  const mixedResult = compressMixed(args.text);
+  const mixedResult = compressMixed(args.text, options);
   return {
     compressed: mixedResult.compressed,
     savings: mixedResult.savings.totalPercent,
@@ -152,6 +194,7 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
  */
 function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   assertNonEmptyString(args.text, 'text');
+  const semanticBudget = validateSemanticBudget(args.semanticBudget);
 
   const detected = detect(args.text);
 
@@ -165,7 +208,14 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   }
 
   // Raw input -- compress it
-  const compressResult = compressMixed(args.text);
+  const compressionOptions = buildCompressionOptions(undefined, semanticBudget);
+  const compressResult =
+    detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv'
+      ? compress(args.text, {
+          ...compressionOptions,
+          fromFormat: detected.format,
+        })
+      : compressMixed(args.text, compressionOptions);
   return {
     result: compressResult.compressed,
     action: 'compressed',
