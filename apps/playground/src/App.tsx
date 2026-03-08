@@ -22,6 +22,10 @@ const RELEASE_NOTES = [
     body: 'CSV is not always a win. Some already-compact CSV payloads can get larger.',
   },
   {
+    title: 'Auto-pack',
+    body: 'Compare Layers benchmarks standard PAKT plus table-aware layouts for top-level CSV and JSON arrays.',
+  },
+  {
     title: 'Privacy',
     body: 'The playground runs locally in your browser session. It does not upload payloads anywhere.',
   },
@@ -129,6 +133,7 @@ export default function App() {
     status: 'idle',
     items: null,
     error: null,
+    recommendation: null,
   });
   const suppressPreviewOnceRef = useRef(false);
   const manualRequestIdRef = useRef(0);
@@ -137,6 +142,10 @@ export default function App() {
   const statsTone = getStatsTone(output.length > 0, inputTokens, outputTokens);
   const actionSummary = getActionSummary(lastAction, liveCompress, packedInputDetected);
   const outputLabel = getOutputLabel(lastAction, liveCompress, packedInputDetected);
+  const tableProjectionWinner =
+    comparisonState.recommendation?.winnerId === 'layout-csv' ||
+    comparisonState.recommendation?.winnerId === 'layout-json' ||
+    comparisonState.recommendation?.winnerId === 'layout-yaml';
   const livePreviewEnabled = liveCompress && !packedInputDetected;
   const manualActionInFlight = pendingAction !== null;
   const compareModeActive = viewMode === 'compare';
@@ -228,6 +237,7 @@ export default function App() {
           status: 'idle',
           items: null,
           error: null,
+          recommendation: null,
         });
       });
       return;
@@ -239,6 +249,7 @@ export default function App() {
         status: 'loading',
         items: null,
         error: null,
+        recommendation: null,
       });
     });
 
@@ -258,6 +269,7 @@ export default function App() {
             status: 'ready',
             items: null,
             error: getErrorMessage(error, 'Comparison unavailable'),
+            recommendation: null,
           });
         });
       }
@@ -383,6 +395,18 @@ export default function App() {
     setDetectedFormat(lastAction === 'compress' ? 'pakt' : decompressTo);
     setOutput(input);
     setOutputTokens(inputTokens);
+    setError(null);
+  }
+
+  function handleApplyComparisonWinner(): void {
+    const winner = comparisonState.recommendation;
+    if (!winner?.packedOutput) return;
+
+    invalidatePendingAction();
+    setViewMode('playground');
+    setOutput(winner.packedOutput);
+    setOutputTokens(winner.tokens);
+    setLastAction('compress');
     setError(null);
   }
 
@@ -601,11 +625,11 @@ export default function App() {
           <div className="compare-header">
             <div>
               <p className="panel-label">Layer Comparison</p>
-              <strong>Original vs structural rewrite vs full PAKT</strong>
+              <strong>Original vs structural rewrite vs auto-pack candidates</strong>
             </div>
             <span className="compare-caption">
-              Structural baseline is the closest apples-to-apples proxy for TOON-style compact
-              syntax.
+              Auto-pack benchmarks standard PAKT plus table-aware layouts for top-level CSV and JSON
+              arrays, then recommends the smallest output.
             </span>
           </div>
           {packedInputDetected ? (
@@ -614,22 +638,50 @@ export default function App() {
               <p>Comparison mode expects a raw source document, not already-packed PAKT output.</p>
             </div>
           ) : comparisonState.items ? (
-            <div className="compare-grid">
-              {comparisonState.items.map((item) => (
-                <article key={item.id} className="card compare-card">
-                  <div className="compare-card-head">
-                    <div>
-                      <p className="panel-label">{item.label}</p>
-                      <strong>{item.tokens.toLocaleString()} tokens</strong>
-                    </div>
-                    <span className="compare-pill">{item.percent}</span>
+            <>
+              {comparisonState.recommendation ? (
+                <article className="card recommendation-card">
+                  <div>
+                    <p className="panel-label">Auto-pack recommendation</p>
+                    <strong>{comparisonState.recommendation.title}</strong>
+                    <p className="recommendation-copy">{comparisonState.recommendation.body}</p>
                   </div>
-                  <p className="compare-delta">{item.delta}</p>
-                  <p className="compare-note">{item.note}</p>
-                  <pre className="compare-preview">{item.text}</pre>
+                  <div className="recommendation-meta">
+                    <span>{comparisonState.recommendation.winnerLabel}</span>
+                    <strong>{comparisonState.recommendation.tokens.toLocaleString()} tokens</strong>
+                    {tableProjectionWinner ? (
+                      <p className="recommendation-warning">
+                        Projection warning: Restore returns the projected table layout, not the
+                        original source wrapper.
+                      </p>
+                    ) : null}
+                    {comparisonState.recommendation.packedOutput ? (
+                      <button className="ghost" type="button" onClick={handleApplyComparisonWinner}>
+                        {tableProjectionWinner
+                          ? 'Use projection in Playground'
+                          : 'Use winner in Playground'}
+                      </button>
+                    ) : null}
+                  </div>
                 </article>
-              ))}
-            </div>
+              ) : null}
+              <div className="compare-grid">
+                {comparisonState.items.map((item) => (
+                  <article key={item.id} className="card compare-card">
+                    <div className="compare-card-head">
+                      <div>
+                        <p className="panel-label">{item.label}</p>
+                        <strong>{item.tokens.toLocaleString()} tokens</strong>
+                      </div>
+                      <span className="compare-pill">{item.percent}</span>
+                    </div>
+                    <p className="compare-delta">{item.delta}</p>
+                    <p className="compare-note">{item.note}</p>
+                    <pre className="compare-preview">{item.text}</pre>
+                  </article>
+                ))}
+              </div>
+            </>
           ) : comparisonState.status === 'loading' ? (
             <div className="card compare-empty">
               <strong>Calculating comparison</strong>

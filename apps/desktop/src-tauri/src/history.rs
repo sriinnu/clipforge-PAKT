@@ -12,9 +12,6 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 /// when this limit is exceeded.
 const MAX_HISTORY_ENTRIES: i64 = 100;
 
-/// The SQLite database URL used by tauri-plugin-sql.
-const DB_URL: &str = "sqlite:clipforge_history.db";
-
 /// A single clipboard history entry representing one compress/decompress operation.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HistoryEntry {

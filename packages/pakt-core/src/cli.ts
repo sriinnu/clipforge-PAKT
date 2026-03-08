@@ -7,7 +7,7 @@
  * compressing, decompressing, and analyzing files.
  *
  * Usage:
- *   pakt compress [file] [--from json|yaml|csv|md|text] [--layers 1,2]
+ *   pakt compress [file] [--from json|yaml|csv|md|text] [--layers 1,2,3,4] [--semantic-budget 120]
  *   pakt decompress [file] [--to json|yaml|csv|md|text]
  *   pakt detect [file]
  *   pakt tokens [file] [--model gpt-4o|claude-sonnet|...]
@@ -63,6 +63,8 @@ Options:
   --from <format>    Force input format (json|yaml|csv|md|text)
   --to <format>      Output format for decompress (json|yaml|csv|md|text)
   --layers <list>    Compression layers to enable (comma-separated: 1,2,3,4)
+  --semantic-budget <tokens>
+                     Enable L4 semantic compression with a positive token budget
   --model <model>    Model for token counting (gpt-4o|claude-sonnet|claude-opus|claude-haiku|gpt-4o-mini)
 
 Input:
@@ -71,6 +73,7 @@ Input:
 Examples:
   pakt compress data.json
   pakt compress data.json --layers 1,2
+  pakt compress data.json --semantic-budget 120
   cat data.json | pakt compress --from json
   pakt decompress compressed.pakt --to json
   pakt detect mystery-file.txt
@@ -234,7 +237,7 @@ function main(): void {
       cmdDecompress(args, readInput);
       break;
     case 'auto':
-      cmdAuto(args, readInput);
+      cmdAuto(args, readInput, parseLayers);
       break;
     case 'serve':
       startServe();

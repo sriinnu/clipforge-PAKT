@@ -10,6 +10,54 @@ export interface Sample {
 
 export const samples: Sample[] = [
   {
+    id: 'json-orders-table',
+    label: 'JSON array table',
+    note: 'Top-level arrays unlock auto-pack benchmarking across JSON, CSV, and YAML layouts.',
+    format: 'json',
+    text: JSON.stringify(
+      [
+        {
+          orderId: 'A-1001',
+          region: 'EMEA',
+          rep: 'Alice',
+          product: 'platform',
+          quarter: 'Q1',
+          amount: 1299.5,
+          status: 'won',
+        },
+        {
+          orderId: 'A-1002',
+          region: 'EMEA',
+          rep: 'Alice',
+          product: 'support',
+          quarter: 'Q1',
+          amount: 899,
+          status: 'won',
+        },
+        {
+          orderId: 'A-1003',
+          region: 'NA',
+          rep: 'Bob',
+          product: 'platform',
+          quarter: 'Q2',
+          amount: 650,
+          status: 'pending',
+        },
+        {
+          orderId: 'A-1004',
+          region: 'NA',
+          rep: 'Bob',
+          product: 'analytics',
+          quarter: 'Q2',
+          amount: 1850,
+          status: 'won',
+        },
+      ],
+      null,
+      2,
+    ),
+  },
+  {
     id: 'json-users',
     label: 'JSON users',
     note: 'Uniform objects show the L1 tabular gains clearly.',

@@ -43,9 +43,12 @@ function createComparisonState(
         delta: '0 tokens saved',
         note: 'Raw source payload before any structural rewrite.',
         text: '{"demo":true}',
+        kind: 'source' as const,
+        packedOutput: null,
       },
     ],
     error: null,
+    recommendation: null,
     ...overrides,
   };
 }
@@ -114,5 +117,60 @@ describe('App', () => {
 
     expect(sampleSelect.value).toBe('');
     expect(screen.getByText('Editing a custom payload.')).toBeTruthy();
+  });
+
+  it('applies the auto-pack winner back into the playground output', async () => {
+    mockedRuntime.computeComparison.mockResolvedValueOnce(
+      createComparisonState({
+        items: [
+          {
+            id: 'original',
+            label: 'Original',
+            tokens: 42,
+            percent: 'Baseline',
+            delta: '0 tokens saved',
+            note: 'Raw source payload before any structural rewrite.',
+            text: '[{"demo":true}]',
+            kind: 'source',
+            packedOutput: null,
+          },
+          {
+            id: 'layout-csv',
+            label: 'CSV projection + PAKT',
+            tokens: 18,
+            percent: '57% vs original',
+            delta: '24 tokens saved',
+            note: 'Wide table detected: 4 rows x 7 columns. CSV projection wins here.',
+            text: 'winner-output',
+            kind: 'table',
+            packedOutput: 'winner-output',
+          },
+        ],
+        recommendation: {
+          title: 'Use CSV projection + PAKT',
+          body: 'Wide table detected: 4 rows x 7 columns. This table-aware layout is the smallest packed output here. Restoring it returns the projected table layout, not the original wrapper schema.',
+          winnerId: 'layout-csv',
+          winnerLabel: 'CSV projection + PAKT',
+          tokens: 18,
+          packedOutput: 'winner-output',
+        },
+      }),
+    );
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compare Layers' }));
+    await advance(220);
+    expect(
+      screen.getByText(
+        'Projection warning: Restore returns the projected table layout, not the original source wrapper.',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Use projection in Playground' }));
+
+    expect(screen.getByDisplayValue('winner-output')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Playground' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
   });
 });

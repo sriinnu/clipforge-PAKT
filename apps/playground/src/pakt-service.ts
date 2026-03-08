@@ -1,6 +1,23 @@
 import type { PaktFormat, PaktOptions } from '@sriinnu/pakt';
+import { createTablePackPlan } from './pack-advisor';
 
 const MIXED_MARKER = '<!-- PAKT:';
+const STRUCTURAL_ONLY_OPTIONS: Partial<PaktOptions> = {
+  layers: {
+    structural: true,
+    dictionary: false,
+    tokenizerAware: false,
+    semantic: false,
+  },
+};
+const FULL_PACK_OPTIONS: Partial<PaktOptions> = {
+  layers: {
+    structural: true,
+    dictionary: true,
+    tokenizerAware: false,
+    semantic: false,
+  },
+};
 
 type Action = 'compress' | null;
 type PaktModule = typeof import('@sriinnu/pakt');
@@ -16,19 +33,31 @@ export interface PreviewResult {
 }
 
 export interface ComparisonItem {
-  id: 'original' | 'l1' | 'full';
+  id: 'original' | 'l1' | 'full' | 'layout-csv' | 'layout-json' | 'layout-yaml';
   label: string;
   tokens: number;
   percent: string;
   delta: string;
   note: string;
   text: string;
+  kind: 'source' | 'baseline' | 'packed' | 'table';
+  packedOutput: string | null;
+}
+
+export interface ComparisonRecommendation {
+  title: string;
+  body: string;
+  winnerId: ComparisonItem['id'];
+  winnerLabel: string;
+  tokens: number;
+  packedOutput: string | null;
 }
 
 export interface ComparisonState {
   status: 'idle' | 'loading' | 'ready';
   items: readonly ComparisonItem[] | null;
   error: string | null;
+  recommendation: ComparisonRecommendation | null;
 }
 
 export interface CompressionResult {
@@ -193,7 +222,7 @@ export async function decompressSource(
 
 export async function computeComparison(input: string): Promise<ComparisonState> {
   if (!input.trim()) {
-    return { status: 'idle', items: null, error: null };
+    return { status: 'idle', items: null, error: null, recommendation: null };
   }
 
   try {
@@ -202,65 +231,144 @@ export async function computeComparison(input: string): Promise<ComparisonState>
     const packedInputDetected = detected.format === 'pakt' || input.includes(MIXED_MARKER);
 
     if (packedInputDetected) {
-      return { status: 'ready', items: null, error: null };
+      return { status: 'ready', items: null, error: null, recommendation: null };
     }
 
     const originalTokens = countTokens(input);
-    const l1Only = await compressDocument(input, detected.format, {
-      layers: {
-        structural: true,
-        dictionary: false,
-        tokenizerAware: false,
-        semantic: false,
+    const items: ComparisonItem[] = [
+      {
+        id: 'original',
+        label: 'Original',
+        tokens: originalTokens,
+        percent: 'Baseline',
+        delta: '0 tokens saved',
+        note: 'Raw source payload before any structural rewrite.',
+        text: input,
+        kind: 'source',
+        packedOutput: null,
       },
-    });
-    const fullPakt = await compressDocument(input, detected.format, {
-      layers: {
-        structural: true,
-        dictionary: true,
-        tokenizerAware: false,
-        semantic: false,
-      },
-    });
+    ];
+    const packedCandidates: ComparisonItem[] = [];
+
+    const l1Only = await compressDocument(input, detected.format, STRUCTURAL_ONLY_OPTIONS);
+    const l1Item: ComparisonItem = {
+      id: 'l1',
+      label: 'Structural baseline (TOON-like)',
+      tokens: l1Only.compressedTokens,
+      percent: `${formatPercent(originalTokens, l1Only.compressedTokens)} vs original`,
+      delta: formatDelta(originalTokens, l1Only.compressedTokens),
+      note: 'Structural rewrite only. Closest baseline to TOON-style compact syntax, without implying a first-party TOON encoder.',
+      text: l1Only.compressed,
+      kind: 'baseline',
+      packedOutput: l1Only.compressed,
+    };
+    items.push(l1Item);
+    packedCandidates.push(l1Item);
+
+    const fullPakt = await compressDocument(input, detected.format, FULL_PACK_OPTIONS);
+    const fullItem: ComparisonItem = {
+      id: 'full',
+      label: 'PAKT full',
+      tokens: fullPakt.compressedTokens,
+      percent: `${formatPercent(originalTokens, fullPakt.compressedTokens)} vs original`,
+      delta: formatDelta(originalTokens, fullPakt.compressedTokens),
+      note: 'Structural rewrite plus dictionary aliases for repeated keys and values.',
+      text: fullPakt.compressed,
+      kind: 'packed',
+      packedOutput: fullPakt.compressed,
+    };
+    items.push(fullItem);
+    packedCandidates.push(fullItem);
+
+    const tablePlan = createTablePackPlan(input, detected.format);
+    if (tablePlan) {
+      for (const variant of tablePlan.variants) {
+        const result = await compressDocument(variant.text, variant.format, FULL_PACK_OPTIONS);
+        const item: ComparisonItem = {
+          id: variant.id,
+          label: `${variant.label} + PAKT`,
+          tokens: result.compressedTokens,
+          percent: `${formatPercent(originalTokens, result.compressedTokens)} vs original`,
+          delta: formatDelta(originalTokens, result.compressedTokens),
+          note: `${tablePlan.profile.summary} ${variant.note}`,
+          text: result.compressed,
+          kind: 'table',
+          packedOutput: result.compressed,
+        };
+        items.push(item);
+        packedCandidates.push(item);
+      }
+    }
+
+    const winner = [...items].reduce((best, item) => (item.tokens < best.tokens ? item : best));
+    const recommendation = buildRecommendation(originalTokens, winner, tablePlan);
 
     return {
       status: 'ready',
-      items: [
-        {
-          id: 'original',
-          label: 'Original',
-          tokens: originalTokens,
-          percent: 'Baseline',
-          delta: '0 tokens saved',
-          note: 'Raw source payload before any structural rewrite.',
-          text: input,
-        },
-        {
-          id: 'l1',
-          label: 'Structural baseline (TOON-like)',
-          tokens: l1Only.compressedTokens,
-          percent: `${formatPercent(originalTokens, l1Only.compressedTokens)} vs original`,
-          delta: formatDelta(originalTokens, l1Only.compressedTokens),
-          note: 'Structural rewrite only. Closest baseline to TOON-style compact syntax, without implying a first-party TOON encoder.',
-          text: l1Only.compressed,
-        },
-        {
-          id: 'full',
-          label: 'PAKT full',
-          tokens: fullPakt.compressedTokens,
-          percent: `${formatPercent(originalTokens, fullPakt.compressedTokens)} vs original`,
-          delta: formatDelta(originalTokens, fullPakt.compressedTokens),
-          note: 'Structural rewrite plus dictionary aliases for repeated keys and values.',
-          text: fullPakt.compressed,
-        },
-      ] as const,
+      items,
       error: null,
+      recommendation,
     };
   } catch (error) {
     return {
       status: 'ready',
       items: null,
       error: getErrorMessage(error),
+      recommendation: null,
     };
   }
+}
+
+function buildRecommendation(
+  originalTokens: number,
+  winner: ComparisonItem,
+  tablePlan: ReturnType<typeof createTablePackPlan>,
+): ComparisonRecommendation {
+  if (winner.id === 'original') {
+    return {
+      title: 'Keep the raw payload',
+      body: tablePlan
+        ? `${tablePlan.profile.summary} None of the packed variants beat the source token count, so auto-pack backs off for this input.`
+        : 'None of the available packed variants beat the source token count, so the cleanest move is to leave the payload as-is.',
+      winnerId: winner.id,
+      winnerLabel: winner.label,
+      tokens: winner.tokens,
+      packedOutput: null,
+    };
+  }
+
+  const savings = formatPercent(originalTokens, winner.tokens);
+
+  if (winner.kind === 'table') {
+    return {
+      title: `Use ${winner.label}`,
+      body: `${tablePlan?.profile.summary ?? 'Tabular payload detected.'} This table-aware layout is the smallest packed output here at ${savings} vs the original source. Restoring it returns the projected table layout, not the original wrapper schema.`,
+      winnerId: winner.id,
+      winnerLabel: winner.label,
+      tokens: winner.tokens,
+      packedOutput: winner.packedOutput,
+    };
+  }
+
+  if (winner.id === 'l1') {
+    return {
+      title: 'Use the structural baseline',
+      body: `Dictionary aliases do not help this payload enough to justify the overhead. Structural-only packing is the smallest result here at ${savings} vs the original source.`,
+      winnerId: winner.id,
+      winnerLabel: winner.label,
+      tokens: winner.tokens,
+      packedOutput: winner.packedOutput,
+    };
+  }
+
+  return {
+    title: 'Use standard PAKT',
+    body: tablePlan
+      ? `${tablePlan.profile.summary} Standard full PAKT still wins, so auto-pack falls back to the normal reversible path at ${savings} vs the original source.`
+      : `Standard full PAKT is the smallest reversible output here at ${savings} vs the original source.`,
+    winnerId: winner.id,
+    winnerLabel: winner.label,
+    tokens: winner.tokens,
+    packedOutput: winner.packedOutput,
+  };
 }

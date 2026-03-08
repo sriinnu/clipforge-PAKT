@@ -167,6 +167,15 @@ describe('pakt auto — raw input (compress path)', () => {
     expect(stdout).toContain('@from json');
   });
 
+  it('applies L4 when semanticBudget is provided', () => {
+    const stdout = runCliOk(
+      ['auto', '--from', 'json', '--semantic-budget', '24'],
+      COMPRESSIBLE_JSON,
+    );
+    expect(stdout).toContain('@compress semantic');
+    expect(stdout).toContain('@warning lossy');
+  });
+
   it('produces non-empty output for plain markdown', () => {
     const stdout = runCliOk(['auto'], RAW_MARKDOWN);
     // Plain markdown has no structured blocks, so compressMixed
@@ -195,6 +204,29 @@ describe('pakt auto — PAKT input (decompress path)', () => {
     const restored = runCliOk(['auto', '--to', 'json'], paktOutput);
     const parsed = JSON.parse(restored) as Record<string, unknown>;
     expect(parsed).toHaveProperty('employees');
+  });
+
+  it('ignores semanticBudget when the auto path is decompressing', () => {
+    const paktOutput = runCliOk(['compress'], COMPRESSIBLE_JSON);
+    const restored = runCliOk(['auto', '--semantic-budget', '24'], paktOutput);
+    const parsed = JSON.parse(restored) as Record<string, unknown>;
+    expect(parsed).toHaveProperty('employees');
+  });
+});
+
+describe('pakt compress — semantic budget', () => {
+  it('applies L4 when semanticBudget is provided directly', () => {
+    const stdout = runCliOk(
+      ['compress', '--from', 'json', '--semantic-budget', '24'],
+      COMPRESSIBLE_JSON,
+    );
+    expect(stdout).toContain('@compress semantic');
+    expect(stdout).toContain('@warning lossy');
+  });
+
+  it('fails fast when layer 4 is requested without a semantic budget', () => {
+    const result = runCli(['compress', '--from', 'json', '--layers', '1,2,4'], COMPRESSIBLE_JSON);
+    expect(result.stderr).toContain('Layer 4 semantic compression requires --semantic-budget');
   });
 });
 
