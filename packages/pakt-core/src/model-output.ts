@@ -46,7 +46,14 @@ export function interpretModelOutput(
   for (const candidate of candidates) {
     const validation = validate(candidate.text);
     if (validation.valid) {
-      return buildDecompressedResult(response, responseFormat, candidate, validation, false, options);
+      return buildDecompressedResult(
+        response,
+        responseFormat,
+        candidate,
+        validation,
+        false,
+        options,
+      );
     }
 
     if (!firstInvalid) {
