@@ -86,6 +86,17 @@ export {
 export type { TokenCounter, TokenCounterFactory } from './tokens/index.js';
 
 // ---------------------------------------------------------------------------
+// Shared layer profiles
+// ---------------------------------------------------------------------------
+
+export {
+  DEFAULT_SEMANTIC_BUDGET,
+  PAKT_LAYER_PROFILES,
+  getPaktLayerProfile,
+  createProfiledPaktOptions,
+} from './layer-profiles.js';
+
+// ---------------------------------------------------------------------------
 // Context Window Packer
 // ---------------------------------------------------------------------------
 
@@ -110,8 +121,18 @@ export { interpretModelOutput } from './model-output.js';
 // MCP (Model Context Protocol) tools
 // ---------------------------------------------------------------------------
 
-export { PAKT_MCP_TOOLS, handlePaktTool } from './mcp/index.js';
+export {
+  PAKT_AUTO_CONTRACT,
+  PAKT_COMPRESS_CONTRACT,
+  PAKT_INSPECT_CONTRACT,
+  PAKT_MCP_CONTRACTS,
+  PAKT_MCP_TOOLS,
+  registerPaktTools,
+  handlePaktTool,
+  PaktToolInputError,
+} from './mcp/index.js';
 export type {
+  PaktMcpContract,
   McpToolDefinition,
   McpToolInputSchema,
   McpToolProperty,
@@ -119,6 +140,8 @@ export type {
   PaktCompressResult,
   PaktAutoArgs,
   PaktAutoResult,
+  PaktInspectArgs,
+  PaktInspectResult,
   PaktToolName,
   PaktToolArgs,
   PaktToolResult,
@@ -133,6 +156,8 @@ export type {
   PaktResult,
   PaktFormat,
   PaktLayers,
+  PaktLayerProfileId,
+  PaktLayerProfile,
   PaktSavings,
   DecompressResult,
   DetectionResult,

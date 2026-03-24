@@ -1,4 +1,4 @@
-import type { PaktLayers } from '@sriinnu/pakt';
+import { DEFAULT_SEMANTIC_BUDGET, type PaktLayers } from '@sriinnu/pakt';
 import type { FC } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 
@@ -14,7 +14,7 @@ interface LayerInfo {
   lossy: boolean;
 }
 
-const LAYERS: LayerInfo[] = [
+const BASE_LAYERS: LayerInfo[] = [
   {
     key: 'structural',
     label: 'Structural',
@@ -40,30 +40,35 @@ const LAYERS: LayerInfo[] = [
     disabled: false,
     lossy: false,
   },
-  {
-    key: 'semantic',
-    label: 'Semantic',
-    code: 'L4',
-    defaultOn: false,
-    disabled: true,
-    badge: 'Needs budget',
-    badgeTone: 'warning',
-    disabledReason:
-      'Semantic compression needs a budget control, which the desktop app does not expose yet.',
-    lossy: true,
-  },
 ];
 
 const LayerControls: FC = () => {
   const layers = useSettingsStore((s) => s.layers);
+  const semanticBudget = useSettingsStore((s) => s.semanticBudget);
+  const setSemanticBudget = useSettingsStore((s) => s.setSemanticBudget);
   const toggleLayer = useSettingsStore((s) => s.toggleLayer);
+
+  const semanticLayer: LayerInfo = {
+    key: 'semantic',
+    label: 'Semantic',
+    code: 'L4',
+    defaultOn: false,
+    disabled: semanticBudget <= 0,
+    badge: 'Lossy',
+    badgeTone: 'danger',
+    disabledReason:
+      semanticBudget <= 0 ? 'Enter a positive semantic budget to enable L4.' : undefined,
+    lossy: true,
+  };
+
+  const layersToRender = [...BASE_LAYERS, semanticLayer];
 
   return (
     <section className="desktop-card">
       <div className="desktop-card-inner">
         <h3 className="desktop-section-title">Compression Layers</h3>
         <div className="desktop-layer-list">
-          {LAYERS.map((layer) => {
+          {layersToRender.map((layer) => {
             const isOn = layers[layer.key];
             return (
               <div key={layer.key} className="desktop-layer-row">
@@ -75,7 +80,7 @@ const LayerControls: FC = () => {
                       {layer.badge}
                     </span>
                   )}
-                  {layer.lossy && <span className="desktop-tag danger">Lossy</span>}
+                  {layer.lossy && !layer.badge ? <span className="desktop-tag danger">Lossy</span> : null}
                 </div>
                 <button
                   type="button"
@@ -91,6 +96,30 @@ const LayerControls: FC = () => {
               </div>
             );
           })}
+        </div>
+
+        <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+          <label className="desktop-section-title" htmlFor="desktop-semantic-budget">
+            Semantic budget
+          </label>
+          <input
+            id="desktop-semantic-budget"
+            type="number"
+            min={1}
+            step={1}
+            value={semanticBudget}
+            onChange={(event) => {
+              const nextValue = Number.parseInt(event.target.value, 10);
+              setSemanticBudget(
+                Number.isInteger(nextValue) && nextValue > 0 ? nextValue : DEFAULT_SEMANTIC_BUDGET,
+              );
+            }}
+            className="desktop-select"
+            aria-label="Semantic budget"
+          />
+          <p className="desktop-copy" style={{ margin: 0 }}>
+            Required for L4. Semantic compression is lossy and should be used when token pressure matters more than exact round-trip fidelity.
+          </p>
         </div>
       </div>
     </section>

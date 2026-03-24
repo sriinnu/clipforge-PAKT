@@ -53,6 +53,8 @@ export function validate(pakt: string): ValidationResult {
 
   // Track state as we walk lines
   let hasFrom = false;
+  let hasSemanticCompressHeader = false;
+  let hasLossyWarningHeader = false;
   let dictOpen = false;
   let dictOpenLine = -1;
   const definedAliases = new Map<string, number>(); // alias -> line
@@ -141,6 +143,15 @@ export function validate(pakt: string): ValidationResult {
         message: '@from header has no format value',
         code: 'E002',
       });
+      continue;
+    }
+
+    if (trimmed === '@compress semantic') {
+      hasSemanticCompressHeader = true;
+      continue;
+    }
+    if (trimmed === '@warning lossy') {
+      hasLossyWarningHeader = true;
       continue;
     }
 
@@ -274,6 +285,15 @@ export function validate(pakt: string): ValidationResult {
       column: 1,
       message: '@dict block missing @end',
       code: 'E003',
+    });
+  }
+
+  if (hasSemanticCompressHeader && !hasLossyWarningHeader) {
+    errors.push({
+      line: 1,
+      column: 1,
+      message: '@compress semantic requires a matching @warning lossy header',
+      code: 'E008',
     });
   }
 

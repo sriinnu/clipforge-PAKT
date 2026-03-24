@@ -7,6 +7,7 @@ Release-facing fixture snapshot for `@sriinnu/pakt@0.5.0`.
 - Generated with `scripts/release/generate-benchmark-snapshot.mjs`
 - Token counting uses the package default model path (`gpt-4o` via `gpt-tokenizer`)
 - Release-facing baseline is the default lossless path: `L1 + L2`
+- The wider product story treats `L1-L3` as the lossless core; this snapshot keeps `L1 + L2` as the benchmark baseline and shows the additional `L3` uplift separately
 - Tradeoff section also measures lossless `L1 + L2 + L3` and lossy `L1 + L2 + L3 + L4` with per-fixture budgets set to 70% of the lossless `L1 + L2` token count
 - Fixtures come from `packages/pakt-core/benchmarks/fixtures/`
 

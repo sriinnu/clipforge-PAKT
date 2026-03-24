@@ -1,20 +1,25 @@
 # PAKT MCP Integration Guide
 
-PAKT exposes two MCP-compatible tools that compress and decompress structured
-data for LLM token optimization. This guide covers integration with any
-MCP-compatible client or server, direct TypeScript usage, and shell workflows.
+PAKT exposes three MCP-compatible tools that help agents decide when structured
+data is worth compacting, compress it into a model-efficient format, and restore
+it when a human or downstream system needs the original representation. This
+guide covers integration with MCP clients and hosts, direct TypeScript usage,
+and shell workflows.
 
 ## Overview
 
 PAKT (Pipe-Aligned Kompact Text) compresses JSON, YAML, CSV, and Markdown into a
-compact pipe-delimited format that uses **typically 30-50% fewer tokens**. Two MCP tools
-let any AI agent compress prompts before sending and decompress responses after
-receiving:
+compact pipe-delimited format that uses **typically 30-50% fewer tokens** on the
+payloads it is designed for. The MCP layer exists so agents can use PAKT as a
+workflow primitive instead of a manual pre/post-processing step: inspect first,
+compress only when it helps, then decompress only when a consumer needs the
+original shape.
 
 | Tool             | Purpose                                           |
 |------------------|---------------------------------------------------|
 | `pakt_compress`  | Compress text into PAKT with format hint support  |
 | `pakt_auto`      | Auto-detect direction: compress raw or decompress PAKT |
+| `pakt_inspect`   | Detect format, count tokens, estimate savings, and recommend the next action |
 
 ---
 
@@ -27,10 +32,11 @@ auto-detection when the caller knows the input type.
 
 **Input schema:**
 
-| Parameter | Type   | Required | Description                                              |
-|-----------|--------|----------|----------------------------------------------------------|
-| `text`    | string | yes      | The text content to compress (JSON, YAML, CSV, Markdown) |
-| `format`  | string | no       | Format hint: `json`, `yaml`, `csv`, `markdown`, `text`   |
+| Parameter | Type   | Required | Description                                                       |
+|-----------|--------|----------|-------------------------------------------------------------------|
+| `text`    | string | yes      | The text content to compress (JSON, YAML, CSV, Markdown, mixed)   |
+| `format`  | string | no       | Format hint: `json`, `yaml`, `csv`, `markdown`, `text`, `pakt`    |
+| `semanticBudget` | number | no | Positive token budget for opt-in lossy `L4` semantic compression |
 
 **Output schema:**
 
@@ -39,6 +45,10 @@ auto-detection when the caller knows the input type.
 | `compressed` | string | The compressed PAKT string             |
 | `savings`    | number | Savings percentage (0-100)             |
 | `format`     | string | Detected or specified input format     |
+| `originalTokens` | number | Original token count               |
+| `compressedTokens` | number | Compressed token count           |
+| `savedTokens` | number | Absolute tokens saved                 |
+| `reversible` | boolean | False only when the payload is lossy |
 
 **Example request/response:**
 
@@ -67,9 +77,10 @@ PAKT input is decompressed; raw input is compressed.
 
 **Input schema:**
 
-| Parameter | Type   | Required | Description                                              |
-|-----------|--------|----------|----------------------------------------------------------|
-| `text`    | string | yes      | Text to process. PAKT is decompressed; raw is compressed |
+| Parameter | Type   | Required | Description                                                           |
+|-----------|--------|----------|-----------------------------------------------------------------------|
+| `text`    | string | yes      | Text to process. PAKT is decompressed; raw is compressed              |
+| `semanticBudget` | number | no | Positive token budget for opt-in lossy `L4` on the compress path     |
 
 **Output schema:**
 
@@ -78,6 +89,13 @@ PAKT input is decompressed; raw input is compressed.
 | `result`  | string | The processed text                           |
 | `action`  | string | `"compressed"` or `"decompressed"`           |
 | `savings` | number | Savings percentage (only when compressing)   |
+| `detectedFormat` | string | Detected format before the action   |
+| `originalFormat` | string | Original structured format when decompressing |
+| `inputTokens` | number | Token count before processing (compress path) |
+| `outputTokens` | number | Token count after processing (compress path) |
+| `savedTokens` | number | Absolute tokens saved (compress path) |
+| `reversible` | boolean | Whether the resulting representation preserves all information |
+| `wasLossy` | boolean | Whether decompressed PAKT carried lossy `L4` content |
 
 **Example -- compressing raw JSON:**
 
@@ -86,7 +104,16 @@ PAKT input is decompressed; raw input is compressed.
 ```
 
 ```json
-{ "result": "@from json\nname: Alice", "action": "compressed", "savings": 35 }
+{
+  "result": "@from json\nname: Alice",
+  "action": "compressed",
+  "savings": 35,
+  "detectedFormat": "json",
+  "inputTokens": 12,
+  "outputTokens": 8,
+  "savedTokens": 4,
+  "reversible": true
+}
 ```
 
 **Example -- decompressing PAKT:**
@@ -96,7 +123,14 @@ PAKT input is decompressed; raw input is compressed.
 ```
 
 ```json
-{ "result": "{\"name\":\"Alice\"}", "action": "decompressed" }
+{
+  "result": "{\"name\":\"Alice\"}",
+  "action": "decompressed",
+  "detectedFormat": "pakt",
+  "originalFormat": "json",
+  "reversible": true,
+  "wasLossy": false
+}
 ```
 
 ---
@@ -120,8 +154,8 @@ config at `~/Library/Application Support/Claude/claude_desktop_config.json`
 }
 ```
 
-Restart Claude Desktop. The `pakt_compress` and `pakt_auto` tools appear
-automatically.
+Restart Claude Desktop. The `pakt_compress`, `pakt_auto`, and `pakt_inspect`
+tools appear automatically.
 
 ### Cursor / VS Code with Continue.dev
 
@@ -153,29 +187,55 @@ Add to your project's `.mcp.json`:
 }
 ```
 
+### pakt_inspect
+
+Detects the current format, counts tokens, estimates compression savings, and
+recommends whether an MCP client should compress, decompress, or leave the text
+as-is.
+
+**Input schema:**
+
+| Parameter | Type   | Required | Description |
+|-----------|--------|----------|-------------|
+| `text`    | string | yes      | The text to inspect |
+| `model`   | string | no       | Optional model identifier for token counting |
+| `semanticBudget` | number | no | Optional positive token budget for lossy `L4` estimation |
+
+**Output schema:**
+
+| Field     | Type   | Description |
+|-----------|--------|-------------|
+| `detectedFormat` | string | Detected input format |
+| `confidence` | number | Detector confidence |
+| `reason` | string | Detection reason |
+| `inputTokens` | number | Token count for the current input |
+| `recommendedAction` | string | `compress`, `decompress`, or `leave-as-is` |
+| `estimatedOutputTokens` | number | Token count after estimated compression, when relevant |
+| `estimatedSavings` | number | Estimated savings percentage, when relevant |
+| `estimatedSavedTokens` | number | Estimated tokens saved, when relevant |
+| `reversible` | boolean | Whether the current or estimated representation is reversible |
+| `originalFormat` | string | Original structured format when inspecting PAKT input |
+| `wasLossy` | boolean | Whether the inspected PAKT payload contains lossy `L4` content |
+
 ### Any MCP-compatible client (generic)
 
-`pakt serve --stdio` implements the MCP protocol over stdin/stdout with zero
-extra dependencies. Works with any MCP client supporting stdio transport.
+`pakt serve --stdio` uses the official MCP SDK stdio transport, so it speaks
+standard MCP framing and is expected to work with MCP clients that support stdio
+transport. The repository currently verifies the generic stdio path directly;
+named client configs below are integration targets, not an exhaustive client
+certification matrix.
 
-For custom servers (middleware, routing), use the exported APIs directly:
+For custom servers (middleware, routing, multi-tool hosts), use the exported SDK
+registration helper directly. This keeps the input/output contract, validation,
+and tool behavior aligned with the packaged server:
 
 ```typescript
-// Advanced: custom server with @modelcontextprotocol/sdk
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { PAKT_MCP_TOOLS, handlePaktTool } from '@sriinnu/pakt';
-import type { PaktToolName } from '@sriinnu/pakt';
+import { registerPaktTools } from '@sriinnu/pakt';
 
-const server = new McpServer({ name: 'pakt', version: '0.5.0' });
-
-for (const tool of PAKT_MCP_TOOLS) {
-  server.tool(tool.name, tool.description, tool.inputSchema.properties,
-    (args: Record<string, string>) => {
-      const result = handlePaktTool(tool.name as PaktToolName, args);
-      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
-    });
-}
+const server = new McpServer({ name: 'my-agent', version: '1.0.0' });
+registerPaktTools(server);
 
 await server.connect(new StdioServerTransport());
 ```
@@ -186,7 +246,7 @@ await server.connect(new StdioServerTransport());
 [
   {
     "name": "pakt_compress",
-    "description": "Compress text into PAKT format for LLM token optimization. Supports JSON, YAML, CSV, Markdown, and mixed content. Returns the compressed string and savings percentage. Use the optional format parameter to skip auto-detection.",
+    "description": "Compress text into PAKT format for LLM token optimization. Supports JSON, YAML, CSV, Markdown, and mixed content. Returns the compressed string and savings percentage. Use the optional `format` parameter to skip auto-detection. Use `semanticBudget` to opt into lossy L4 semantic compression.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -196,11 +256,16 @@ await server.connect(new StdioServerTransport());
         },
         "format": {
           "type": "string",
-          "description": "Optional format hint. Skips auto-detection when provided. Valid values: json, yaml, csv, markdown, text.",
-          "enum": ["json", "yaml", "csv", "markdown", "text"]
+          "description": "Optional format hint. Skips auto-detection when provided. Valid values: json, yaml, csv, markdown, text, pakt.",
+          "enum": ["json", "yaml", "csv", "markdown", "text", "pakt"]
+        },
+        "semanticBudget": {
+          "type": "number",
+          "description": "Optional positive token budget for opt-in lossy L4 semantic compression."
         }
       },
-      "required": ["text"]
+      "required": ["text"],
+      "additionalProperties": false
     }
   },
   {
@@ -212,9 +277,37 @@ await server.connect(new StdioServerTransport());
         "text": {
           "type": "string",
           "description": "The text to process. PAKT input is decompressed; raw input is compressed."
+        },
+        "semanticBudget": {
+          "type": "number",
+          "description": "Optional positive token budget for opt-in lossy L4 semantic compression on the compress path."
         }
       },
-      "required": ["text"]
+      "required": ["text"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "pakt_inspect",
+    "description": "Inspect text before using PAKT. Detects the format, counts tokens, estimates compression savings, and recommends whether to compress, decompress, or leave the content as-is.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The text to inspect."
+        },
+        "model": {
+          "type": "string",
+          "description": "Optional model identifier used for token counting."
+        },
+        "semanticBudget": {
+          "type": "number",
+          "description": "Optional positive token budget to estimate lossy L4 compression."
+        }
+      },
+      "required": ["text"],
+      "additionalProperties": false
     }
   }
 ]
@@ -381,20 +474,23 @@ compression round-trip that compounds savings across multi-turn conversations.
 
 | Tool            | Description                          | Input                    | Output                                      |
 |-----------------|--------------------------------------|--------------------------|----------------------------------------------|
-| `pakt_compress` | Compress text into PAKT format       | `{ text, format? }`     | `{ compressed, savings, format }`            |
-| `pakt_auto`     | Auto compress or decompress          | `{ text }`              | `{ result, action, savings? }`               |
+| `pakt_compress` | Compress text into PAKT format       | `{ text, format?, semanticBudget? }` | `{ compressed, savings, format, originalTokens, compressedTokens, savedTokens, reversible }` |
+| `pakt_auto`     | Auto compress or decompress          | `{ text, semanticBudget? }` | `{ result, action, savings?, detectedFormat, originalFormat?, inputTokens?, outputTokens?, savedTokens?, reversible?, wasLossy? }` |
+| `pakt_inspect`  | Detect format and estimate savings   | `{ text, model?, semanticBudget? }` | `{ detectedFormat, confidence, reason, inputTokens, recommendedAction, estimatedOutputTokens?, estimatedSavings?, estimatedSavedTokens?, reversible?, originalFormat?, wasLossy? }` |
 
 | Export              | Type     | Description                                  |
 |---------------------|----------|----------------------------------------------|
-| `PAKT_MCP_TOOLS`    | Array    | Tool definitions array for MCP registration  |
-| `handlePaktTool`    | Function | Dispatch function for incoming tool calls     |
-| `PAKT_SYSTEM_PROMPT`| String   | System prompt snippet for LLM comprehension  |
+| `PAKT_MCP_TOOLS`    | Array    | Raw JSON tool definitions for docs or custom registries |
+| `registerPaktTools` | Function | Preferred SDK registration helper for MCP hosts |
+| `handlePaktTool`    | Function | Dispatch function for incoming tool calls |
+| `PAKT_SYSTEM_PROMPT`| String   | System prompt snippet for LLM comprehension |
 
 All exports are available from the main package entry point:
 
 ```typescript
 import {
   PAKT_MCP_TOOLS,
+  registerPaktTools,
   handlePaktTool,
   PAKT_SYSTEM_PROMPT,
 } from '@sriinnu/pakt';

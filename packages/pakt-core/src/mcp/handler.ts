@@ -25,12 +25,16 @@ import { compress } from '../compress.js';
 import { decompress } from '../decompress.js';
 import { detect } from '../detect.js';
 import { compressMixed } from '../mixed/index.js';
+import { countTokens } from '../tokens/index.js';
 import type { PaktFormat, PaktOptions } from '../types.js';
+import { validate } from '../utils/validate.js';
 import type {
   PaktAutoArgs,
   PaktAutoResult,
   PaktCompressArgs,
   PaktCompressResult,
+  PaktInspectArgs,
+  PaktInspectResult,
   PaktToolName,
   PaktToolResult,
 } from './types.js';
@@ -38,6 +42,14 @@ import type {
 // ---------------------------------------------------------------------------
 // Validation helpers
 // ---------------------------------------------------------------------------
+
+/** Error raised for user-fixable tool input problems. */
+export class PaktToolInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PaktToolInputError';
+  }
+}
 
 /**
  * Valid format values for the `format` parameter.
@@ -54,7 +66,7 @@ const VALID_FORMATS = new Set<PaktFormat>(['json', 'yaml', 'csv', 'markdown', 't
  */
 function assertNonEmptyString(value: unknown, name: string): asserts value is string {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`${name} must be a non-empty string`);
+    throw new PaktToolInputError(`${name} must be a non-empty string`);
   }
 }
 
@@ -67,11 +79,11 @@ function assertNonEmptyString(value: unknown, name: string): asserts value is st
 function validateFormat(value: unknown): PaktFormat | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'string') {
-    throw new Error(`format must be a string, got ${typeof value}`);
+    throw new PaktToolInputError(`format must be a string, got ${typeof value}`);
   }
   if (!VALID_FORMATS.has(value as PaktFormat)) {
     const valid = Array.from(VALID_FORMATS).join(', ');
-    throw new Error(`Invalid format "${value}". Valid formats: ${valid}`);
+    throw new PaktToolInputError(`Invalid format "${value}". Valid formats: ${valid}`);
   }
   return value as PaktFormat;
 }
@@ -85,9 +97,24 @@ function validateFormat(value: unknown): PaktFormat | undefined {
 function validateSemanticBudget(value: unknown): number | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
-    throw new Error('semanticBudget must be a positive integer');
+    throw new PaktToolInputError('semanticBudget must be a positive integer');
   }
   return value;
+}
+
+function summarizeValidationFailure(
+  validation: ReturnType<typeof validate>,
+  fallback = 'validation failed',
+): string {
+  const primaryError = validation.errors[0]?.message;
+  if (primaryError) {
+    return primaryError;
+  }
+  const primaryWarning = validation.warnings[0]?.message;
+  if (primaryWarning) {
+    return primaryWarning;
+  }
+  return fallback;
 }
 
 /**
@@ -114,19 +141,49 @@ function buildCompressionOptions(
   return options;
 }
 
+function toCompressResult(
+  compressed: string,
+  savings: number,
+  format: PaktFormat,
+  originalTokens: number,
+  compressedTokens: number,
+  reversible: boolean,
+): PaktCompressResult {
+  return {
+    compressed,
+    savings,
+    format,
+    originalTokens,
+    compressedTokens,
+    savedTokens: originalTokens - compressedTokens,
+    reversible,
+  };
+}
+
+function inspectPassthroughPakt(text: string): Pick<PaktCompressResult, 'originalTokens' | 'compressedTokens' | 'savedTokens' | 'reversible'> {
+  const validation = validate(text);
+  if (!validation.valid) {
+    throw new PaktToolInputError(
+      `Input looks like PAKT but failed validation: ${summarizeValidationFailure(validation)}`,
+    );
+  }
+
+  const tokens = countTokens(text);
+  const reversible = !decompress(text).wasLossy;
+  return {
+    originalTokens: tokens,
+    compressedTokens: tokens,
+    savedTokens: 0,
+    reversible,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Tool handlers
 // ---------------------------------------------------------------------------
 
 /**
  * Handle a `pakt_compress` tool call.
- *
- * Routes to either `compress()` (when a specific format is provided)
- * or `compressMixed()` (for auto-detected / mixed content). Returns
- * the compressed text, savings percentage, and detected format.
- *
- * @param args - Tool arguments with `text` and optional `format`
- * @returns Compression result with savings metadata
  */
 function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   assertNonEmptyString(args.text, 'text');
@@ -135,62 +192,67 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   const options = buildCompressionOptions(format, semanticBudget);
 
   if (format) {
-    // Already-PAKT input with explicit format:'pakt' -- return as-is
     if (format === 'pakt') {
-      return { compressed: args.text, savings: 0, format: 'pakt' };
+      const passthrough = inspectPassthroughPakt(args.text);
+      return {
+        compressed: args.text,
+        savings: 0,
+        format: 'pakt',
+        ...passthrough,
+      };
     }
-    // Caller specified a concrete format -- use direct compression
+
     const result = compress(args.text, options);
-    return {
-      compressed: result.compressed,
-      savings: result.savings.totalPercent,
-      format: result.detectedFormat,
-    };
+    return toCompressResult(
+      result.compressed,
+      result.savings.totalPercent,
+      result.detectedFormat,
+      result.originalTokens,
+      result.compressedTokens,
+      result.reversible,
+    );
   }
 
-  // No format specified -- use mixed-content pipeline for best results
   const detected = detect(args.text);
 
-  // If the input is already PAKT, return as-is
   if (detected.format === 'pakt') {
+    const passthrough = inspectPassthroughPakt(args.text);
     return {
       compressed: args.text,
       savings: 0,
       format: 'pakt',
+      ...passthrough,
     };
   }
 
-  // For structured formats, use direct compression
   if (detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv') {
     const result = compress(args.text, {
       ...options,
       fromFormat: detected.format,
     });
-    return {
-      compressed: result.compressed,
-      savings: result.savings.totalPercent,
-      format: result.detectedFormat,
-    };
+    return toCompressResult(
+      result.compressed,
+      result.savings.totalPercent,
+      result.detectedFormat,
+      result.originalTokens,
+      result.compressedTokens,
+      result.reversible,
+    );
   }
 
-  // For text/markdown, try mixed-content compression
   const mixedResult = compressMixed(args.text, options);
-  return {
-    compressed: mixedResult.compressed,
-    savings: mixedResult.savings.totalPercent,
-    format: detected.format,
-  };
+  return toCompressResult(
+    mixedResult.compressed,
+    mixedResult.savings.totalPercent,
+    detected.format,
+    mixedResult.originalTokens,
+    mixedResult.compressedTokens,
+    mixedResult.reversible,
+  );
 }
 
 /**
  * Handle a `pakt_auto` tool call.
- *
- * Auto-detects whether the input is PAKT or raw text:
- * - PAKT input is decompressed to the original format.
- * - Raw input is compressed using the mixed-content pipeline.
- *
- * @param args - Tool arguments with `text`
- * @returns Auto result with action taken and optional savings
  */
 function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   assertNonEmptyString(args.text, 'text');
@@ -199,15 +261,24 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   const detected = detect(args.text);
 
   if (detected.format === 'pakt') {
-    // Input is PAKT -- decompress it
+    const validation = validate(args.text);
+    if (!validation.valid) {
+      throw new PaktToolInputError(
+        `Input looks like PAKT but failed validation: ${summarizeValidationFailure(validation)}`,
+      );
+    }
+
     const result = decompress(args.text);
     return {
       result: result.text,
       action: 'decompressed',
+      detectedFormat: 'pakt',
+      originalFormat: result.originalFormat,
+      reversible: !result.wasLossy,
+      wasLossy: result.wasLossy,
     };
   }
 
-  // Raw input -- compress it
   const compressionOptions = buildCompressionOptions(undefined, semanticBudget);
   const compressResult =
     detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv'
@@ -220,6 +291,73 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
     result: compressResult.compressed,
     action: 'compressed',
     savings: compressResult.savings.totalPercent,
+    detectedFormat: detected.format,
+    inputTokens: compressResult.originalTokens,
+    outputTokens: compressResult.compressedTokens,
+    savedTokens: compressResult.originalTokens - compressResult.compressedTokens,
+    reversible: compressResult.reversible,
+  };
+}
+
+/**
+ * Handle a `pakt_inspect` tool call.
+ */
+function handleInspect(args: PaktInspectArgs): PaktInspectResult {
+  assertNonEmptyString(args.text, 'text');
+  const semanticBudget = validateSemanticBudget(args.semanticBudget);
+  const model = typeof args.model === 'string' && args.model.length > 0 ? args.model : 'gpt-4o';
+  const detected = detect(args.text);
+  const inputTokens = countTokens(args.text, model);
+
+  if (detected.format === 'pakt') {
+    const validation = validate(args.text);
+    if (!validation.valid) {
+      return {
+        detectedFormat: 'pakt',
+        confidence: detected.confidence,
+        reason: `${detected.reason}; invalid PAKT: ${summarizeValidationFailure(validation)}`,
+        inputTokens,
+        recommendedAction: 'leave-as-is',
+        reversible: false,
+      };
+    }
+
+    const result = decompress(args.text);
+    return {
+      detectedFormat: 'pakt',
+      confidence: detected.confidence,
+      reason: detected.reason,
+      inputTokens,
+      recommendedAction: 'decompress',
+      reversible: !result.wasLossy,
+      originalFormat: result.originalFormat,
+      wasLossy: result.wasLossy,
+    };
+  }
+
+  const compressionOptions = buildCompressionOptions(undefined, semanticBudget);
+  const estimate =
+    detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv'
+      ? compress(args.text, {
+          ...compressionOptions,
+          fromFormat: detected.format,
+        })
+      : compressMixed(args.text, compressionOptions);
+  const estimatedOutputTokens = countTokens(estimate.compressed, model);
+  const estimatedSavedTokens = inputTokens - estimatedOutputTokens;
+  const estimatedSavings =
+    inputTokens > 0 ? Math.round((estimatedSavedTokens / inputTokens) * 100) : 0;
+
+  return {
+    detectedFormat: detected.format,
+    confidence: detected.confidence,
+    reason: detected.reason,
+    inputTokens,
+    recommendedAction: estimatedSavedTokens > 0 ? 'compress' : 'leave-as-is',
+    estimatedOutputTokens,
+    estimatedSavings,
+    estimatedSavedTokens,
+    reversible: estimate.reversible,
   };
 }
 
@@ -229,37 +367,16 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
 
 /**
  * Dispatch an MCP tool call to the appropriate PAKT handler.
- *
- * This is the primary entry point for MCP server integrations. It validates
- * the tool name, casts the arguments to the correct type, and delegates
- * to the appropriate handler function.
- *
- * @param name - The MCP tool name ('pakt_compress' or 'pakt_auto')
- * @param args - The tool arguments (shape depends on tool name)
- * @returns The tool result (shape depends on tool name)
- * @throws Error if the tool name is unknown or arguments are invalid
- *
- * @example
- * ```ts
- * import { handlePaktTool } from '@sriinnu/pakt';
- *
- * // Compress call
- * const compressed = handlePaktTool('pakt_compress', { text: myJson });
- *
- * // Auto call
- * const auto = handlePaktTool('pakt_auto', { text: unknownInput });
- * ```
  */
 export function handlePaktTool(name: PaktToolName, args: Record<string, unknown>): PaktToolResult {
   switch (name) {
     case 'pakt_compress':
-      // Record<string,unknown> → PaktCompressArgs: runtime validation is done
-      // inside handleCompress via assertNonEmptyString / validateFormat.
       return handleCompress(args as unknown as PaktCompressArgs);
     case 'pakt_auto':
       return handleAuto(args as unknown as PaktAutoArgs);
+    case 'pakt_inspect':
+      return handleInspect(args as unknown as PaktInspectArgs);
     default: {
-      // Exhaustive check -- TypeScript will error if a new tool name is added
       const _exhaustive: never = name;
       throw new Error(`Unknown PAKT MCP tool: "${String(_exhaustive)}"`);
     }

@@ -1,4 +1,5 @@
 import type { PaktFormat } from '@sriinnu/pakt';
+import type { CompressionConfig } from './pakt-service';
 import {
   analyzePreview,
   compressSource,
@@ -9,10 +10,10 @@ import {
 
 type WorkerRequest =
   | { id: number; type: 'preload' }
-  | { id: number; type: 'analyzePreview'; input: string; liveCompress: boolean }
-  | { id: number; type: 'compressSource'; input: string }
+  | { id: number; type: 'analyzePreview'; input: string; liveCompress: boolean; config: CompressionConfig }
+  | { id: number; type: 'compressSource'; input: string; config: CompressionConfig }
   | { id: number; type: 'decompressSource'; input: string; format: PaktFormat }
-  | { id: number; type: 'computeComparison'; input: string };
+  | { id: number; type: 'computeComparison'; input: string; semanticBudget?: number };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -39,14 +40,14 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         respond({
           id: message.id,
           ok: true,
-          payload: await analyzePreview(message.input, message.liveCompress),
+          payload: await analyzePreview(message.input, message.liveCompress, message.config),
         });
         return;
       case 'compressSource':
         respond({
           id: message.id,
           ok: true,
-          payload: await compressSource(message.input),
+          payload: await compressSource(message.input, message.config),
         });
         return;
       case 'decompressSource':
@@ -60,7 +61,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         respond({
           id: message.id,
           ok: true,
-          payload: await computeComparison(message.input),
+          payload: await computeComparison(message.input, message.semanticBudget),
         });
         return;
       default: {
