@@ -23,7 +23,11 @@ const SUPPORTED_SITES: readonly SupportedSiteDescriptor[] = [
   {
     host: 'gemini.google.com',
     label: 'Gemini',
-    selectors: ['.ql-editor[contenteditable="true"]', 'div[contenteditable="true"]', 'rich-textarea textarea'],
+    selectors: [
+      '.ql-editor[contenteditable="true"]',
+      'div[contenteditable="true"]',
+      'rich-textarea textarea',
+    ],
   },
 ] as const;
 

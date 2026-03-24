@@ -9,10 +9,10 @@
 
 import { compareSavings, compress, countTokens, decompress, detect } from './index.js';
 import { handlePaktTool } from './mcp/index.js';
-import { validate } from './utils/validate.js';
 import type { PaktInspectResult } from './mcp/index.js';
 import { compressMixed } from './mixed/index.js';
 import type { PaktFormat, PaktOptions } from './types.js';
+import { validate } from './utils/validate.js';
 
 // ---------------------------------------------------------------------------
 // Internal types (re-used from cli.ts via import)
@@ -244,7 +244,10 @@ export function cmdDetect(args: ParsedArgs, readInput: (file: string | undefined
  * Reads input and reports whether the payload should be compressed,
  * decompressed, or left as-is.
  */
-export function cmdInspect(args: ParsedArgs, readInput: (file: string | undefined) => string): void {
+export function cmdInspect(
+  args: ParsedArgs,
+  readInput: (file: string | undefined) => string,
+): void {
   const input = readInput(args.file);
   const model = args.options.get('model') ?? 'gpt-4o';
   const semanticBudget = parseSemanticBudget(args.options.get('semantic-budget'));

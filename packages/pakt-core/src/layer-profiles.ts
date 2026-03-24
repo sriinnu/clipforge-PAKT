@@ -35,7 +35,8 @@ export const PAKT_LAYER_PROFILES: readonly PaktLayerProfile[] = [
     id: 'tokenizer',
     label: 'Tokenizer-aware',
     shortLabel: 'L1+L2+L3',
-    description: 'Adds model-aware delimiter choices on top of standard PAKT while staying reversible.',
+    description:
+      'Adds model-aware delimiter choices on top of standard PAKT while staying reversible.',
     layers: {
       structural: true,
       dictionary: true,

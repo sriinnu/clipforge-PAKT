@@ -270,7 +270,9 @@ describe('validate: indentation warnings', () => {
     expect(result.valid).toBe(false);
     expect(
       result.errors.some(
-        (e) => e.code === 'E008' && e.message.includes('@compress semantic requires a matching @warning lossy'),
+        (e) =>
+          e.code === 'E008' &&
+          e.message.includes('@compress semantic requires a matching @warning lossy'),
       ),
     ).toBe(true);
   });

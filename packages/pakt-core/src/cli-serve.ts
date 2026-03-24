@@ -7,8 +7,8 @@
  * and desktop clients.
  */
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { VERSION } from './index.js';
 import { registerPaktTools } from './mcp/server.js';
 

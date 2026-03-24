@@ -1,9 +1,9 @@
 import {
   DEFAULT_SEMANTIC_BUDGET,
   PAKT_LAYER_PROFILES,
-  getPaktLayerProfile,
   type PaktFormat,
   type PaktLayerProfileId,
+  getPaktLayerProfile,
 } from '@sriinnu/pakt';
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import paktLogo from '../../../assets/pakt-logo.svg';
@@ -215,11 +215,15 @@ export default function App() {
   const manualRequestIdRef = useRef(0);
   const deferredInput = useDeferredValue(input);
 
-  const selectedProfile = useMemo(() => getPaktLayerProfile(compressionProfileId), [compressionProfileId]);
+  const selectedProfile = useMemo(
+    () => getPaktLayerProfile(compressionProfileId),
+    [compressionProfileId],
+  );
   const semanticBudget = selectedProfile.requiresSemanticBudget
     ? parseSemanticBudget(semanticBudgetInput)
     : undefined;
-  const semanticBudgetValid = !selectedProfile.requiresSemanticBudget || semanticBudget !== undefined;
+  const semanticBudgetValid =
+    !selectedProfile.requiresSemanticBudget || semanticBudget !== undefined;
   const compressionConfig = useMemo(
     () => ({
       profileId: compressionProfileId,
@@ -256,7 +260,11 @@ export default function App() {
   const decompressButtonLabel =
     pendingAction === 'decompress' ? 'Restoring...' : 'Restore from PAKT';
   const compressButtonDisabled =
-    !input.trim() || packedInputDetected || livePreviewEnabled || manualActionInFlight || !semanticBudgetValid;
+    !input.trim() ||
+    packedInputDetected ||
+    livePreviewEnabled ||
+    manualActionInFlight ||
+    !semanticBudgetValid;
   const decompressButtonDisabled = !input.trim() || manualActionInFlight;
   const actionHint = !semanticBudgetValid
     ? 'Semantic profile needs a positive token budget before preview or compression can run.'
@@ -518,7 +526,10 @@ export default function App() {
       const text = label === 'cli' ? buildCliWorkflowSnippet(input) : WORKFLOW_SNIPPET_PREVIEW.mcp;
       await navigator.clipboard.writeText(text);
       setWorkflowNotice(`${label.toUpperCase()} snippet copied`);
-      window.setTimeout(() => setWorkflowNotice((current) => (current?.includes('copied') ? null : current)), 1800);
+      window.setTimeout(
+        () => setWorkflowNotice((current) => (current?.includes('copied') ? null : current)),
+        1800,
+      );
     } catch {
       setError('Clipboard copy failed in this browser context');
     }
@@ -567,7 +578,8 @@ export default function App() {
           <h1>See when structure actually compresses.</h1>
           <p className="lede">
             Try raw JSON, YAML, CSV, and mixed markdown in a local browser playground, compare
-            actual PAKT profiles, and verify round-trips before you ship prompts or workflow payloads.
+            actual PAKT profiles, and verify round-trips before you ship prompts or workflow
+            payloads.
           </p>
         </div>
         <div className="hero-card">
@@ -611,7 +623,13 @@ export default function App() {
       </fieldset>
 
       <div className="controls card">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '12px',
+          }}
+        >
           <label>
             Sample payload
             <select value={selectedSample} onChange={(event) => loadSample(event.target.value)}>
@@ -627,7 +645,9 @@ export default function App() {
             Compression profile
             <select
               value={compressionProfileId}
-              onChange={(event) => setCompressionProfileId(event.target.value as PaktLayerProfileId)}
+              onChange={(event) =>
+                setCompressionProfileId(event.target.value as PaktLayerProfileId)
+              }
             >
               {PAKT_LAYER_PROFILES.map((profile) => (
                 <option key={profile.id} value={profile.id}>
@@ -674,7 +694,8 @@ export default function App() {
         </div>
         {selectedProfile.requiresSemanticBudget ? (
           <p className="sample-note" style={{ marginTop: '-6px', color: 'var(--warning)' }}>
-            Semantic profile is lossy. It needs a positive budget and is meant for aggressive prompt packing, not exact formatting fidelity.
+            Semantic profile is lossy. It needs a positive budget and is meant for aggressive prompt
+            packing, not exact formatting fidelity.
           </p>
         ) : null}
       </div>
@@ -698,7 +719,10 @@ export default function App() {
         <div className="notes-header">
           <div>
             <p className="panel-label">Inspect-First Workflow</p>
-            <strong>Use the playground to feel the behavior, then wire the same flow into the real surface.</strong>
+            <strong>
+              Use the playground to feel the behavior, then wire the same flow into the real
+              surface.
+            </strong>
           </div>
           {workflowNotice ? <span className="workflow-notice">{workflowNotice}</span> : null}
         </div>
@@ -712,7 +736,10 @@ export default function App() {
             <p className="panel-label">CLI handoff</p>
             <strong>Inspect first, then pack only when it helps.</strong>
             <pre className="workflow-code">{WORKFLOW_SNIPPET_PREVIEW.cli}</pre>
-            <p className="sample-note">Copy action includes your current Input payload in a shell-safe encoded form so the snippet runs as pasted.</p>
+            <p className="sample-note">
+              Copy action includes your current Input payload in a shell-safe encoded form so the
+              snippet runs as pasted.
+            </p>
             <button className="ghost" type="button" onClick={() => void handleCopyWorkflow('cli')}>
               Copy CLI snippet
             </button>

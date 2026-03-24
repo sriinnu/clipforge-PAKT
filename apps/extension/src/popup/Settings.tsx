@@ -1,8 +1,8 @@
 import {
   DEFAULT_SEMANTIC_BUDGET,
   PAKT_LAYER_PROFILES,
-  getPaktLayerProfile,
   type PaktLayerProfileId,
+  getPaktLayerProfile,
 } from '@sriinnu/pakt';
 import { useEffect, useState } from 'react';
 import {
@@ -155,7 +155,8 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
               style={selectStyle}
             />
             <span style={{ ...settingDescStyle, color: 'var(--cf-warn, #ffcb6b)' }}>
-              Semantic compression is lossy. Keep this for aggressive prompt packing, not exact formatting fidelity.
+              Semantic compression is lossy. Keep this for aggressive prompt packing, not exact
+              formatting fidelity.
             </span>
           </label>
         ) : null}

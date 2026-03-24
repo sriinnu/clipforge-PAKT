@@ -500,146 +500,148 @@ const MenuBarPanel: FC = () => {
             </div>
 
             <div className="desktop-chip-row">
-            <FormatBadge format={compactor.format} />
-            <span className="desktop-hero-chip">{model}</span>
-            <span className="desktop-hero-chip">
-              {activeLayerCodes.length > 0 ? activeLayerCodes.join(' · ') : 'No layers'}
-            </span>
-            {layers.semantic ? (
-              <span className="desktop-hero-chip">Budget {semanticBudget}</span>
-            ) : null}
-            <span className={`desktop-hero-chip ${runIsLossless ? 'is-strong' : 'is-danger'}`}>
-              {runIsLossless ? 'Lossless' : 'Lossy'}
-            </span>
-            <span className="desktop-hero-chip">{runIsLossless ? 'Reversible' : 'Not fully reversible'}</span>
-            <span className="desktop-hero-chip">Pack {packHotkey}</span>
-            <span className="desktop-hero-chip">Restore {restoreHotkey}</span>
-            {hasOutput && !outputHasError ? (
-              <span className="desktop-hero-chip is-strong">{compactor.savings}% saved</span>
-            ) : null}
-            {outputHasError ? (
-              <span className="desktop-hero-chip is-danger">Fix output</span>
-            ) : null}
-          </div>
-        </section>
-
-        <div className="desktop-editor-grid">
-          <section className="desktop-card">
-            <div className="desktop-card-inner">
-              <div className="desktop-card-header">
-                <div>
-                  <div className="desktop-card-title-row">
-                    <p className="desktop-card-title">Source</p>
-                    <span className="desktop-card-meta">
-                      {compactor.originalTokens.toLocaleString()} tokens
-                    </span>
-                  </div>
-                  <p className="desktop-copy">{sourceMeta}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void clipboard.readClipboard()}
-                  className="desktop-inline-action"
-                >
-                  Paste clipboard
-                </button>
-              </div>
-
-              <textarea
-                ref={sourceTextareaRef}
-                value={compactor.input}
-                onChange={(e) => setSourceText(e.target.value)}
-                placeholder="Paste or type content here..."
-                rows={11}
-                className="desktop-editor"
-                aria-label="Source content"
-              />
-
-              <div className="desktop-status-line">
-                <div className="desktop-inline-metrics">
-                  <FormatBadge format={compactor.format} />
-                  <span className="desktop-card-meta">
-                    {lastAction === 'compress' ? 'Packed output is current' : 'Source is current'}
-                  </span>
-                </div>
-                <span>{autoCompress ? 'Watching clipboard' : 'Manual mode'}</span>
-              </div>
+              <FormatBadge format={compactor.format} />
+              <span className="desktop-hero-chip">{model}</span>
+              <span className="desktop-hero-chip">
+                {activeLayerCodes.length > 0 ? activeLayerCodes.join(' · ') : 'No layers'}
+              </span>
+              {layers.semantic ? (
+                <span className="desktop-hero-chip">Budget {semanticBudget}</span>
+              ) : null}
+              <span className={`desktop-hero-chip ${runIsLossless ? 'is-strong' : 'is-danger'}`}>
+                {runIsLossless ? 'Lossless' : 'Lossy'}
+              </span>
+              <span className="desktop-hero-chip">
+                {runIsLossless ? 'Reversible' : 'Not fully reversible'}
+              </span>
+              <span className="desktop-hero-chip">Pack {packHotkey}</span>
+              <span className="desktop-hero-chip">Restore {restoreHotkey}</span>
+              {hasOutput && !outputHasError ? (
+                <span className="desktop-hero-chip is-strong">{compactor.savings}% saved</span>
+              ) : null}
+              {outputHasError ? (
+                <span className="desktop-hero-chip is-danger">Fix output</span>
+              ) : null}
             </div>
           </section>
 
-          <section className="desktop-card">
-            <div className="desktop-card-inner">
-              <div className="desktop-card-header desktop-card-header-stack">
-                <div>
-                  <div className="desktop-card-title-row">
-                    <p className="desktop-card-title">Output</p>
-                    {hasOutput ? (
+          <div className="desktop-editor-grid">
+            <section className="desktop-card">
+              <div className="desktop-card-inner">
+                <div className="desktop-card-header">
+                  <div>
+                    <div className="desktop-card-title-row">
+                      <p className="desktop-card-title">Source</p>
                       <span className="desktop-card-meta">
-                        {compactor.compressedTokens.toLocaleString()} tokens
+                        {compactor.originalTokens.toLocaleString()} tokens
                       </span>
+                    </div>
+                    <p className="desktop-copy">{sourceMeta}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void clipboard.readClipboard()}
+                    className="desktop-inline-action"
+                  >
+                    Paste clipboard
+                  </button>
+                </div>
+
+                <textarea
+                  ref={sourceTextareaRef}
+                  value={compactor.input}
+                  onChange={(e) => setSourceText(e.target.value)}
+                  placeholder="Paste or type content here..."
+                  rows={11}
+                  className="desktop-editor"
+                  aria-label="Source content"
+                />
+
+                <div className="desktop-status-line">
+                  <div className="desktop-inline-metrics">
+                    <FormatBadge format={compactor.format} />
+                    <span className="desktop-card-meta">
+                      {lastAction === 'compress' ? 'Packed output is current' : 'Source is current'}
+                    </span>
+                  </div>
+                  <span>{autoCompress ? 'Watching clipboard' : 'Manual mode'}</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="desktop-card">
+              <div className="desktop-card-inner">
+                <div className="desktop-card-header desktop-card-header-stack">
+                  <div>
+                    <div className="desktop-card-title-row">
+                      <p className="desktop-card-title">Output</p>
+                      {hasOutput ? (
+                        <span className="desktop-card-meta">
+                          {compactor.compressedTokens.toLocaleString()} tokens
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="desktop-copy">{outputMeta}</p>
+                  </div>
+                  <div className="desktop-status-actions">
+                    <select
+                      value={outputFormat}
+                      onChange={(e) => setOutputFormat(e.target.value as PaktFormat)}
+                      className="desktop-select desktop-inline-select"
+                      aria-label="Output format"
+                    >
+                      {OUTPUT_FORMATS.map((f) => (
+                        <option key={f.value} value={f.value}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                    {!outputHasError && hasOutput ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy()}
+                        className="desktop-primary-button"
+                      >
+                        Copy output
+                      </button>
                     ) : null}
                   </div>
-                  <p className="desktop-copy">{outputMeta}</p>
                 </div>
-                <div className="desktop-status-actions">
-                  <select
-                    value={outputFormat}
-                    onChange={(e) => setOutputFormat(e.target.value as PaktFormat)}
-                    className="desktop-select desktop-inline-select"
-                    aria-label="Output format"
-                  >
-                    {OUTPUT_FORMATS.map((f) => (
-                      <option key={f.value} value={f.value}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                  {!outputHasError && hasOutput ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleCopy()}
-                      className="desktop-primary-button"
-                    >
-                      Copy output
-                    </button>
+
+                <textarea
+                  value={compactor.output}
+                  readOnly
+                  placeholder="Output will appear here..."
+                  rows={11}
+                  className="desktop-editor"
+                  aria-label="Output content"
+                />
+
+                <div className="desktop-status-line">
+                  <span>
+                    {outputHasError
+                      ? 'Review the error message above.'
+                      : hasOutput
+                        ? runIsLossless
+                          ? 'Output is ready for copy or restore.'
+                          : 'Output is ready, but the active run used lossy semantic compression.'
+                        : 'No output yet.'}
+                  </span>
+                  {hasOutput ? (
+                    <span className={`desktop-copy-badge ${copyState}`}>
+                      {copyState === 'success'
+                        ? 'Copied'
+                        : copyState === 'error'
+                          ? 'Clipboard failed'
+                          : outputHasError
+                            ? 'Needs review'
+                            : 'Ready'}
+                    </span>
                   ) : null}
                 </div>
               </div>
-
-              <textarea
-                value={compactor.output}
-                readOnly
-                placeholder="Output will appear here..."
-                rows={11}
-                className="desktop-editor"
-                aria-label="Output content"
-              />
-
-              <div className="desktop-status-line">
-                <span>
-                  {outputHasError
-                    ? 'Review the error message above.'
-                    : hasOutput
-                      ? runIsLossless
-                        ? 'Output is ready for copy or restore.'
-                        : 'Output is ready, but the active run used lossy semantic compression.'
-                      : 'No output yet.'}
-                </span>
-                {hasOutput ? (
-                  <span className={`desktop-copy-badge ${copyState}`}>
-                    {copyState === 'success'
-                      ? 'Copied'
-                      : copyState === 'error'
-                        ? 'Clipboard failed'
-                        : outputHasError
-                          ? 'Needs review'
-                          : 'Ready'}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        </div>
+            </section>
+          </div>
 
           <div className="desktop-bottom-grid">
             <LayerControls />

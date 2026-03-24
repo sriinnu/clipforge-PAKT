@@ -78,7 +78,9 @@ async function createStdioHarness(): Promise<Harness> {
 }
 
 function extractJsonText(result: { content: Array<{ type: string; text?: string }> }): unknown {
-  const textContent = result.content.find((item) => item.type === 'text' && typeof item.text === 'string');
+  const textContent = result.content.find(
+    (item) => item.type === 'text' && typeof item.text === 'string',
+  );
   expect(textContent?.text).toBeTruthy();
   return JSON.parse(textContent!.text!);
 }
@@ -134,7 +136,9 @@ describe('cli-serve MCP transport', () => {
       },
     });
 
-    const text = result.content.find((item) => item.type === 'text' && typeof item.text === 'string')?.text;
+    const text = result.content.find(
+      (item) => item.type === 'text' && typeof item.text === 'string',
+    )?.text;
 
     expect(result.isError).toBe(true);
     expect(text).toContain('text must be a non-empty string');
@@ -150,7 +154,9 @@ describe('cli-serve MCP transport', () => {
       },
     });
 
-    const text = result.content.find((item) => item.type === 'text' && typeof item.text === 'string')?.text;
+    const text = result.content.find(
+      (item) => item.type === 'text' && typeof item.text === 'string',
+    )?.text;
 
     expect(result.isError).toBe(true);
     expect(text).toBeTruthy();
