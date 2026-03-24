@@ -5,7 +5,7 @@
 <h3 align="center">ClipForge PAKT</h3>
 
 <p align="center">
-  Lossless-first prompt compression for structured LLM data. Typical 30-50% fewer tokens across core L1-L3.<br/>
+  Lossless-first prompt compression for structured LLM data. Structured payloads often drop 30-50% tokens across core L1-L3.<br/>
   <i>Stop paying for syntax. Every token should carry meaning.</i>
 </p>
 
@@ -30,7 +30,7 @@
 
 ## What is PAKT?
 
-**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. It delivers **typical 30-50% token savings**, with higher gains on repetitive and tabular payloads, while preserving data fidelity across core lossless layers `L1-L3`. `L4` is separately opt-in, budgeted, and lossy.
+**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. Structured payloads often see **30-50% token savings**, with higher gains on repetitive and tabular data, while preserving data fidelity across core lossless layers `L1-L3`. `L4` is separately opt-in, budgeted, and lossy.
 
 LLMs charge by the token. Structured data wastes tokens on syntax: braces, quotes, repeated keys, whitespace. PAKT eliminates the waste.
 
@@ -38,12 +38,16 @@ LLMs charge by the token. Structured data wastes tokens on syntax: braces, quote
 
 ClipForge is the product suite built around PAKT. In this repository, that means:
 
-- **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. Install it from npm and use it in Node.js or TypeScript projects.
-- **[ClipForge Playground](./apps/playground/)** -- A lightweight web UI for trying JSON, YAML, CSV, and mixed markdown compression locally before wiring PAKT into a real workflow. Hosted playground: [pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/).
+- **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. This is the stable release surface for Node.js and TypeScript projects, plus agent hosts that need stdio tools for compress, auto, and inspect.
+- **[ClipForge Playground](./apps/playground/)** -- A lightweight local web UI for trying JSON, YAML, CSV, and mixed markdown compression before wiring PAKT into a real workflow. It is a browser lab, not a release integration. Hosted playground: [pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/).
 - **[ClipForge Desktop](./apps/desktop/)** -- A Tauri desktop shell for clipboard compression workflows. The current release validation is macOS menu bar first; Windows and Linux tray targets exist in source but are not part of the validated release path yet.
-- **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini.
+- **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini. Site coverage is intentionally limited today.
 
 The goal is simple: every token you send to an LLM should carry meaning, not syntax.
+
+For agent workflows, the MCP server is the integration bridge. `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, and `pakt_inspect` through the standard MCP transport, so stdio-based MCP clients can call the same toolset without custom protocol glue. The generic stdio path is verified in-repo; named hosts like Claude Desktop and Cursor are integration targets rather than a certification matrix. `pakt_inspect` is the recommended first call when deciding whether compression is worth it.
+
+The app surfaces now align on shared layer profiles: `Structure only (L1)`, `Standard (L1+L2)`, `Tokenizer-aware (L1+L2+L3)`, and opt-in `Semantic (L1+L2+L3+L4)`. Semantic mode requires a positive `semanticBudget` and is explicitly lossy.
 
 ```
 JSON (28 tokens)                    PAKT (15 tokens)
@@ -124,16 +128,37 @@ For LLM round-trips, the core package now also exposes `interpretModelOutput()` 
 
 Try the hosted playground: **[pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/)**.
 
-To try the local playground:
+### Root Workspace Commands
+
+From the repo root, you can install, build, and boot each surface directly:
 
 ```bash
-pnpm -C apps/playground dev
+pnpm install
+pnpm build
+pnpm build:all
+pnpm build:core
+pnpm build:playground
+pnpm build:extension
+pnpm build:desktop:web
+pnpm build:desktop
+pnpm build:apps
+pnpm test:core
+pnpm test:playground
+pnpm dev:playground
+pnpm dev:extension
+pnpm dev:desktop:web
+pnpm dev:desktop
+pnpm start:mcp
 ```
 
-To run the playground regression checks:
+Local surface entrypoints:
 
 ```bash
-pnpm -C apps/playground test
+pnpm dev:playground   # local playground
+pnpm dev:extension    # extension dev build
+pnpm dev:desktop:web  # desktop frontend only
+pnpm dev:desktop      # real Tauri desktop shell
+pnpm start:mcp        # core MCP server over stdio
 ```
 
 Playground notes for release testing:
@@ -147,6 +172,7 @@ Playground notes for release testing:
 CLI/MCP note:
 
 - `semanticBudget` now cleanly opts into lossy `L4`; if you stay on `L1-L3`, the pipeline remains lossless.
+- `pakt serve --stdio` now uses the official MCP SDK stdio transport, and embedders can register the same tools programmatically via `registerPaktTools()`.
 
 ---
 
@@ -156,9 +182,10 @@ CLI/MCP note:
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
 - **Lossless data round-tripping** -- L1-L3 preserve data fidelity on decompress; L4 is explicitly lossy
 - **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
-- **CLI included** -- `pakt compress`, `pakt decompress`, `pakt detect`, `pakt tokens`, `pakt savings`
-- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress` and `pakt_auto`, both with optional `semanticBudget` for opt-in `L4`
-- **Minimal runtime dependencies** -- only `gpt-tokenizer` at runtime
+- **CLI included** -- `pakt compress`, `pakt decompress`, `pakt auto`, `pakt inspect`, `pakt detect`, `pakt tokens`, `pakt savings`
+- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, and `pakt_inspect` over the official MCP SDK stdio transport for agent workflows
+- **Embeddable MCP tools** -- `registerPaktTools()` lets other MCP hosts add the same PAKT toolset without reimplementing schemas or handlers
+- **Small runtime dependency set** -- `gpt-tokenizer`, the MCP SDK, and `zod`
 - **Full TypeScript support** -- All types exported, dual ESM/CJS builds
 
 ---

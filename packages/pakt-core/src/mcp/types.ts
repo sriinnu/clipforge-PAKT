@@ -2,18 +2,22 @@
  * @module mcp/types
  * TypeScript types for the PAKT MCP (Model Context Protocol) tool interface.
  *
- * These types define the input/output contracts for `pakt_compress` and
- * `pakt_auto` tools, following the MCP tool specification. All types are
- * fully typed -- no `any` usage.
+ * These types define the public JSON-schema tool metadata plus the input/output
+ * contracts for the PAKT MCP tools.
  *
  * @see {@link https://modelcontextprotocol.io/docs/concepts/tools MCP Tools Spec}
  */
 
-import type { PaktFormat } from '../types.js';
-
-// ---------------------------------------------------------------------------
-// MCP tool schema definition
-// ---------------------------------------------------------------------------
+import type {
+  PaktAutoArgsFromContract,
+  PaktAutoResultFromContract,
+  PaktCompressArgsFromContract,
+  PaktCompressResultFromContract,
+  PaktContractToolName,
+  PaktInspectArgsFromContract,
+  PaktInspectResultFromContract,
+  PaktMcpContract,
+} from './contract.js';
 
 /**
  * JSON Schema property descriptor for MCP tool input parameters.
@@ -39,24 +43,13 @@ export interface McpToolInputSchema {
   properties: Record<string, McpToolProperty>;
   /** List of required parameter names. */
   required: string[];
+  /** Whether keys outside `properties` are allowed. */
+  additionalProperties?: boolean;
 }
 
 /**
  * An MCP tool definition. Describes the tool's name, purpose,
  * and expected input shape for registration with an MCP server.
- *
- * @example
- * ```ts
- * const tool: McpToolDefinition = {
- *   name: 'pakt_compress',
- *   description: 'Compress text using PAKT format',
- *   inputSchema: {
- *     type: 'object',
- *     properties: { text: { type: 'string', description: 'Input text' } },
- *     required: ['text'],
- *   },
- * };
- * ```
  */
 export interface McpToolDefinition {
   /** Unique tool name (e.g., 'pakt_compress', 'pakt_auto'). */
@@ -67,108 +60,19 @@ export interface McpToolDefinition {
   inputSchema: McpToolInputSchema;
 }
 
-// ---------------------------------------------------------------------------
-// pakt_compress types
-// ---------------------------------------------------------------------------
-
-/**
- * Input arguments for the `pakt_compress` tool.
- *
- * @example
- * ```ts
- * const args: PaktCompressArgs = {
- *   text: '{"name": "Alice", "role": "dev"}',
- *   format: 'json',
- * };
- * ```
- */
-export interface PaktCompressArgs {
-  /** The text content to compress. */
-  text: string;
-  /**
-   * Optional format hint. When provided, skips auto-detection
-   * and treats the input as this format.
-   */
-  format?: PaktFormat;
-  /**
-   * Optional token budget for L4 semantic compression.
-   * Providing this budget opts into lossy compression.
-   */
-  semanticBudget?: number;
-}
-
-/**
- * Output from the `pakt_compress` tool.
- *
- * @example
- * ```ts
- * const result: PaktCompressResult = {
- *   compressed: '@from json\nname: Alice\nrole: dev',
- *   savings: 42,
- *   format: 'json',
- * };
- * ```
- */
-export interface PaktCompressResult {
-  /** The compressed PAKT string. */
-  compressed: string;
-  /** Savings percentage (0-100). */
-  savings: number;
-  /** The detected or specified input format. */
-  format: PaktFormat;
-}
-
-// ---------------------------------------------------------------------------
-// pakt_auto types
-// ---------------------------------------------------------------------------
-
-/**
- * Input arguments for the `pakt_auto` tool.
- *
- * @example
- * ```ts
- * const args: PaktAutoArgs = { text: '@from json\nname: Alice' };
- * ```
- */
-export interface PaktAutoArgs {
-  /** The text to auto-process (compress if raw, decompress if PAKT). */
-  text: string;
-  /**
-   * Optional token budget for L4 semantic compression.
-   * Only applies on the compress path; decompression ignores it.
-   */
-  semanticBudget?: number;
-}
-
-/**
- * Output from the `pakt_auto` tool.
- *
- * @example
- * ```ts
- * const result: PaktAutoResult = {
- *   result: '{"name": "Alice"}',
- *   action: 'decompressed',
- * };
- * ```
- */
-export interface PaktAutoResult {
-  /** The processed text (compressed PAKT or decompressed original). */
-  result: string;
-  /** Whether the input was compressed or decompressed. */
-  action: 'compressed' | 'decompressed';
-  /** Savings percentage (only present when action is 'compressed'). */
-  savings?: number;
-}
-
-// ---------------------------------------------------------------------------
-// Handler union types
-// ---------------------------------------------------------------------------
+export type PaktCompressArgs = PaktCompressArgsFromContract;
+export type PaktCompressResult = PaktCompressResultFromContract;
+export type PaktAutoArgs = PaktAutoArgsFromContract;
+export type PaktAutoResult = PaktAutoResultFromContract;
+export type PaktInspectArgs = PaktInspectArgsFromContract;
+export type PaktInspectResult = PaktInspectResultFromContract;
 
 /** Union of all valid MCP tool names exposed by PAKT. */
-export type PaktToolName = 'pakt_compress' | 'pakt_auto';
+export type PaktToolName = PaktContractToolName;
 
 /** Union of all valid MCP tool argument types. */
-export type PaktToolArgs = PaktCompressArgs | PaktAutoArgs;
+export type PaktToolArgs = PaktCompressArgs | PaktAutoArgs | PaktInspectArgs;
 
 /** Union of all valid MCP tool result types. */
-export type PaktToolResult = PaktCompressResult | PaktAutoResult;
+export type PaktToolResult = PaktCompressResult | PaktAutoResult | PaktInspectResult;
+export type { PaktMcpContract };

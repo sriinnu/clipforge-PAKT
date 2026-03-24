@@ -6,7 +6,9 @@
 [![tests](https://github.com/sriinnu/clipforge-PAKT/actions/workflows/ci.yml/badge.svg)](https://github.com/sriinnu/clipforge-PAKT/actions)
 [![license](https://img.shields.io/npm/l/@sriinnu/pakt)](./LICENSE)
 
-PAKT converts JSON, YAML, CSV, and markdown documents with embedded structured blocks into a compact pipe-delimited format that typically reduces LLM token counts by 30-50% while preserving structured data fidelity across its core `L1-L3` layers. An optional budgeted `L4` layer trades fidelity for additional savings only when explicitly requested.
+PAKT converts JSON, YAML, CSV, and markdown documents with embedded structured blocks into a compact pipe-delimited format that often reduces LLM token counts by 30-50% on structured payloads while preserving structured data fidelity across its core `L1-L3` layers. An optional budgeted `L4` layer trades fidelity for additional savings only when explicitly requested.
+
+For app and host integrations, `PAKT_LAYER_PROFILES` and `createProfiledPaktOptions()` provide the canonical shared profile model used across the playground, extension, desktop shell, and custom Node hosts.
 
 ---
 
@@ -18,7 +20,7 @@ npm install @sriinnu/pakt
 
 Requires Node 18+.
 
-PAKT is the core package inside the wider ClipForge repo. If you want the desktop tray app or the experimental browser extension, those live in the monorepo; this package is the library, CLI, and MCP surface.
+PAKT is the core package inside the wider ClipForge repo. This package is the supported library, CLI, and MCP surface. The desktop tray app and the browser extension live in the monorepo as separate product surfaces with different maturity levels.
 
 ---
 
@@ -95,9 +97,9 @@ console.log(result.reversible); // false
 console.log(result.compressed); // includes @compress semantic + @warning lossy
 ```
 
-### MCP Server (Claude Desktop, Cursor, Claude Code)
+### MCP Server (stdio-based MCP hosts)
 
-Add 5 lines to your MCP config — no extra files or SDK needed:
+Add 5 lines to your MCP config. This is the agent integration path for stdio-based MCP hosts:
 
 ```json
 {
@@ -110,7 +112,17 @@ Add 5 lines to your MCP config — no extra files or SDK needed:
 }
 ```
 
-Your AI agent gets `pakt_compress` and `pakt_auto` tools automatically. Both accept optional `semanticBudget` for opt-in lossy `L4`.
+Your AI agent gets `pakt_compress`, `pakt_auto`, and `pakt_inspect` automatically. `pakt serve --stdio` uses the official MCP SDK stdio transport, so the protocol and framing match standard MCP clients instead of a custom line protocol. The generic stdio path is verified in-repo; named hosts such as Claude Desktop, Cursor, and Claude Code are common targets rather than an exhaustive certification matrix. That matters because agents can inspect first, then compress or decompress only when the token savings justify the call. The compression tools accept optional `semanticBudget` for opt-in lossy `L4`, and `pakt_inspect` helps agents decide whether compression is worth it before they call it.
+
+If you are embedding PAKT into your own MCP host, register the tools directly:
+
+```typescript
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerPaktTools } from '@sriinnu/pakt';
+
+const server = new McpServer({ name: 'my-agent', version: '1.0.0' });
+registerPaktTools(server);
+```
 
 ### What the package includes
 
@@ -125,12 +137,13 @@ Your AI agent gets `pakt_compress` and `pakt_auto` tools automatically. Both acc
 ```bash
 npm install -g @sriinnu/pakt
 
-pakt compress data.json                      # compress to PAKT
+pakt compress data.json                       # compress to PAKT
 pakt compress data.json --semantic-budget 120 # opt into lossy L4
-pakt decompress data.pakt --to json          # decompress
-cat data.json | pakt auto                    # auto-detect + compress or decompress
-pakt savings data.json --model gpt-4o        # token savings report
-pakt serve --stdio                           # start MCP server
+pakt decompress data.pakt --to json           # decompress
+cat data.json | pakt auto                     # auto-detect + compress or decompress
+pakt inspect data.json --model gpt-4o         # inspect before packing
+pakt savings data.json --model gpt-4o         # token savings report
+pakt serve --stdio                            # start MCP server
 ```
 
 ---

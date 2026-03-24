@@ -1,6 +1,7 @@
-import type { PaktFormat } from '@sriinnu/pakt';
+import type { PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
 import type {
   ComparisonState,
+  CompressionConfig,
   CompressionResult,
   DecompressionResult,
   PreviewResult,
@@ -8,10 +9,10 @@ import type {
 
 type WorkerMessage =
   | { type: 'preload' }
-  | { type: 'analyzePreview'; input: string; liveCompress: boolean }
-  | { type: 'compressSource'; input: string }
+  | { type: 'analyzePreview'; input: string; liveCompress: boolean; config: CompressionConfig }
+  | { type: 'compressSource'; input: string; config: CompressionConfig }
   | { type: 'decompressSource'; input: string; format: PaktFormat }
-  | { type: 'computeComparison'; input: string };
+  | { type: 'computeComparison'; input: string; semanticBudget?: number };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -108,12 +109,19 @@ export async function preloadPaktRuntime(): Promise<void> {
   await callWorker<void>({ type: 'preload' });
 }
 
-export async function analyzePreview(input: string, liveCompress: boolean): Promise<PreviewResult> {
-  return callWorker<PreviewResult>({ type: 'analyzePreview', input, liveCompress });
+export async function analyzePreview(
+  input: string,
+  liveCompress: boolean,
+  config: CompressionConfig,
+): Promise<PreviewResult> {
+  return callWorker<PreviewResult>({ type: 'analyzePreview', input, liveCompress, config });
 }
 
-export async function compressSource(input: string): Promise<CompressionResult> {
-  return callWorker<CompressionResult>({ type: 'compressSource', input });
+export async function compressSource(
+  input: string,
+  config: CompressionConfig,
+): Promise<CompressionResult> {
+  return callWorker<CompressionResult>({ type: 'compressSource', input, config });
 }
 
 export async function decompressSource(
@@ -123,14 +131,19 @@ export async function decompressSource(
   return callWorker<DecompressionResult>({ type: 'decompressSource', input, format });
 }
 
-export async function computeComparison(input: string): Promise<ComparisonState> {
-  return callWorker<ComparisonState>({ type: 'computeComparison', input });
+export async function computeComparison(
+  input: string,
+  semanticBudget?: number,
+): Promise<ComparisonState> {
+  return callWorker<ComparisonState>({ type: 'computeComparison', input, semanticBudget });
 }
 
 export type {
   ComparisonItem,
   ComparisonState,
+  CompressionConfig,
   CompressionResult,
   DecompressionResult,
   PreviewResult,
 } from './pakt-service';
+export type { PaktLayerProfileId };

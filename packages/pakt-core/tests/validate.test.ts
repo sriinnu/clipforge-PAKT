@@ -263,6 +263,17 @@ describe('validate: indentation warnings', () => {
     const result = validate(pakt);
     expect(result.warnings.filter((w) => w.code === 'W002')).toHaveLength(0);
   });
+
+  it('requires @warning lossy when semantic compression is declared', () => {
+    const pakt = ['@from json', '@compress semantic', 'users [1]{name}:', '  Alice'].join('\n');
+    const result = validate(pakt);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some(
+        (e) => e.code === 'E008' && e.message.includes('@compress semantic requires a matching @warning lossy'),
+      ),
+    ).toBe(true);
+  });
 });
 
 // ===========================================================================

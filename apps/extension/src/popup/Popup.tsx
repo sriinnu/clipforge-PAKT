@@ -3,12 +3,12 @@
  *
  * Handles text input, format detection, auto-compress, keyboard shortcuts,
  * and output copying. Compression/decompression logic lives in `useCompression`.
- * Sub-components: ActionBar, StatsCard, Settings, icons, styles.
  */
 
-import { detect } from '@sriinnu/pakt';
+import { detect, getPaktLayerProfile } from '@sriinnu/pakt';
 import type { PaktFormat } from '@sriinnu/pakt';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getSupportedSite, listSupportedSiteLabels } from '../shared/site-support';
 import { type ExtensionSettings, getSettings } from '../shared/storage';
 import { ActionBar } from './ActionBar';
 import { Settings } from './Settings';
@@ -38,17 +38,51 @@ import {
 import { useCompression } from './useCompression';
 import { useTheme } from './useTheme';
 
-/** Detect macOS for keyboard shortcut display. */
 const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
-/** Modifier key label. */
 const MOD = IS_MAC ? '\u2318' : 'Ctrl';
+const MCP_CONFIG_SNIPPET = JSON.stringify(
+  {
+    mcpServers: {
+      pakt: {
+        command: 'npx',
+        args: ['-y', '@sriinnu/pakt', 'serve', '--stdio'],
+      },
+    },
+  },
+  null,
+  2,
+);
 
-/** Auto-compress notification banner. */
-function AutoCompressNotice() {
-  return <div style={autoNoticeStyle}>Auto-compressed on paste</div>;
+function encodeBase64(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
 }
 
-/** Main popup UI entry point. */
+function buildCliWorkflowSnippet(input: string): string {
+  const payload =
+    input.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim() ||
+    '{"paste":"structured payload here","tip":"run pakt inspect first"}';
+  const payloadBase64 = encodeBase64(payload);
+  const decodeCommand = `node --input-type=module -e "process.stdout.write(Buffer.from('${payloadBase64}','base64').toString('utf8'))"`;
+  return [`${decodeCommand} | pakt inspect`, `${decodeCommand} | pakt auto`].join('\n');
+}
+
+function AutoCompressNotice() {
+  return <div style={autoNoticeStyle}>Auto-compressed locally on paste</div>;
+}
+
+type ActiveTabSupport = {
+  status: 'loading' | 'supported' | 'unsupported' | 'unknown';
+  hostname: string | null;
+  label: string | null;
+};
+
+const SUPPORTED_SITE_LABELS = listSupportedSiteLabels();
+
 export function Popup() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
@@ -62,25 +96,26 @@ export function Popup() {
   } | null>(null);
   const [statusMsg, setStatusMsg] = useState<{
     text: string;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info';
   } | null>(null);
   const [decompressFormat, setDecompressFormat] = useState<PaktFormat>('json');
   const [copied, setCopied] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [autoNotice, setAutoNotice] = useState(false);
+  const [activeTabSupport, setActiveTabSupport] = useState<ActiveTabSupport>({
+    status: 'loading',
+    hostname: null,
+    label: null,
+  });
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  /** Tracks whether auto-compress already fired for the current input. */
   const autoCompressedRef = useRef(false);
 
-  /* Apply theme (dark/light/system) from storage */
   useTheme();
 
-  /* Load settings on mount */
   useEffect(() => {
     getSettings().then(setSettings);
   }, []);
 
-  /* Auto-paste from clipboard on open */
   useEffect(() => {
     navigator.clipboard
       .readText()
@@ -92,7 +127,38 @@ export function Popup() {
       });
   }, []);
 
-  /* Auto-detect format when input changes */
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.tabs?.query) {
+      setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
+      return;
+    }
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (chrome.runtime.lastError) {
+        setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
+        return;
+      }
+
+      const rawUrl = tabs[0]?.url;
+      if (!rawUrl) {
+        setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
+        return;
+      }
+
+      try {
+        const hostname = new URL(rawUrl).hostname;
+        const supportedSite = getSupportedSite(hostname);
+        setActiveTabSupport({
+          status: supportedSite ? 'supported' : 'unsupported',
+          hostname,
+          label: supportedSite?.label ?? null,
+        });
+      } catch {
+        setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
+      }
+    });
+  }, []);
+
   useEffect(() => {
     if (!input.trim()) {
       setDetectedFormat('text');
@@ -105,7 +171,6 @@ export function Popup() {
     }
   }, [input]);
 
-  /* ---- Compression / decompression hook ---- */
   const { runCompress, handleDecompress } = useCompression(
     settings,
     processing,
@@ -115,12 +180,10 @@ export function Popup() {
     { setOutput, setStats, setStatusMsg, setProcessing },
   );
 
-  /** Compress button click handler. */
   const handleCompress = useCallback(() => {
     runCompress(input);
   }, [input, runCompress]);
 
-  /** Copy output to clipboard. */
   const handleCopy = useCallback(async () => {
     if (!output) return;
     try {
@@ -132,7 +195,6 @@ export function Popup() {
     }
   }, [output]);
 
-  /** Clear all state and refocus input. */
   const handleClear = useCallback(() => {
     setInput('');
     setOutput('');
@@ -143,7 +205,18 @@ export function Popup() {
     inputRef.current?.focus();
   }, []);
 
-  /* ---- Auto-compress when enabled and text is pasted/loaded ---- */
+  const copyWorkflowText = useCallback(
+    async (label: 'CLI snippet' | 'MCP config', text: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatusMsg({ text: `${label} copied`, type: 'info' });
+      } catch {
+        setStatusMsg({ text: `Failed to copy ${label.toLowerCase()}`, type: 'error' });
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!settings?.autoCompress) return;
     if (!input.trim()) {
@@ -151,14 +224,12 @@ export function Popup() {
       return;
     }
     if (autoCompressedRef.current) return;
-    /* Skip if already PAKT */
     try {
       if (detect(input).format === 'pakt') return;
     } catch {
       /* ignore */
     }
     autoCompressedRef.current = true;
-    /* Small delay so the UI shows the pasted text first */
     const timer = setTimeout(
       () =>
         runCompress(input, true, () => {
@@ -170,12 +241,8 @@ export function Popup() {
     return () => clearTimeout(timer);
   }, [input, settings?.autoCompress, runCompress]);
 
-  /* ---- Keyboard shortcuts ---- */
-
-  /** Check whether the platform modifier key (Cmd on Mac, Ctrl otherwise) is held. */
   const hasMod = useCallback((e: KeyboardEvent) => (IS_MAC ? e.metaKey : e.ctrlKey), []);
 
-  /** Handle a single keyboard shortcut event, returning true if handled. */
   const handleShortcut = useCallback(
     (e: KeyboardEvent): boolean => {
       if (e.key === 'Enter') {
@@ -203,13 +270,35 @@ export function Popup() {
     return () => window.removeEventListener('keydown', handler);
   }, [hasMod, handleShortcut]);
 
-  /* ---- Derived values ---- */
   const isPakt = detectedFormat === 'pakt';
   const formatColor = FORMAT_COLORS[detectedFormat] ?? '#6b7280';
   const formatLabel = FORMAT_LABELS[detectedFormat] ?? detectedFormat;
   const formatTooltip = FORMAT_TOOLTIPS[detectedFormat] ?? '';
+  const siteSupportTitle =
+    activeTabSupport.status === 'supported'
+      ? `Inline support active on ${activeTabSupport.label}`
+      : activeTabSupport.status === 'unsupported'
+        ? `Inline support not available on ${activeTabSupport.hostname}`
+        : 'Inline site support unavailable';
+  const siteSupportBody =
+    activeTabSupport.status === 'supported'
+      ? 'This tab supports the inline ClipForge pill. You can still use the popup locally and copy the result back into the chat box when you want tighter control.'
+      : activeTabSupport.status === 'unsupported'
+        ? `This popup still works locally, but inline injection is currently validated for ${SUPPORTED_SITE_LABELS}. Use Copy Result here or move repeated workflows into the CLI or MCP server.`
+        : `The popup can still compress locally. Inline injection is currently validated for ${SUPPORTED_SITE_LABELS}.`;
+  const activeProfile = settings ? getPaktLayerProfile(settings.compressionProfileId) : null;
+  const profileSummary = activeProfile
+    ? `${activeProfile.label} (${activeProfile.shortLabel})${activeProfile.requiresSemanticBudget ? ` · budget ${settings?.semanticBudget}` : ''}`
+    : 'Loading profile';
+  const profileDetail = activeProfile
+    ? activeProfile.description
+    : 'The popup, inline button, and context menu all share the same active profile.';
+  const profileHonesty = activeProfile
+    ? activeProfile.reversible
+      ? 'Lossless profile · Reversible by design'
+      : 'Semantic profile · May become lossy when it actually shortens the payload'
+    : 'Profile status loading';
 
-  /* ---- Settings overlay ---- */
   if (showSettings) {
     return (
       <div style={containerStyle}>
@@ -225,7 +314,9 @@ export function Popup() {
             </button>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Settings</span>
           </div>
-          <span style={{ fontSize: 11, color: 'var(--cf-text-dim)' }}>v0.1.0</span>
+          <span style={{ fontSize: 11, color: 'var(--cf-text-dim)' }}>
+            v{__CLIPFORGE_VERSION__}
+          </span>
         </div>
         <div style={{ animation: 'slideInFromRight 0.2s ease' }}>
           <Settings onBack={() => setShowSettings(false)} />
@@ -234,14 +325,12 @@ export function Popup() {
     );
   }
 
-  /* ---- Main UI ---- */
   return (
     <div style={containerStyle}>
-      {/* Header */}
       <div style={headerStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={logoStyle}>ClipForge</span>
-          <span style={versionBadgeStyle}>v0.1.0</span>
+          <span style={versionBadgeStyle}>v{__CLIPFORGE_VERSION__}</span>
         </div>
         <button
           type="button"
@@ -254,10 +343,8 @@ export function Popup() {
       </div>
 
       <div style={bodyStyle}>
-        {/* Auto-compress notification */}
         {autoNotice && <AutoCompressNotice />}
 
-        {/* Format detection badge + clear */}
         <div style={topBarStyle}>
           <div
             style={{
@@ -286,7 +373,6 @@ export function Popup() {
           )}
         </div>
 
-        {/* Input textarea */}
         <textarea
           ref={inputRef}
           style={textareaStyle}
@@ -295,8 +381,74 @@ export function Popup() {
           onChange={(e) => setInput(e.target.value)}
           rows={5}
         />
+        <p
+          style={{
+            marginTop: 8,
+            color: 'var(--cf-text-muted)',
+            fontSize: 11,
+            lineHeight: 1.45,
+          }}
+        >
+          Paste structured content here, or let the popup load from your clipboard on open.
+          Compression stays local in the extension until you copy or paste it elsewhere.
+        </p>
 
-        {/* Action buttons (compress / decompress) */}
+        <div
+          style={{
+            marginTop: 10,
+            padding: '10px 12px',
+            borderRadius: 12,
+            border: '1px solid var(--cf-border)',
+            background: 'var(--cf-surface)',
+            display: 'grid',
+            gap: 4,
+          }}
+        >
+          <strong style={{ fontSize: 12, color: 'var(--cf-text)' }}>{siteSupportTitle}</strong>
+          <span style={{ fontSize: 11, color: 'var(--cf-text-muted)', lineHeight: 1.5 }}>
+            {siteSupportBody}
+          </span>
+          {activeTabSupport.status !== 'supported' ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+              <button
+                type="button"
+                style={{ ...clearBtnStyle, padding: '6px 10px', fontSize: 11 }}
+                onClick={() => void copyWorkflowText('CLI snippet', buildCliWorkflowSnippet(input))}
+              >
+                Copy CLI snippet
+              </button>
+              <button
+                type="button"
+                style={{ ...clearBtnStyle, padding: '6px 10px', fontSize: 11 }}
+                onClick={() => void copyWorkflowText('MCP config', MCP_CONFIG_SNIPPET)}
+              >
+                Copy MCP config
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          style={{
+            marginTop: 10,
+            padding: '10px 12px',
+            borderRadius: 12,
+            border: '1px solid var(--cf-border)',
+            background: 'var(--cf-surface)',
+            display: 'grid',
+            gap: 4,
+          }}
+        >
+          <strong style={{ fontSize: 12, color: 'var(--cf-text)' }}>Active compression profile</strong>
+          <span style={{ fontSize: 11, color: 'var(--cf-text)', lineHeight: 1.5 }}>{profileSummary}</span>
+          <span style={{ fontSize: 11, color: 'var(--cf-text-muted)', lineHeight: 1.5 }}>
+            {profileDetail}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--cf-text-dim)', lineHeight: 1.5 }}>
+            {profileHonesty}
+          </span>
+        </div>
+
         <ActionBar
           isPakt={isPakt}
           hasInput={!!input.trim()}
@@ -307,10 +459,8 @@ export function Popup() {
           onDecompress={handleDecompress}
         />
 
-        {/* Stats card with skeleton loading */}
         <StatsCard stats={stats} loading={processing} />
 
-        {/* Output section */}
         {output && (
           <div
             style={{
@@ -341,14 +491,22 @@ export function Popup() {
           </div>
         )}
 
-        {/* Status message */}
         {statusMsg && (
           <div
             style={{
               ...statusMsgStyle,
               backgroundColor:
-                statusMsg.type === 'success' ? 'var(--cf-success-glow)' : 'var(--cf-error-glow)',
-              color: statusMsg.type === 'success' ? 'var(--cf-success)' : 'var(--cf-error)',
+                statusMsg.type === 'success'
+                  ? 'var(--cf-success-glow)'
+                  : statusMsg.type === 'info'
+                    ? 'var(--cf-surface)'
+                    : 'var(--cf-error-glow)',
+              color:
+                statusMsg.type === 'success'
+                  ? 'var(--cf-success)'
+                  : statusMsg.type === 'info'
+                    ? 'var(--cf-text-muted)'
+                    : 'var(--cf-error)',
             }}
           >
             {statusMsg.text}
@@ -356,11 +514,12 @@ export function Popup() {
         )}
       </div>
 
-      {/* Footer with keyboard shortcut hints */}
       <div style={footerStyle}>
-        <span style={{ color: 'var(--cf-text-dim)', fontSize: 11 }}>{MOD}+Enter to compress</span>
+        <span style={{ color: 'var(--cf-text-dim)', fontSize: 11 }}>
+          {isPakt ? `${MOD}+Enter to expand` : `${MOD}+Enter to compress`}
+        </span>
         <a
-          href="https://github.com/yugenlab/clipforge"
+          href="https://github.com/sriinnu/clipforge-PAKT#readme"
           target="_blank"
           rel="noopener noreferrer"
           style={footerLinkStyle}
@@ -372,9 +531,6 @@ export function Popup() {
   );
 }
 
-/* -- Inline styles for auto-compress notification ------------------------- */
-
-/** Slide-down notification banner for auto-compress events. */
 const autoNoticeStyle: React.CSSProperties = {
   padding: '6px 12px',
   borderRadius: 'var(--cf-radius-md)',

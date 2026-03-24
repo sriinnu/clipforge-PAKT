@@ -1,3 +1,9 @@
+import {
+  DEFAULT_SEMANTIC_BUDGET,
+  PAKT_LAYER_PROFILES,
+  getPaktLayerProfile,
+  type PaktLayerProfileId,
+} from '@sriinnu/pakt';
 import { useEffect, useState } from 'react';
 import {
   DEFAULT_SETTINGS,
@@ -6,9 +12,6 @@ import {
   saveSettings,
 } from '../shared/storage';
 
-// ---------------------------------------------------------------------------
-// Toggle switch component
-// ---------------------------------------------------------------------------
 function Toggle({
   value,
   onChange,
@@ -51,9 +54,6 @@ function Toggle({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Segmented control component
-// ---------------------------------------------------------------------------
 function SegmentedControl<T extends string>({
   options,
   value,
@@ -84,9 +84,6 @@ function SegmentedControl<T extends string>({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Settings component
-// ---------------------------------------------------------------------------
 interface SettingsProps {
   onBack: () => void;
 }
@@ -101,23 +98,13 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
   const update = (partial: Partial<ExtensionSettings>) => {
     const next = { ...settings, ...partial };
     setSettings(next);
-    saveSettings(partial);
+    void saveSettings(partial);
   };
 
-  const compressionMode =
-    settings.layerStructural && settings.layerDictionary ? 'standard' : 'structure';
-
-  const handleCompressionChange = (mode: string) => {
-    if (mode === 'standard') {
-      update({ layerStructural: true, layerDictionary: true });
-    } else {
-      update({ layerStructural: true, layerDictionary: false });
-    }
-  };
+  const profile = getPaktLayerProfile(settings.compressionProfileId);
 
   return (
     <div style={containerStyle}>
-      {/* Behavior section */}
       <div style={sectionStyle}>
         <span style={sectionTitleStyle}>Behavior</span>
         <div style={settingRowStyle}>
@@ -129,25 +116,51 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
         </div>
       </div>
 
-      {/* Compression section */}
       <div style={sectionStyle}>
-        <span style={sectionTitleStyle}>Compression Level</span>
-        <SegmentedControl
-          options={[
-            { label: 'Standard (L1+L2)', value: 'standard' },
-            { label: 'Structure only (L1)', value: 'structure' },
-          ]}
-          value={compressionMode}
-          onChange={handleCompressionChange}
-        />
-        <span style={settingDescStyle}>
-          {compressionMode === 'standard'
-            ? 'Structural + dictionary compression for maximum token savings.'
-            : 'Structural compression only. Preserves more readability.'}
-        </span>
+        <span style={sectionTitleStyle}>Compression Profile</span>
+        <label style={selectLabelStyle}>
+          <span style={settingLabelStyle}>Choose the active PAKT profile</span>
+          <select
+            value={settings.compressionProfileId}
+            onChange={(event) =>
+              update({ compressionProfileId: event.target.value as PaktLayerProfileId })
+            }
+            style={selectStyle}
+          >
+            {PAKT_LAYER_PROFILES.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.label} ({candidate.shortLabel})
+              </option>
+            ))}
+          </select>
+        </label>
+        <span style={settingDescStyle}>{profile.description}</span>
+        {profile.requiresSemanticBudget ? (
+          <label style={selectLabelStyle}>
+            <span style={settingLabelStyle}>Semantic budget</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={settings.semanticBudget}
+              onChange={(event) => {
+                const nextValue = Number.parseInt(event.target.value, 10);
+                update({
+                  semanticBudget:
+                    Number.isInteger(nextValue) && nextValue > 0
+                      ? nextValue
+                      : DEFAULT_SEMANTIC_BUDGET,
+                });
+              }}
+              style={selectStyle}
+            />
+            <span style={{ ...settingDescStyle, color: 'var(--cf-warn, #ffcb6b)' }}>
+              Semantic compression is lossy. Keep this for aggressive prompt packing, not exact formatting fidelity.
+            </span>
+          </label>
+        ) : null}
       </div>
 
-      {/* Theme section */}
       <div style={sectionStyle}>
         <span style={sectionTitleStyle}>Theme</span>
         <SegmentedControl
@@ -161,17 +174,15 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
         />
       </div>
 
-      {/* Info */}
       <div style={infoStyle}>
-        <span>Models and providers are auto-detected from the active page context.</span>
+        <span>
+          Models and providers are auto-detected from the active page context. The popup, inline
+          button, and context menu now use the same profile selection.
+        </span>
       </div>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 const containerStyle: React.CSSProperties = {
   padding: '12px 14px',
@@ -240,6 +251,22 @@ const segmentBtnStyle: React.CSSProperties = {
   fontSize: 12,
   transition: 'all 0.2s ease',
   fontFamily: 'var(--cf-font)',
+};
+
+const selectLabelStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+};
+
+const selectStyle: React.CSSProperties = {
+  width: '100%',
+  borderRadius: 'var(--cf-radius-md)',
+  border: '1px solid var(--cf-border)',
+  backgroundColor: 'var(--cf-surface)',
+  color: 'var(--cf-text)',
+  padding: '9px 10px',
+  fontSize: 12,
 };
 
 const infoStyle: React.CSSProperties = {

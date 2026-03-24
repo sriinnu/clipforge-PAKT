@@ -20,8 +20,6 @@ const MODELS = [
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
 ];
 
-const THEMES = ['system', 'light', 'dark'] as const;
-
 interface SettingsPanelProps {
   onClose: () => void;
 }
@@ -65,6 +63,9 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
           <span className="desktop-hero-chip">
             {settings.autoCompress ? 'Watch on' : 'Watch off'}
           </span>
+          {settings.layers.semantic ? (
+            <span className="desktop-hero-chip">Semantic {settings.semanticBudget}</span>
+          ) : null}
         </div>
 
         <label className="block desktop-card desktop-card-inner">
@@ -138,26 +139,21 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <fieldset className="desktop-card desktop-card-inner border-none p-[14px]">
-          <legend className="desktop-section-title">Theme Preference</legend>
-          <div className="desktop-segmented">
-            {THEMES.map((t) => (
-              <button
-                key={t}
-                type="button"
-                disabled
-                className={`desktop-segment ${settings.theme === t ? 'is-active' : ''}`}
-                title="Theme switching is not wired into the current desktop shell yet."
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <p className="desktop-copy" style={{ marginTop: '10px' }}>
-            The current desktop shell always uses the dark glass layout. This stored preference is
-            not applied yet.
+        <div className="desktop-card desktop-card-inner">
+          <p className="desktop-section-title">Shell theme</p>
+          <p className="desktop-copy" style={{ marginTop: '8px' }}>
+            The current release ships the menu bar shell in its validated dark-glass theme. Theme
+            switching is not exposed here until the shell itself can apply it reliably.
           </p>
-        </fieldset>
+        </div>
+
+        <div className="desktop-card desktop-card-inner">
+          <p className="desktop-section-title">Semantic profile</p>
+          <p className="desktop-copy" style={{ marginTop: '8px' }}>
+            L4 now works when you enable the Semantic layer and give it a positive budget in the
+            layer controls. Keep it for aggressive packing, not exact round-trip guarantees.
+          </p>
+        </div>
 
         <div className="desktop-card desktop-card-inner">
           <p className="desktop-section-title">About</p>
