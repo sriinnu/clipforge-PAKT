@@ -1,9 +1,9 @@
 import {
   PAKT_LAYER_PROFILES,
-  createProfiledPaktOptions,
   type PaktFormat,
   type PaktLayerProfile,
   type PaktLayerProfileId,
+  createProfiledPaktOptions,
 } from '@sriinnu/pakt';
 import { createTablePackPlan } from './pack-advisor';
 
@@ -108,10 +108,9 @@ function hasSemanticBudget(config: CompressionConfig): boolean {
 }
 
 function getComparisonProfiles(semanticBudget?: number): readonly PaktLayerProfile[] {
-  const hasBudget = Number.isInteger(semanticBudget) && semanticBudget !== undefined && semanticBudget > 0;
-  return PAKT_LAYER_PROFILES.filter(
-    (profile) => !profile.requiresSemanticBudget || hasBudget,
-  );
+  const hasBudget =
+    Number.isInteger(semanticBudget) && semanticBudget !== undefined && semanticBudget > 0;
+  return PAKT_LAYER_PROFILES.filter((profile) => !profile.requiresSemanticBudget || hasBudget);
 }
 
 function getProfileNote(profile: PaktLayerProfile, semanticBudget?: number): string {
@@ -138,12 +137,15 @@ async function compressDocument(
   input: string,
   format: PaktFormat,
   config: CompressionConfig,
-): Promise<{ compressed: string; originalTokens: number; compressedTokens: number; reversible: boolean }> {
+): Promise<{
+  compressed: string;
+  originalTokens: number;
+  compressedTokens: number;
+  reversible: boolean;
+}> {
   const { compress, compressMixed } = await loadPakt();
   const options = buildCompressionOptions(format, config);
-  const result = isMixedFormat(format)
-    ? compressMixed(input, options)
-    : compress(input, options);
+  const result = isMixedFormat(format) ? compressMixed(input, options) : compress(input, options);
 
   return {
     compressed: result.compressed,
@@ -319,7 +321,9 @@ export async function computeComparison(
     const tablePlan = createTablePackPlan(input, detected.format);
     if (tablePlan) {
       for (const variant of tablePlan.variants) {
-        const result = await compressDocument(variant.text, variant.format, { profileId: 'standard' });
+        const result = await compressDocument(variant.text, variant.format, {
+          profileId: 'standard',
+        });
         const item: ComparisonItem = {
           id: variant.id,
           label: `${variant.label} + Standard PAKT`,

@@ -3,13 +3,9 @@
  * SDK-backed MCP server registration helpers for PAKT tools.
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import {
-  PAKT_AUTO_CONTRACT,
-  PAKT_COMPRESS_CONTRACT,
-  PAKT_INSPECT_CONTRACT,
-} from './contract.js';
-import { handlePaktTool, PaktToolInputError } from './handler.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { PAKT_AUTO_CONTRACT, PAKT_COMPRESS_CONTRACT, PAKT_INSPECT_CONTRACT } from './contract.js';
+import { PaktToolInputError, handlePaktTool } from './handler.js';
 import type { PaktToolName, PaktToolResult } from './types.js';
 
 function toTextResult(result: PaktToolResult) {

@@ -3,12 +3,14 @@
  * Uses chrome.storage.sync so settings persist across devices.
  */
 
-import {
-  DEFAULT_SEMANTIC_BUDGET,
-  type PaktLayerProfileId,
-} from '@sriinnu/pakt';
+import { DEFAULT_SEMANTIC_BUDGET, type PaktLayerProfileId } from '@sriinnu/pakt';
 
-const PROFILE_IDS: readonly PaktLayerProfileId[] = ['structure', 'standard', 'tokenizer', 'semantic'];
+const PROFILE_IDS: readonly PaktLayerProfileId[] = [
+  'structure',
+  'standard',
+  'tokenizer',
+  'semantic',
+];
 
 interface LegacyExtensionSettings {
   layerStructural?: boolean;
@@ -37,10 +39,13 @@ function isProfileId(value: unknown): value is PaktLayerProfileId {
   return typeof value === 'string' && PROFILE_IDS.includes(value as PaktLayerProfileId);
 }
 
-function normalizeSettings(raw: Partial<ExtensionSettings> & LegacyExtensionSettings): ExtensionSettings {
-  const semanticBudget = Number.isInteger(raw.semanticBudget) && (raw.semanticBudget ?? 0) > 0
-    ? (raw.semanticBudget as number)
-    : DEFAULT_SETTINGS.semanticBudget;
+function normalizeSettings(
+  raw: Partial<ExtensionSettings> & LegacyExtensionSettings,
+): ExtensionSettings {
+  const semanticBudget =
+    Number.isInteger(raw.semanticBudget) && (raw.semanticBudget ?? 0) > 0
+      ? (raw.semanticBudget as number)
+      : DEFAULT_SETTINGS.semanticBudget;
 
   let compressionProfileId = DEFAULT_SETTINGS.compressionProfileId;
   if (isProfileId(raw.compressionProfileId)) {
@@ -52,7 +57,8 @@ function normalizeSettings(raw: Partial<ExtensionSettings> & LegacyExtensionSett
   return {
     compressionProfileId,
     semanticBudget,
-    autoCompress: typeof raw.autoCompress === 'boolean' ? raw.autoCompress : DEFAULT_SETTINGS.autoCompress,
+    autoCompress:
+      typeof raw.autoCompress === 'boolean' ? raw.autoCompress : DEFAULT_SETTINGS.autoCompress,
     theme:
       raw.theme === 'system' || raw.theme === 'light' || raw.theme === 'dark'
         ? raw.theme

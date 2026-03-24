@@ -39,7 +39,8 @@ export const useSettingsStore = create<SettingsState>()(
       setAutoCompress: (v) => set({ autoCompress: v }),
       setHistoryEnabled: (v) => set({ historyEnabled: v }),
       setTheme: (t) => set({ theme: t }),
-      setSemanticBudget: (v) => set({ semanticBudget: Number.isInteger(v) && v > 0 ? v : DEFAULT_SEMANTIC_BUDGET }),
+      setSemanticBudget: (v) =>
+        set({ semanticBudget: Number.isInteger(v) && v > 0 ? v : DEFAULT_SEMANTIC_BUDGET }),
       toggleLayer: (key) =>
         set((state) => ({
           layers: {

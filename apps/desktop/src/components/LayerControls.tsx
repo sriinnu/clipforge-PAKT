@@ -80,7 +80,9 @@ const LayerControls: FC = () => {
                       {layer.badge}
                     </span>
                   )}
-                  {layer.lossy && !layer.badge ? <span className="desktop-tag danger">Lossy</span> : null}
+                  {layer.lossy && !layer.badge ? (
+                    <span className="desktop-tag danger">Lossy</span>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -118,7 +120,8 @@ const LayerControls: FC = () => {
             aria-label="Semantic budget"
           />
           <p className="desktop-copy" style={{ margin: 0 }}>
-            Required for L4. Semantic compression is lossy and should be used when token pressure matters more than exact round-trip fidelity.
+            Required for L4. Semantic compression is lossy and should be used when token pressure
+            matters more than exact round-trip fidelity.
           </p>
         </div>
       </div>

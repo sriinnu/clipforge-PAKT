@@ -160,7 +160,9 @@ function toCompressResult(
   };
 }
 
-function inspectPassthroughPakt(text: string): Pick<PaktCompressResult, 'originalTokens' | 'compressedTokens' | 'savedTokens' | 'reversible'> {
+function inspectPassthroughPakt(
+  text: string,
+): Pick<PaktCompressResult, 'originalTokens' | 'compressedTokens' | 'savedTokens' | 'reversible'> {
   const validation = validate(text);
   if (!validation.valid) {
     throw new PaktToolInputError(

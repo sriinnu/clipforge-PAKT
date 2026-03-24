@@ -80,7 +80,9 @@ async function runCli(args: string[], stdin?: string): Promise<CliResult> {
       child.kill('SIGKILL');
       if (!settled) {
         settled = true;
-        reject(new Error(`CLI timed out after ${String(CLI_TIMEOUT_MS)}ms: pakt ${args.join(' ')}`));
+        reject(
+          new Error(`CLI timed out after ${String(CLI_TIMEOUT_MS)}ms: pakt ${args.join(' ')}`),
+        );
       }
     }, CLI_TIMEOUT_MS);
 
@@ -193,7 +195,10 @@ describe('pakt auto — raw input (compress path)', () => {
   }, 25_000);
 
   it('rejects non-positive semantic budgets', async () => {
-    const result = await runCli(['auto', '--from', 'json', '--semantic-budget', '0'], COMPRESSIBLE_JSON);
+    const result = await runCli(
+      ['auto', '--from', 'json', '--semantic-budget', '0'],
+      COMPRESSIBLE_JSON,
+    );
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Expected a positive integer token budget');
   }, 25_000);
@@ -268,7 +273,10 @@ describe('pakt compress — semantic budget', () => {
   }, 25_000);
 
   it('fails fast when layer 4 is requested without a semantic budget', async () => {
-    const result = await runCli(['compress', '--from', 'json', '--layers', '1,2,4'], COMPRESSIBLE_JSON);
+    const result = await runCli(
+      ['compress', '--from', 'json', '--layers', '1,2,4'],
+      COMPRESSIBLE_JSON,
+    );
     expect(result.stderr).toContain('Layer 4 semantic compression requires --semantic-budget');
   }, 25_000);
 });

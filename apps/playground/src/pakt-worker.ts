@@ -10,7 +10,13 @@ import {
 
 type WorkerRequest =
   | { id: number; type: 'preload' }
-  | { id: number; type: 'analyzePreview'; input: string; liveCompress: boolean; config: CompressionConfig }
+  | {
+      id: number;
+      type: 'analyzePreview';
+      input: string;
+      liveCompress: boolean;
+      config: CompressionConfig;
+    }
   | { id: number; type: 'compressSource'; input: string; config: CompressionConfig }
   | { id: number; type: 'decompressSource'; input: string; format: PaktFormat }
   | { id: number; type: 'computeComparison'; input: string; semanticBudget?: number };

@@ -439,8 +439,12 @@ export function Popup() {
             gap: 4,
           }}
         >
-          <strong style={{ fontSize: 12, color: 'var(--cf-text)' }}>Active compression profile</strong>
-          <span style={{ fontSize: 11, color: 'var(--cf-text)', lineHeight: 1.5 }}>{profileSummary}</span>
+          <strong style={{ fontSize: 12, color: 'var(--cf-text)' }}>
+            Active compression profile
+          </strong>
+          <span style={{ fontSize: 11, color: 'var(--cf-text)', lineHeight: 1.5 }}>
+            {profileSummary}
+          </span>
           <span style={{ fontSize: 11, color: 'var(--cf-text-muted)', lineHeight: 1.5 }}>
             {profileDetail}
           </span>
