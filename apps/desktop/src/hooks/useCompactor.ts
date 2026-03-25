@@ -61,6 +61,7 @@ export interface CompactorRunResult {
   originalTokens: number;
   compressedTokens: number;
   savings: number;
+  reversible: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +162,7 @@ export function useCompactor(): CompactorState {
             originalTokens: result.originalTokens,
             compressedTokens: result.compressedTokens,
             savings: result.savings.totalPercent,
+            reversible: result.reversible,
           };
         }
 
@@ -179,6 +181,7 @@ export function useCompactor(): CompactorState {
           originalTokens: result.originalTokens,
           compressedTokens: result.compressedTokens,
           savings: result.savings.totalPercent,
+          reversible: result.reversible,
         };
       } catch (err) {
         setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -228,6 +231,7 @@ export function useCompactor(): CompactorState {
             originalTokens: outTokens,
             compressedTokens: origTokens,
             savings: nextSavings,
+            reversible: true,
           };
         }
 
@@ -248,6 +252,7 @@ export function useCompactor(): CompactorState {
           originalTokens: outTokens,
           compressedTokens: origTokens,
           savings: nextSavings,
+          reversible: !result.wasLossy,
         };
       } catch (err) {
         setOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);

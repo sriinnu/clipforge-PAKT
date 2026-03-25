@@ -48,6 +48,8 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "gpt-tokenizer": "^2.8.0"
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "gpt-tokenizer": "^2.8.0",
+    "zod": "^4.1.5"
   }
 }

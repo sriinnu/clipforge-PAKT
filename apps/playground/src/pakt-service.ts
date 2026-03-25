@@ -1,26 +1,28 @@
-import type { PaktFormat, PaktOptions } from '@sriinnu/pakt';
+import {
+  PAKT_LAYER_PROFILES,
+  type PaktFormat,
+  type PaktLayerProfile,
+  type PaktLayerProfileId,
+  createProfiledPaktOptions,
+} from '@sriinnu/pakt';
 import { createTablePackPlan } from './pack-advisor';
 
 const MIXED_MARKER = '<!-- PAKT:';
-const STRUCTURAL_ONLY_OPTIONS: Partial<PaktOptions> = {
-  layers: {
-    structural: true,
-    dictionary: false,
-    tokenizerAware: false,
-    semantic: false,
-  },
-};
-const FULL_PACK_OPTIONS: Partial<PaktOptions> = {
-  layers: {
-    structural: true,
-    dictionary: true,
-    tokenizerAware: false,
-    semantic: false,
-  },
-};
 
 type Action = 'compress' | null;
 type PaktModule = typeof import('@sriinnu/pakt');
+
+type ComparisonItemId =
+  | 'original'
+  | PaktLayerProfileId
+  | 'layout-csv'
+  | 'layout-json'
+  | 'layout-yaml';
+
+export interface CompressionConfig {
+  profileId: PaktLayerProfileId;
+  semanticBudget?: number;
+}
 
 export interface PreviewResult {
   detectedFormat: PaktFormat;
@@ -33,15 +35,17 @@ export interface PreviewResult {
 }
 
 export interface ComparisonItem {
-  id: 'original' | 'l1' | 'full' | 'layout-csv' | 'layout-json' | 'layout-yaml';
+  id: ComparisonItemId;
   label: string;
   tokens: number;
   percent: string;
   delta: string;
   note: string;
   text: string;
-  kind: 'source' | 'baseline' | 'packed' | 'table';
+  kind: 'source' | 'profile' | 'table';
   packedOutput: string | null;
+  profileId?: PaktLayerProfileId;
+  reversible?: boolean;
 }
 
 export interface ComparisonRecommendation {
@@ -99,25 +103,55 @@ function isMixedFormat(format: PaktFormat): boolean {
   return format === 'markdown' || format === 'text';
 }
 
+function hasSemanticBudget(config: CompressionConfig): boolean {
+  return Number.isInteger(config.semanticBudget) && (config.semanticBudget ?? 0) > 0;
+}
+
+function getComparisonProfiles(semanticBudget?: number): readonly PaktLayerProfile[] {
+  const hasBudget =
+    Number.isInteger(semanticBudget) && semanticBudget !== undefined && semanticBudget > 0;
+  return PAKT_LAYER_PROFILES.filter((profile) => !profile.requiresSemanticBudget || hasBudget);
+}
+
+function getProfileNote(profile: PaktLayerProfile, semanticBudget?: number): string {
+  if (!profile.requiresSemanticBudget) {
+    return profile.description;
+  }
+
+  return `${profile.description} Current semantic budget: ${semanticBudget} tokens.`;
+}
+
 async function loadPakt(): Promise<PaktModule> {
   paktModulePromise ??= import('@sriinnu/pakt');
   return paktModulePromise;
 }
 
+function buildCompressionOptions(format: PaktFormat, config: CompressionConfig) {
+  return createProfiledPaktOptions(config.profileId, {
+    fromFormat: format,
+    ...(hasSemanticBudget(config) ? { semanticBudget: config.semanticBudget } : {}),
+  });
+}
+
 async function compressDocument(
   input: string,
   format: PaktFormat,
-  options?: Partial<PaktOptions>,
-): Promise<{ compressed: string; originalTokens: number; compressedTokens: number }> {
+  config: CompressionConfig,
+): Promise<{
+  compressed: string;
+  originalTokens: number;
+  compressedTokens: number;
+  reversible: boolean;
+}> {
   const { compress, compressMixed } = await loadPakt();
-  const result = isMixedFormat(format)
-    ? compressMixed(input, { ...options, fromFormat: format })
-    : compress(input, { ...options, fromFormat: format });
+  const options = buildCompressionOptions(format, config);
+  const result = isMixedFormat(format) ? compressMixed(input, options) : compress(input, options);
 
   return {
     compressed: result.compressed,
     originalTokens: result.originalTokens,
     compressedTokens: result.compressedTokens,
+    reversible: result.reversible,
   };
 }
 
@@ -130,7 +164,11 @@ export async function preloadPakt(): Promise<void> {
   await loadPakt();
 }
 
-export async function analyzePreview(input: string, liveCompress: boolean): Promise<PreviewResult> {
+export async function analyzePreview(
+  input: string,
+  liveCompress: boolean,
+  config: CompressionConfig,
+): Promise<PreviewResult> {
   if (!input.trim()) {
     return {
       detectedFormat: 'text',
@@ -161,7 +199,7 @@ export async function analyzePreview(input: string, liveCompress: boolean): Prom
   }
 
   try {
-    const result = await compressDocument(input, detected.format);
+    const result = await compressDocument(input, detected.format, config);
     return {
       detectedFormat: detected.format,
       inputTokens,
@@ -184,7 +222,10 @@ export async function analyzePreview(input: string, liveCompress: boolean): Prom
   }
 }
 
-export async function compressSource(input: string): Promise<CompressionResult> {
+export async function compressSource(
+  input: string,
+  config: CompressionConfig,
+): Promise<CompressionResult> {
   const { countTokens, detect } = await loadPakt();
   const detected = detect(input);
   const inputTokens = countTokens(input);
@@ -194,7 +235,7 @@ export async function compressSource(input: string): Promise<CompressionResult> 
     throw new Error('Input already looks like PAKT. Use Restore from PAKT instead.');
   }
 
-  const result = await compressDocument(input, detected.format);
+  const result = await compressDocument(input, detected.format, config);
   return {
     detectedFormat: detected.format,
     inputTokens,
@@ -220,7 +261,10 @@ export async function decompressSource(
   };
 }
 
-export async function computeComparison(input: string): Promise<ComparisonState> {
+export async function computeComparison(
+  input: string,
+  semanticBudget?: number,
+): Promise<ComparisonState> {
   if (!input.trim()) {
     return { status: 'idle', items: null, error: null, recommendation: null };
   }
@@ -250,43 +294,39 @@ export async function computeComparison(input: string): Promise<ComparisonState>
     ];
     const packedCandidates: ComparisonItem[] = [];
 
-    const l1Only = await compressDocument(input, detected.format, STRUCTURAL_ONLY_OPTIONS);
-    const l1Item: ComparisonItem = {
-      id: 'l1',
-      label: 'Structural baseline (TOON-like)',
-      tokens: l1Only.compressedTokens,
-      percent: `${formatPercent(originalTokens, l1Only.compressedTokens)} vs original`,
-      delta: formatDelta(originalTokens, l1Only.compressedTokens),
-      note: 'Structural rewrite only. Closest baseline to TOON-style compact syntax, without implying a first-party TOON encoder.',
-      text: l1Only.compressed,
-      kind: 'baseline',
-      packedOutput: l1Only.compressed,
-    };
-    items.push(l1Item);
-    packedCandidates.push(l1Item);
+    for (const profile of getComparisonProfiles(semanticBudget)) {
+      const result = await compressDocument(input, detected.format, {
+        profileId: profile.id,
+        ...(profile.requiresSemanticBudget ? { semanticBudget } : {}),
+      });
 
-    const fullPakt = await compressDocument(input, detected.format, FULL_PACK_OPTIONS);
-    const fullItem: ComparisonItem = {
-      id: 'full',
-      label: 'PAKT full',
-      tokens: fullPakt.compressedTokens,
-      percent: `${formatPercent(originalTokens, fullPakt.compressedTokens)} vs original`,
-      delta: formatDelta(originalTokens, fullPakt.compressedTokens),
-      note: 'Structural rewrite plus dictionary aliases for repeated keys and values.',
-      text: fullPakt.compressed,
-      kind: 'packed',
-      packedOutput: fullPakt.compressed,
-    };
-    items.push(fullItem);
-    packedCandidates.push(fullItem);
+      const item: ComparisonItem = {
+        id: profile.id,
+        label: `${profile.label} (${profile.shortLabel})`,
+        tokens: result.compressedTokens,
+        percent: `${formatPercent(originalTokens, result.compressedTokens)} vs original`,
+        delta: formatDelta(originalTokens, result.compressedTokens),
+        note: getProfileNote(profile, semanticBudget),
+        text: result.compressed,
+        kind: 'profile',
+        packedOutput: result.compressed,
+        profileId: profile.id,
+        reversible: result.reversible,
+      };
+
+      items.push(item);
+      packedCandidates.push(item);
+    }
 
     const tablePlan = createTablePackPlan(input, detected.format);
     if (tablePlan) {
       for (const variant of tablePlan.variants) {
-        const result = await compressDocument(variant.text, variant.format, FULL_PACK_OPTIONS);
+        const result = await compressDocument(variant.text, variant.format, {
+          profileId: 'standard',
+        });
         const item: ComparisonItem = {
           id: variant.id,
-          label: `${variant.label} + PAKT`,
+          label: `${variant.label} + Standard PAKT`,
           tokens: result.compressedTokens,
           percent: `${formatPercent(originalTokens, result.compressedTokens)} vs original`,
           delta: formatDelta(originalTokens, result.compressedTokens),
@@ -337,12 +377,10 @@ function buildRecommendation(
     };
   }
 
-  const savings = formatPercent(originalTokens, winner.tokens);
-
   if (winner.kind === 'table') {
     return {
       title: `Use ${winner.label}`,
-      body: `${tablePlan?.profile.summary ?? 'Tabular payload detected.'} This table-aware layout is the smallest packed output here at ${savings} vs the original source. Restoring it returns the projected table layout, not the original wrapper schema.`,
+      body: `${tablePlan?.profile.summary ?? 'Tabular payload detected.'} This table-aware layout is the smallest packed output here. Restoring it returns the projected table layout, not the original wrapper schema.`,
       winnerId: winner.id,
       winnerLabel: winner.label,
       tokens: winner.tokens,
@@ -350,10 +388,33 @@ function buildRecommendation(
     };
   }
 
-  if (winner.id === 'l1') {
+  const savings = formatPercent(originalTokens, winner.tokens);
+  if (winner.profileId === 'structure') {
     return {
-      title: 'Use the structural baseline',
+      title: 'Use structure only',
       body: `Dictionary aliases do not help this payload enough to justify the overhead. Structural-only packing is the smallest result here at ${savings} vs the original source.`,
+      winnerId: winner.id,
+      winnerLabel: winner.label,
+      tokens: winner.tokens,
+      packedOutput: winner.packedOutput,
+    };
+  }
+
+  if (winner.profileId === 'tokenizer') {
+    return {
+      title: 'Use tokenizer-aware PAKT',
+      body: `Tokenizer-aware packing wins here at ${savings} vs the original source while staying reversible. This is the closest app-surface match to the full lossless engine.`,
+      winnerId: winner.id,
+      winnerLabel: winner.label,
+      tokens: winner.tokens,
+      packedOutput: winner.packedOutput,
+    };
+  }
+
+  if (winner.profileId === 'semantic') {
+    return {
+      title: 'Use semantic PAKT carefully',
+      body: `Budgeted semantic packing is the smallest output here at ${savings} vs the original source, but it is lossy. Use this when token pressure matters more than exact round-trip fidelity.`,
       winnerId: winner.id,
       winnerLabel: winner.label,
       tokens: winner.tokens,

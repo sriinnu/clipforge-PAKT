@@ -8,8 +8,11 @@
  */
 
 import { compareSavings, compress, countTokens, decompress, detect } from './index.js';
+import { handlePaktTool } from './mcp/index.js';
+import type { PaktInspectResult } from './mcp/index.js';
 import { compressMixed } from './mixed/index.js';
 import type { PaktFormat, PaktOptions } from './types.js';
+import { validate } from './utils/validate.js';
 
 // ---------------------------------------------------------------------------
 // Internal types (re-used from cli.ts via import)
@@ -75,14 +78,28 @@ function parseSemanticBudget(value: string | undefined): number | undefined {
     return undefined;
   }
 
-  const budget = Number.parseInt(value, 10);
-  if (!Number.isInteger(budget) || budget <= 0) {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
     throw new Error(
       `Invalid --semantic-budget value: "${value}". Expected a positive integer token budget.`,
     );
   }
 
+  const budget = Number.parseInt(trimmed, 10);
+  if (budget <= 0) {
+    throw new Error(
+      `Invalid --semantic-budget value: "${value}". Expected a positive integer token budget.`,
+    );
+  }
   return budget;
+}
+
+function assertValidPaktInput(input: string): void {
+  const validation = validate(input);
+  if (!validation.valid) {
+    const message = validation.errors[0]?.message ?? 'validation failed';
+    throw new Error(`Input looks like PAKT but failed validation: ${message}`);
+  }
 }
 
 /**
@@ -162,7 +179,7 @@ export function cmdCompress(
   }
 
   process.stderr.write(
-    `Compressed: ${String(result.originalTokens)} tokens \u2192 ${String(result.compressedTokens)} tokens (${String(result.savings.totalPercent)}% savings)\n`,
+    `Compressed: ${String(result.originalTokens)} tokens → ${String(result.compressedTokens)} tokens (${String(result.savings.totalPercent)}% savings)\n`,
   );
 }
 
@@ -187,6 +204,7 @@ export function cmdDecompress(
   const toOpt = args.options.get('to');
   const outputFormat = toOpt ? parseFormat(toOpt, '--to') : undefined;
 
+  assertValidPaktInput(input);
   const result = decompress(input, outputFormat);
 
   process.stdout.write(result.text);
@@ -214,6 +232,55 @@ export function cmdDetect(args: ParsedArgs, readInput: (file: string | undefined
   process.stdout.write(`Format:     ${result.format}\n`);
   process.stdout.write(`Confidence: ${String(Math.round(result.confidence * 100))}%\n`);
   process.stdout.write(`Reason:     ${result.reason}\n`);
+}
+
+// ---------------------------------------------------------------------------
+// Subcommand: inspect
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle the `inspect` subcommand.
+ *
+ * Reads input and reports whether the payload should be compressed,
+ * decompressed, or left as-is.
+ */
+export function cmdInspect(
+  args: ParsedArgs,
+  readInput: (file: string | undefined) => string,
+): void {
+  const input = readInput(args.file);
+  const model = args.options.get('model') ?? 'gpt-4o';
+  const semanticBudget = parseSemanticBudget(args.options.get('semantic-budget'));
+  const result = handlePaktTool('pakt_inspect', {
+    text: input,
+    model,
+    ...(semanticBudget !== undefined ? { semanticBudget } : {}),
+  }) as PaktInspectResult;
+
+  process.stdout.write(`Format:               ${result.detectedFormat}\n`);
+  process.stdout.write(`Confidence:           ${String(Math.round(result.confidence * 100))}%\n`);
+  process.stdout.write(`Reason:               ${result.reason}\n`);
+  process.stdout.write(`Input tokens:         ${String(result.inputTokens)}\n`);
+  process.stdout.write(`Recommended action:   ${result.recommendedAction}\n`);
+
+  if (result.estimatedOutputTokens !== undefined) {
+    process.stdout.write(`Estimated output:     ${String(result.estimatedOutputTokens)} tokens\n`);
+  }
+  if (result.estimatedSavings !== undefined) {
+    process.stdout.write(`Estimated savings:    ${String(result.estimatedSavings)}%\n`);
+  }
+  if (result.estimatedSavedTokens !== undefined) {
+    process.stdout.write(`Estimated saved:      ${String(result.estimatedSavedTokens)} tokens\n`);
+  }
+  if (result.originalFormat !== undefined) {
+    process.stdout.write(`Original format:      ${result.originalFormat}\n`);
+  }
+  if (result.reversible !== undefined) {
+    process.stdout.write(`Reversible:           ${result.reversible ? 'yes' : 'no'}\n`);
+  }
+  if (result.wasLossy !== undefined) {
+    process.stdout.write(`Lossy payload:        ${result.wasLossy ? 'yes' : 'no'}\n`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -303,13 +370,12 @@ export function cmdAuto(
 
   // Use --from to override detection when the caller knows the format
   const detected = detect(input);
-  const effectiveFormat = fromOpt
-    ? (FORMAT_MAP[fromOpt.toLowerCase()] ?? detected.format)
-    : detected.format;
+  const effectiveFormat = fromOpt ? parseFormat(fromOpt, '--from') : detected.format;
 
   if (effectiveFormat === 'pakt') {
     // Input is already PAKT — decompress it
     const outputFormat = toOpt ? parseFormat(toOpt, '--to') : undefined;
+    assertValidPaktInput(input);
     const result = decompress(input, outputFormat);
 
     process.stdout.write(result.text);
@@ -335,7 +401,7 @@ export function cmdAuto(
 
     const saved = result.originalTokens - result.compressedTokens;
     process.stderr.write(
-      `\x1b[90m# Saved ${String(result.savings.totalPercent)}% (${String(result.originalTokens)}\u2192${String(result.compressedTokens)} tokens, \u2212${String(saved)})\x1b[0m\n`,
+      `\x1b[90m# Saved ${String(result.savings.totalPercent)}% (${String(result.originalTokens)}→${String(result.compressedTokens)} tokens, −${String(saved)})\x1b[0m\n`,
     );
   }
 }

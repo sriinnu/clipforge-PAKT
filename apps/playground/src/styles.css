@@ -214,7 +214,8 @@ h1 {
   line-height: 1.5;
 }
 
-.notes-card {
+.notes-card,
+.workflow-card {
   padding: 18px;
   margin-top: 18px;
 }
@@ -254,6 +255,56 @@ h1 {
   margin: 0;
   color: var(--muted);
   line-height: 1.5;
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.workflow-step {
+  border: 1px solid rgba(246, 183, 60, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 14px;
+}
+
+.workflow-step strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+
+.workflow-step p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.workflow-code {
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 12, 16, 0.92);
+  color: var(--ink);
+  font-family: var(--editor-font);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.workflow-notice {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(95, 196, 135, 0.26);
+  background: rgba(95, 196, 135, 0.12);
+  color: var(--success);
+  font-size: 0.85rem;
 }
 
 select {
@@ -549,6 +600,7 @@ button:disabled {
   .workspace,
   .stats-grid,
   .notes-grid,
+  .workflow-grid,
   .compare-grid {
     grid-template-columns: 1fr;
   }

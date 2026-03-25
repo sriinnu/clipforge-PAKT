@@ -32,6 +32,7 @@ const MenuBarPanel: FC = () => {
   const clipboard = useClipboard();
   const layers = useSettingsStore((s) => s.layers);
   const model = useSettingsStore((s) => s.model);
+  const semanticBudget = useSettingsStore((s) => s.semanticBudget);
   const outputFormat = useSettingsStore((s) => s.outputFormat);
   const setOutputFormat = useSettingsStore((s) => s.setOutputFormat);
   const autoCompress = useSettingsStore((s) => s.autoCompress);
@@ -43,6 +44,7 @@ const MenuBarPanel: FC = () => {
   const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
   const [isOpening, setIsOpening] = useState(false);
   const [lastAction, setLastAction] = useState<TransformAction>(null);
+  const [lastRun, setLastRun] = useState<CompactorRunResult | null>(null);
   const suppressedClipboardTextRef = useRef<string | null>(null);
   const sourceTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const openAnimationTimeoutRef = useRef<number | null>(null);
@@ -57,6 +59,7 @@ const MenuBarPanel: FC = () => {
   const setSourceText = useCallback(
     (text: string) => {
       setLastAction(null);
+      setLastRun(null);
       compactor.setInput(text);
     },
     [compactor],
@@ -146,6 +149,7 @@ const MenuBarPanel: FC = () => {
 
       if (result) {
         setLastAction('compress');
+        setLastRun(result);
       }
 
       return result;
@@ -166,6 +170,7 @@ const MenuBarPanel: FC = () => {
 
       if (result) {
         setLastAction('decompress');
+        setLastRun(result);
       }
 
       return result;
@@ -368,6 +373,7 @@ const MenuBarPanel: FC = () => {
       ].filter(Boolean) as string[],
     [layers],
   );
+  const runIsLossless = lastRun?.reversible ?? !layers.semantic;
 
   const commandTitle = compactor.isProcessing
     ? 'Transforming the current payload'
@@ -382,7 +388,7 @@ const MenuBarPanel: FC = () => {
       ? 'Adjust the source or restore format, then run the next action.'
       : lastAction === 'compress'
         ? 'Copy the packed result or restore it directly from this panel.'
-        : 'Pull the clipboard in, inspect it, then pack or restore as needed.';
+        : 'Pull the clipboard in, review the detected format and active profile, then pack or restore as needed.';
   const sourceMeta = clipboard.content
     ? 'Loaded from the clipboard.'
     : 'Paste JSON, YAML, CSV, Markdown, or text.';
@@ -499,6 +505,15 @@ const MenuBarPanel: FC = () => {
               <span className="desktop-hero-chip">
                 {activeLayerCodes.length > 0 ? activeLayerCodes.join(' · ') : 'No layers'}
               </span>
+              {layers.semantic ? (
+                <span className="desktop-hero-chip">Budget {semanticBudget}</span>
+              ) : null}
+              <span className={`desktop-hero-chip ${runIsLossless ? 'is-strong' : 'is-danger'}`}>
+                {runIsLossless ? 'Lossless' : 'Lossy'}
+              </span>
+              <span className="desktop-hero-chip">
+                {runIsLossless ? 'Reversible' : 'Not fully reversible'}
+              </span>
               <span className="desktop-hero-chip">Pack {packHotkey}</span>
               <span className="desktop-hero-chip">Restore {restoreHotkey}</span>
               {hasOutput && !outputHasError ? (
@@ -607,7 +622,9 @@ const MenuBarPanel: FC = () => {
                     {outputHasError
                       ? 'Review the error message above.'
                       : hasOutput
-                        ? 'Output is ready for copy or restore.'
+                        ? runIsLossless
+                          ? 'Output is ready for copy or restore.'
+                          : 'Output is ready, but the active run used lossy semantic compression.'
                         : 'No output yet.'}
                   </span>
                   {hasOutput ? (

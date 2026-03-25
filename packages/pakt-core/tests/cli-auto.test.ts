@@ -10,21 +10,15 @@
  * - Already-PAKT input piped via stdin -> auto detects as pakt -> decompresses
  * - JSON input -> compresses -> output contains PAKT markers
  * - Round-trip: auto compress then auto decompress recovers original data
- * - `--file` flag reads from a file instead of stdin
+ * - Positional file input reads from a file instead of stdin
  */
 
-import { execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-/**
- * Note: CLI subprocess tests are slow (2-5 s each) due to Node.js cold-start
- * + BPE tokeniser initialisation. The global testTimeout in vitest.config.ts
- * is set to 15 s to prevent flakes on CI and WSL environments.
- */
 
 // ---------------------------------------------------------------------------
 // Paths & helpers
@@ -39,6 +33,9 @@ const CLI_PATH = join(PACKAGE_ROOT, 'dist/cli.js');
 /** Working directory for the CLI subprocess. */
 const CWD = PACKAGE_ROOT;
 
+/** Timeout per CLI subprocess to reduce flakes on loaded CI/WSL runs. */
+const CLI_TIMEOUT_MS = 40_000;
+
 /** Temporary directory for file-based tests. */
 let tempDir: string;
 
@@ -50,58 +47,81 @@ afterAll(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
+type CliResult = {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+};
+
 /**
  * Run the CLI with the given arguments and optional stdin input.
- *
- * @param args - CLI arguments (e.g., ['auto', '--from', 'json'])
- * @param stdin - Optional string to pipe as stdin
- * @returns Object with stdout and stderr strings
  */
-function runCli(args: string[], stdin?: string): { stdout: string; stderr: string } {
-  const cmd = `node ${CLI_PATH} ${args.join(' ')}`;
-  try {
-    const stdout = execSync(cmd, {
+async function runCli(args: string[], stdin?: string): Promise<CliResult> {
+  return await new Promise<CliResult>((resolve, reject) => {
+    const child = spawn(process.execPath, [CLI_PATH, ...args], {
       cwd: CWD,
-      input: stdin,
-      encoding: 'utf8',
-      timeout: 15_000,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return { stdout, stderr: '' };
-  } catch (err: unknown) {
-    const execErr = err as {
-      stdout?: string;
-      stderr?: string;
-      status?: number;
-    };
-    // The CLI writes savings info to stderr, which is normal (not an error).
-    // execSync only throws if the process exits non-zero.
-    return {
-      stdout: execErr.stdout ?? '',
-      stderr: execErr.stderr ?? '',
-    };
-  }
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      if (!settled) {
+        settled = true;
+        reject(
+          new Error(`CLI timed out after ${String(CLI_TIMEOUT_MS)}ms: pakt ${args.join(' ')}`),
+        );
+      }
+    }, CLI_TIMEOUT_MS);
+
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    });
+
+    child.on('close', (status) => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        resolve({ stdout, stderr, status });
+      }
+    });
+
+    if (stdin !== undefined) {
+      child.stdin.write(stdin);
+    }
+    child.stdin.end();
+  });
 }
 
 /**
- * Run the CLI expecting success (exit 0). Uses a wrapper that captures
- * stderr without treating it as failure.
- *
- * @param args - CLI arguments
- * @param stdin - Optional stdin input
- * @returns stdout string
+ * Run the CLI expecting success (exit code 0).
  */
-function runCliOk(args: string[], stdin?: string): string {
-  const cmd = `node ${CLI_PATH} ${args.join(' ')}`;
-  // execSync captures stdout. stderr goes to parent by default.
-  // We redirect stderr to /dev/null so it does not cause throw.
-  const stdout = execSync(`${cmd} 2>/dev/null`, {
-    cwd: CWD,
-    input: stdin,
-    encoding: 'utf8',
-    timeout: 15_000,
-  });
-  return stdout;
+async function runCliOk(args: string[], stdin?: string): Promise<string> {
+  const result = await runCli(args, stdin);
+  if (result.status !== 0) {
+    throw new Error(
+      [`CLI exited with status ${String(result.status)}: pakt ${args.join(' ')}`, result.stderr]
+        .filter(Boolean)
+        .join('\n'),
+    );
+  }
+  return result.stdout;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,158 +169,173 @@ const MARKDOWN_WITH_JSON = [
 // ===========================================================================
 
 describe('pakt auto — raw input (compress path)', () => {
-  it('compresses raw markdown text and produces output', () => {
-    const stdout = runCliOk(['auto'], MARKDOWN_WITH_JSON);
-    // Auto on non-pakt input should produce some output
+  it('compresses raw markdown text and produces output', async () => {
+    const stdout = await runCliOk(['auto'], MARKDOWN_WITH_JSON);
     expect(stdout.length).toBeGreaterThan(0);
     expect(stdout).toContain('API Response');
-  });
+  }, 25_000);
 
-  it('compresses JSON input and produces PAKT markers or @from header', () => {
-    const stdout = runCliOk(['auto'], COMPRESSIBLE_JSON);
-    // When auto compresses JSON, result should have @from json header
+  it('compresses JSON input and produces PAKT markers or @from header', async () => {
+    const stdout = await runCliOk(['auto'], COMPRESSIBLE_JSON);
     expect(stdout).toContain('@from json');
-  });
+  }, 25_000);
 
-  it('compresses JSON with --from flag', () => {
-    const stdout = runCliOk(['auto', '--from', 'json'], COMPRESSIBLE_JSON);
+  it('compresses JSON with --from flag', async () => {
+    const stdout = await runCliOk(['auto', '--from', 'json'], COMPRESSIBLE_JSON);
     expect(stdout).toContain('@from json');
-  });
+  }, 25_000);
 
-  it('applies L4 when semanticBudget is provided', () => {
-    const stdout = runCliOk(
+  it('applies L4 when semanticBudget is provided', async () => {
+    const stdout = await runCliOk(
       ['auto', '--from', 'json', '--semantic-budget', '24'],
       COMPRESSIBLE_JSON,
     );
     expect(stdout).toContain('@compress semantic');
     expect(stdout).toContain('@warning lossy');
-  });
+  }, 25_000);
 
-  it('produces non-empty output for plain markdown', () => {
-    const stdout = runCliOk(['auto'], RAW_MARKDOWN);
-    // Plain markdown has no structured blocks, so compressMixed
-    // returns it mostly as-is (passthrough)
+  it('rejects non-positive semantic budgets', async () => {
+    const result = await runCli(
+      ['auto', '--from', 'json', '--semantic-budget', '0'],
+      COMPRESSIBLE_JSON,
+    );
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Expected a positive integer token budget');
+  }, 25_000);
+
+  it('produces non-empty output for plain markdown', async () => {
+    const stdout = await runCliOk(['auto'], RAW_MARKDOWN);
     expect(stdout.trim().length).toBeGreaterThan(0);
-  });
+  }, 25_000);
 });
 
 describe('pakt auto — PAKT input (decompress path)', () => {
-  it('detects PAKT input and decompresses it', () => {
-    // First compress some JSON to get PAKT output
-    const paktOutput = runCliOk(['compress'], COMPRESSIBLE_JSON);
+  it('detects PAKT input and decompresses it', async () => {
+    const paktOutput = await runCliOk(['compress'], COMPRESSIBLE_JSON);
     expect(paktOutput).toContain('@from json');
 
-    // Now feed the PAKT output back through auto — it should decompress
-    const restored = runCliOk(['auto'], paktOutput);
-    // The restored output should be valid JSON
+    const restored = await runCliOk(['auto'], paktOutput);
     const parsed = JSON.parse(restored) as Record<string, unknown>;
     expect(parsed).toHaveProperty('employees');
-  });
+  }, 25_000);
 
-  it('decompresses PAKT with --to flag to produce specific format', () => {
-    const paktOutput = runCliOk(['compress'], COMPRESSIBLE_JSON);
-
-    // Auto decompress with --to json
-    const restored = runCliOk(['auto', '--to', 'json'], paktOutput);
+  it('decompresses PAKT with --to flag to produce specific format', async () => {
+    const paktOutput = await runCliOk(['compress'], COMPRESSIBLE_JSON);
+    const restored = await runCliOk(['auto', '--to', 'json'], paktOutput);
     const parsed = JSON.parse(restored) as Record<string, unknown>;
     expect(parsed).toHaveProperty('employees');
-  });
+  }, 25_000);
 
-  it('ignores semanticBudget when the auto path is decompressing', () => {
-    const paktOutput = runCliOk(['compress'], COMPRESSIBLE_JSON);
-    const restored = runCliOk(['auto', '--semantic-budget', '24'], paktOutput);
+  it('ignores semanticBudget when the auto path is decompressing', async () => {
+    const paktOutput = await runCliOk(['compress'], COMPRESSIBLE_JSON);
+    const restored = await runCliOk(['auto', '--semantic-budget', '24'], paktOutput);
     const parsed = JSON.parse(restored) as Record<string, unknown>;
     expect(parsed).toHaveProperty('employees');
-  });
+  }, 25_000);
+
+  it('rejects malformed PAKT instead of reporting a fake successful restore', async () => {
+    const malformed = ['@from json', '@dict', '  $a: dev', 'role: $a'].join('\n');
+    const result = await runCli(['auto'], malformed);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Input looks like PAKT but failed validation');
+  }, 25_000);
+});
+
+describe('pakt inspect', () => {
+  it('recommends compress for raw structured input that benefits from packing', async () => {
+    const stdout = await runCliOk(['inspect'], COMPRESSIBLE_JSON);
+    expect(stdout).toContain('Recommended action:   compress');
+    expect(stdout).toContain('Estimated savings:');
+  }, 25_000);
+
+  it('recommends decompress for existing PAKT input', async () => {
+    const compressed = await runCliOk(['compress'], COMPRESSIBLE_JSON);
+    const stdout = await runCliOk(['inspect'], compressed);
+    expect(stdout).toContain('Recommended action:   decompress');
+    expect(stdout).toContain('Original format:      json');
+  }, 25_000);
+
+  it('rejects non-positive semantic budgets', async () => {
+    const result = await runCli(['inspect', '--semantic-budget', '0'], COMPRESSIBLE_JSON);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Expected a positive integer token budget');
+  }, 25_000);
 });
 
 describe('pakt compress — semantic budget', () => {
-  it('applies L4 when semanticBudget is provided directly', () => {
-    const stdout = runCliOk(
+  it('applies L4 when semanticBudget is provided directly', async () => {
+    const stdout = await runCliOk(
       ['compress', '--from', 'json', '--semantic-budget', '24'],
       COMPRESSIBLE_JSON,
     );
     expect(stdout).toContain('@compress semantic');
     expect(stdout).toContain('@warning lossy');
-  });
+  }, 25_000);
 
-  it('fails fast when layer 4 is requested without a semantic budget', () => {
-    const result = runCli(['compress', '--from', 'json', '--layers', '1,2,4'], COMPRESSIBLE_JSON);
+  it('fails fast when layer 4 is requested without a semantic budget', async () => {
+    const result = await runCli(
+      ['compress', '--from', 'json', '--layers', '1,2,4'],
+      COMPRESSIBLE_JSON,
+    );
     expect(result.stderr).toContain('Layer 4 semantic compression requires --semantic-budget');
-  });
+  }, 25_000);
 });
 
 describe('pakt auto — round-trip', () => {
-  it('compress then decompress via auto preserves JSON data', () => {
-    // Step 1: compress via explicit command (produces clean @from header)
-    const compressed = runCliOk(['compress'], COMPRESSIBLE_JSON);
+  it('compress then decompress via auto preserves JSON data', async () => {
+    const compressed = await runCliOk(['compress'], COMPRESSIBLE_JSON);
     expect(compressed).toContain('@from json');
 
-    // Step 2: auto decompress the result (auto detects PAKT -> decompresses)
-    const restored = runCliOk(['auto'], compressed);
+    const restored = await runCliOk(['auto'], compressed);
 
-    // Step 3: parse both and compare
     const original = JSON.parse(COMPRESSIBLE_JSON) as Record<string, unknown>;
     const roundTripped = JSON.parse(restored) as Record<string, unknown>;
     expect(roundTripped).toEqual(original);
-  });
+  }, 25_000);
 
-  it('compress then decompress via explicit commands matches auto', () => {
-    // Compress via explicit command
-    const compressed = runCliOk(['compress'], COMPRESSIBLE_JSON);
+  it('compress then decompress via explicit commands matches auto', async () => {
+    const compressed = await runCliOk(['compress'], COMPRESSIBLE_JSON);
+    const restoredAuto = await runCliOk(['auto'], compressed);
+    const restoredExplicit = await runCliOk(['decompress', '--to', 'json'], compressed);
 
-    // Decompress via auto
-    const restoredAuto = runCliOk(['auto'], compressed);
-
-    // Decompress via explicit command
-    const restoredExplicit = runCliOk(['decompress', '--to', 'json'], compressed);
-
-    // Both should produce equivalent JSON
     const autoData = JSON.parse(restoredAuto) as Record<string, unknown>;
     const explicitData = JSON.parse(restoredExplicit) as Record<string, unknown>;
     expect(autoData).toEqual(explicitData);
-  });
+  }, 40_000);
 });
 
-describe('pakt auto — file input (--file flag)', () => {
-  it('reads JSON from a file path argument', () => {
+describe('pakt auto — file input (positional path)', () => {
+  it('reads JSON from a file path argument', async () => {
     const filePath = join(tempDir, 'input.json');
     writeFileSync(filePath, COMPRESSIBLE_JSON, 'utf8');
 
-    // The CLI uses positional arg for file, not --file flag
-    const stdout = runCliOk(['auto', filePath]);
+    const stdout = await runCliOk(['auto', filePath]);
     expect(stdout).toContain('@from json');
-  });
+  }, 25_000);
 
-  it('reads markdown from a file and compresses embedded blocks', () => {
+  it('reads markdown from a file and compresses embedded blocks', async () => {
     const filePath = join(tempDir, 'report.md');
     writeFileSync(filePath, MARKDOWN_WITH_JSON, 'utf8');
 
-    const stdout = runCliOk(['auto', filePath]);
+    const stdout = await runCliOk(['auto', filePath]);
     expect(stdout.length).toBeGreaterThan(0);
-    // Should still contain the prose parts
     expect(stdout).toContain('API Response');
-  });
+  }, 25_000);
 
-  it('reads PAKT file and decompresses it', () => {
-    // First create a PAKT file
-    const paktContent = runCliOk(['compress'], COMPRESSIBLE_JSON);
+  it('reads PAKT file and decompresses it', async () => {
+    const paktContent = await runCliOk(['compress'], COMPRESSIBLE_JSON);
     const filePath = join(tempDir, 'data.pakt');
     writeFileSync(filePath, paktContent, 'utf8');
 
-    // Then auto on the PAKT file should decompress
-    const stdout = runCliOk(['auto', filePath]);
+    const stdout = await runCliOk(['auto', filePath]);
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
     expect(parsed).toHaveProperty('employees');
-  });
+  }, 25_000);
 });
 
 describe('pakt auto — error handling', () => {
-  it('exits with error when no input and stdin is TTY-like', () => {
-    // Running without piped input and no file should fail
-    // (In test environment stdin may not be TTY, so we test with nonexistent file)
-    const result = runCli(['auto', '/nonexistent/path/file.txt']);
-    // Should have non-empty stderr with error message
+  it('exits with error when no input and stdin is TTY-like', async () => {
+    const result = await runCli(['auto', '/nonexistent/path/file.txt']);
     expect(result.stderr.length).toBeGreaterThan(0);
-  });
+  }, 25_000);
 });

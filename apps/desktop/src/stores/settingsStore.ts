@@ -1,4 +1,4 @@
-import type { PaktFormat, PaktLayers } from '@sriinnu/pakt';
+import { DEFAULT_SEMANTIC_BUDGET, type PaktFormat, type PaktLayers } from '@sriinnu/pakt';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -8,12 +8,14 @@ interface SettingsState {
   autoCompress: boolean;
   historyEnabled: boolean;
   theme: 'system' | 'light' | 'dark';
+  semanticBudget: number;
   layers: PaktLayers;
   setOutputFormat: (f: PaktFormat) => void;
   setModel: (m: string) => void;
   setAutoCompress: (v: boolean) => void;
   setHistoryEnabled: (v: boolean) => void;
   setTheme: (t: 'system' | 'light' | 'dark') => void;
+  setSemanticBudget: (v: number) => void;
   toggleLayer: (key: keyof PaktLayers) => void;
 }
 
@@ -25,6 +27,7 @@ export const useSettingsStore = create<SettingsState>()(
       autoCompress: false,
       historyEnabled: false,
       theme: 'system',
+      semanticBudget: DEFAULT_SEMANTIC_BUDGET,
       layers: {
         structural: true,
         dictionary: true,
@@ -36,6 +39,8 @@ export const useSettingsStore = create<SettingsState>()(
       setAutoCompress: (v) => set({ autoCompress: v }),
       setHistoryEnabled: (v) => set({ historyEnabled: v }),
       setTheme: (t) => set({ theme: t }),
+      setSemanticBudget: (v) =>
+        set({ semanticBudget: Number.isInteger(v) && v > 0 ? v : DEFAULT_SEMANTIC_BUDGET }),
       toggleLayer: (key) =>
         set((state) => ({
           layers: {

@@ -46,6 +46,32 @@ export interface PaktLayers {
   semantic: boolean;
 }
 
+/**
+ * Canonical layer profile identifiers exposed across CLI, apps, and MCP-adjacent
+ * tooling.
+ */
+export type PaktLayerProfileId = 'structure' | 'standard' | 'tokenizer' | 'semantic';
+
+/**
+ * Shared metadata for a named layer profile.
+ */
+export interface PaktLayerProfile {
+  /** Stable identifier for persistence and API wiring. */
+  id: PaktLayerProfileId;
+  /** Human-readable label. */
+  label: string;
+  /** Short chip-friendly label. */
+  shortLabel: string;
+  /** Concise description of what the profile enables. */
+  description: string;
+  /** Which layers are active in this profile. */
+  layers: PaktLayers;
+  /** False when the profile requires L4 semantic compression. */
+  reversible: boolean;
+  /** True when a positive semantic budget must be supplied. */
+  requiresSemanticBudget: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Compression options
 // ---------------------------------------------------------------------------
