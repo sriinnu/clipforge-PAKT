@@ -13,7 +13,7 @@
  * calls that could fail inside the Chrome extension sandbox.
  */
 
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
@@ -21,8 +21,14 @@ import { build } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
+const packageJson = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'));
+const APP_VERSION = packageJson.version;
 
-const sharedAlias = { '@shared': resolve(__dirname, 'src/shared') };
+const sharedAlias = {
+  '@shared': resolve(__dirname, 'src/shared'),
+  '@sriinnu/pakt': resolve(__dirname, '../../packages/pakt-core/src/index.ts'),
+};
+const sharedDefine = { __CLIPFORGE_VERSION__: JSON.stringify(APP_VERSION) };
 const sharedBuild = {
   target: 'chrome120',
   sourcemap: isDev,
@@ -69,6 +75,7 @@ await build({
     },
   ],
   resolve: { alias: sharedAlias },
+  define: sharedDefine,
   build: {
     ...sharedBuild,
     outDir: 'dist',
@@ -89,6 +96,7 @@ await build({
 // ---------------------------------------------------------------------------
 await build({
   resolve: { alias: sharedAlias },
+  define: sharedDefine,
   build: {
     ...sharedBuild,
     outDir: 'dist',
@@ -108,6 +116,7 @@ await build({
 // ---------------------------------------------------------------------------
 await build({
   resolve: { alias: sharedAlias },
+  define: sharedDefine,
   build: {
     ...sharedBuild,
     outDir: 'dist',

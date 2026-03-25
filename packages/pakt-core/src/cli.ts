@@ -10,6 +10,7 @@
  *   pakt compress [file] [--from json|yaml|csv|md|text] [--layers 1,2,3,4] [--semantic-budget 120]
  *   pakt decompress [file] [--to json|yaml|csv|md|text]
  *   pakt detect [file]
+ *   pakt inspect [file] [--model gpt-4o|claude-sonnet|...] [--semantic-budget 120]
  *   pakt tokens [file] [--model gpt-4o|claude-sonnet|...]
  *   pakt savings [file] [--model gpt-4o|claude-sonnet|...]
  *   pakt serve --stdio
@@ -24,6 +25,7 @@ import {
   cmdCompress,
   cmdDecompress,
   cmdDetect,
+  cmdInspect,
   cmdSavings,
   cmdTokens,
 } from './cli-commands.js';
@@ -54,6 +56,7 @@ Usage:
   pakt auto [file] [options]        Auto-detect and compress or decompress
   pakt serve --stdio                Start MCP server over stdio
   pakt detect [file]                Detect input format
+  pakt inspect [file] [options]     Inspect whether to compress, decompress, or leave as-is
   pakt tokens [file] [options]      Count tokens in input
   pakt savings [file] [options]     Show compression savings report
   pakt --version                    Print version
@@ -77,10 +80,11 @@ Examples:
   cat data.json | pakt compress --from json
   pakt decompress compressed.pakt --to json
   pakt detect mystery-file.txt
+  pakt inspect data.json --model gpt-4o
   pakt tokens data.json --model claude-sonnet
   pakt savings data.json --model gpt-4o
   cat data.json | pakt auto
-  echo '@from json\nname: Alice' | pakt auto
+  printf '%s\n' '@from json' 'name: Alice' | pakt auto
 `;
 
 // ---------------------------------------------------------------------------
@@ -192,10 +196,11 @@ function parseLayers(layerStr: string): Partial<PaktLayers> {
 
   const parts = layerStr.split(',');
   for (const part of parts) {
-    const num = Number.parseInt(part.trim(), 10);
-    if (Number.isNaN(num)) {
+    const trimmed = part.trim();
+    if (!/^\d+$/.test(trimmed)) {
       throw new Error(`Invalid layer number: "${part.trim()}". Expected 1, 2, 3, or 4.`);
     }
+    const num = Number.parseInt(trimmed, 10);
     const key = LAYER_MAP[num];
     if (!key) {
       throw new Error(
@@ -212,7 +217,7 @@ function parseLayers(layerStr: string): Partial<PaktLayers> {
 // Main
 // ---------------------------------------------------------------------------
 
-function main(): void {
+async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const args = parseArgs(argv);
 
@@ -240,10 +245,13 @@ function main(): void {
       cmdAuto(args, readInput, parseLayers);
       break;
     case 'serve':
-      startServe();
-      return; // serve runs indefinitely
+      await startServe();
+      return; // serve keeps the stdio transport open
     case 'detect':
       cmdDetect(args, readInput);
+      break;
+    case 'inspect':
+      cmdInspect(args, readInput);
       break;
     case 'tokens':
       cmdTokens(args, readInput);
@@ -262,10 +270,8 @@ function main(): void {
 // Entry point with error handling
 // ---------------------------------------------------------------------------
 
-try {
-  main();
-} catch (err: unknown) {
+main().catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   process.stderr.write(`Error: ${message}\n`);
   process.exit(1);
-}
+});
