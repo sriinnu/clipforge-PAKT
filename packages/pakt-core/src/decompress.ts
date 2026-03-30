@@ -8,7 +8,7 @@
  * requested format.
  */
 
-import { decompressL2, reverseL3Transforms } from './layers/index.js';
+import { decompressL2, revertDeltaEncoding, reverseL3Transforms } from './layers/index.js';
 import type { CommentNode, DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
 import { bodyToValue, toCsv, toJson, toMarkdown, toText, toYaml } from './reverse/index.js';
@@ -17,13 +17,16 @@ import type { DecompressResult, PaktFormat } from './types.js';
 /**
  * Decompress a PAKT string back to the original or requested format.
  *
- * The decompression pipeline:
+ * The decompression pipeline (reverse of compress: L1 → delta → L2):
  * 1. **Parse** — Tokenize and parse the PAKT string into an AST.
- * 2. **Expand** — Replace all dictionary aliases (`$a`, `$b`, ...)
- *    with their full expansions from the `@dict` header.
- * 3. **Reconstruct** — Convert the AST back into a structured data
+ * 2. **L2 Expand** — Replace all dictionary aliases (`$a`, `$b`, ...)
+ *    with their full expansions from the `@dict` header. Must run
+ *    before delta decoding because L2 may have aliased `~` sentinels.
+ * 3. **Delta Decode** — Revert delta-encoded `~` sentinels to real
+ *    values by copying from the previous row.
+ * 4. **Reconstruct** — Convert the AST back into a structured data
  *    object (arrays, objects, scalars).
- * 4. **Serialize** — Format the data as the requested output format
+ * 5. **Serialize** — Format the data as the requested output format
  *    (JSON, YAML, CSV, Markdown, or plain text).
  *
  * If no `outputFormat` is specified, the format from the `@from`
@@ -109,19 +112,25 @@ function decompressPipeline(pakt: string, outputFormat?: PaktFormat): Decompress
   const warningHeader = doc.headers.find((h) => h.headerType === 'warning');
   const wasLossy = warningHeader?.value.includes('lossy') ?? false;
 
-  // 5. Expand dictionary aliases in the body
-  const expanded = decompressL2(doc);
+  // 5. Expand dictionary aliases FIRST — L2 may have aliased the `~` sentinel
+  //    during compression, so aliases must be resolved before delta decoding
+  //    can find the sentinel values. (Compress order: L1 → delta → L2,
+  //    so decompress must reverse: L2 → delta → L1.)
+  const l2Expanded = decompressL2(doc);
 
-  // 6. Determine which format to serialize to
+  // 6. Revert delta encoding (~ sentinels → real values) on the L2-expanded doc
+  const expanded = revertDeltaEncoding(l2Expanded);
+
+  // 7. Determine which format to serialize to
   const targetFormat: PaktFormat = outputFormat ?? originalFormat;
 
-  // 7. Extract envelope comments if present
+  // 8. Extract envelope comments if present
   const envelopeResult = extractEnvelope(expanded.body);
 
-  // 8. Convert body to formatted text (envelope comments are ignored by bodyToValue)
+  // 9. Convert body to formatted text (envelope comments are ignored by bodyToValue)
   const text = formatBody(expanded, targetFormat, normalizedPakt);
 
-  // 9. Get structured data from the expanded body
+  // 10. Get structured data from the expanded body
   const data: unknown = bodyToValue(expanded.body);
 
   const result: DecompressResult = { data, text, originalFormat, wasLossy };
