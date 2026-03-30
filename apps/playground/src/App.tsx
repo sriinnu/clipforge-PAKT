@@ -7,6 +7,7 @@ import {
 } from '@sriinnu/pakt';
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import paktLogo from '../../../assets/pakt-logo.svg';
+import type { CompressibilityResult } from '@sriinnu/pakt';
 import {
   type ComparisonItem,
   type ComparisonState,
@@ -14,6 +15,7 @@ import {
   compressSource,
   computeComparison,
   decompressSource,
+  estimateCompressibility,
   preloadPaktRuntime,
 } from './pakt-runtime';
 import { samples } from './samples';
@@ -211,6 +213,8 @@ export default function App() {
     recommendation: null,
   });
   const [workflowNotice, setWorkflowNotice] = useState<string | null>(null);
+  /** Compressibility score for the current input, computed in the worker. */
+  const [compressibility, setCompressibility] = useState<CompressibilityResult | null>(null);
   const suppressPreviewOnceRef = useRef(false);
   const manualRequestIdRef = useRef(0);
   const deferredInput = useDeferredValue(input);
@@ -307,6 +311,30 @@ export default function App() {
       window.clearTimeout(timeoutId);
     };
   }, []);
+
+  /* Debounced compressibility estimation — runs in the worker thread */
+  useEffect(() => {
+    if (!deferredInput.trim()) {
+      setCompressibility(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const result = await estimateCompressibility(deferredInput);
+        if (!cancelled) setCompressibility(result);
+      } catch {
+        /* Best-effort: compressibility indicator is non-critical */
+        if (!cancelled) setCompressibility(null);
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [deferredInput]);
 
   useEffect(() => {
     if (!semanticBudgetValid) {
@@ -776,6 +804,17 @@ export default function App() {
                 spellCheck={false}
                 placeholder="Paste JSON, YAML, CSV, or markdown with embedded data blocks"
               />
+              {/* Compressibility indicator: score, label, and recommended profile */}
+              {compressibility ? (
+                <p className="compressibility-line">
+                  Compressibility:{' '}
+                  <strong className={`compressibility-${compressibility.label}`}>
+                    {compressibility.label}
+                  </strong>{' '}
+                  ({Math.round(compressibility.score * 100)}%) — recommended profile:{' '}
+                  <strong>{compressibility.profile}</strong>
+                </p>
+              ) : null}
               <div className="action-row">
                 <label className="toggle-control" htmlFor="live-compress-toggle">
                   <input
@@ -941,6 +980,10 @@ export default function App() {
                           {badge}
                         </span>
                       ))}
+                      {/* Delta encoding indicator — shown when compressed output uses delta mode */}
+                      {item.text.includes('@compress delta') ? (
+                        <span className="meta-badge delta-badge">Delta</span>
+                      ) : null}
                     </div>
                     <p className="compare-delta">{item.delta}</p>
                     <p className="compare-note">{item.note}</p>
@@ -978,7 +1021,7 @@ export default function App() {
 
       <footer className="footer">
         <span>PAKT v{__PAKT_VERSION__}</span>
-        <span>&copy; {currentYear} Srinivas Pendela</span>
+        <span>&copy; {currentYear} Sriinnu</span>
         <span>Local browser playground for structured payload testing</span>
       </footer>
     </div>

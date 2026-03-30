@@ -618,3 +618,27 @@ button:disabled {
     min-height: 280px;
   }
 }
+
+/* ---- Compressibility indicator ---- */
+
+.compressibility-line {
+  margin: 4px 0 0;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+
+.compressibility-low { color: var(--danger); }
+.compressibility-moderate { color: var(--warning); }
+.compressibility-good { color: var(--accent); }
+.compressibility-high { color: var(--success); }
+.compressibility-excellent { color: #52e0a0; }
+
+/* ---- Delta encoding badge ---- */
+
+.delta-badge {
+  background: var(--accent-strong);
+  color: var(--bg);
+  font-weight: 600;
+}

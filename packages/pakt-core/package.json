@@ -1,6 +1,6 @@
 {
   "name": "@sriinnu/pakt",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "PAKT compression engine — lossless-first L1-L3 compression with opt-in L4 semantic packing for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,9 +1,11 @@
 import {
   PAKT_LAYER_PROFILES,
+  type CompressibilityResult,
   type PaktFormat,
   type PaktLayerProfile,
   type PaktLayerProfileId,
   createProfiledPaktOptions,
+  estimateCompressibility,
 } from '@sriinnu/pakt';
 import { createTablePackPlan } from './pack-advisor';
 
@@ -162,6 +164,18 @@ async function decompressDocument(input: string, format: PaktFormat): Promise<st
 
 export async function preloadPakt(): Promise<void> {
   await loadPakt();
+}
+
+/**
+ * Estimate compressibility of raw input text without running the full
+ * compression pipeline. Returns score, label, recommended profile, and
+ * per-dimension breakdown.
+ *
+ * @param text - Raw input text to analyze
+ * @returns Compressibility analysis result from pakt-core
+ */
+export function getCompressibility(text: string): CompressibilityResult {
+  return estimateCompressibility(text);
 }
 
 export async function analyzePreview(

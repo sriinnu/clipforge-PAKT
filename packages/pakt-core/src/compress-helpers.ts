@@ -1,6 +1,7 @@
 import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 import { detect } from './detect.js';
 import {
+  applyDeltaEncoding,
   applyL3Transforms,
   applyL4Transforms,
   compressL2,

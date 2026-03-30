@@ -19,7 +19,7 @@ import {
 } from './compress-helpers.js';
 import { DEFAULT_OPTIONS } from './constants.js';
 import { parseInput } from './format-parsers/index.js';
-import { compressL1 } from './layers/index.js';
+import { applyDeltaEncoding, compressL1 } from './layers/index.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktOptions, PaktResult } from './types.js';
@@ -130,6 +130,8 @@ function compressPipeline(
   const data = parseInput(setup.bodyInput, setup.detectedFormat);
   let doc = compressL1(data, setup.detectedFormat);
   doc = injectEnvelopePreamble(doc, setup.envelopePreamble);
+  /* Delta encoding post-pass: replace repeated adjacent tabular values with ~ */
+  doc = applyDeltaEncoding(doc);
 
   const afterL1 = serialize(doc);
   const l1Tokens = countTokens(afterL1, targetModel);

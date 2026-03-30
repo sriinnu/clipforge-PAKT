@@ -1,4 +1,4 @@
-import type { PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
+import type { CompressibilityResult, PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
 import type {
   ComparisonState,
   CompressionConfig,
@@ -12,7 +12,8 @@ type WorkerMessage =
   | { type: 'analyzePreview'; input: string; liveCompress: boolean; config: CompressionConfig }
   | { type: 'compressSource'; input: string; config: CompressionConfig }
   | { type: 'decompressSource'; input: string; format: PaktFormat }
-  | { type: 'computeComparison'; input: string; semanticBudget?: number };
+  | { type: 'computeComparison'; input: string; semanticBudget?: number }
+  | { type: 'compressibility'; text: string };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -138,6 +139,20 @@ export async function computeComparison(
   return callWorker<ComparisonState>({ type: 'computeComparison', input, semanticBudget });
 }
 
+/**
+ * Estimate compressibility of raw text via the worker thread.
+ * Returns score, label, recommended profile, and per-dimension breakdown
+ * without running the full compression pipeline.
+ *
+ * @param text - Raw input text to analyze
+ * @returns Compressibility analysis from pakt-core
+ */
+export async function estimateCompressibility(
+  text: string,
+): Promise<CompressibilityResult> {
+  return callWorker<CompressibilityResult>({ type: 'compressibility', text });
+}
+
 export type {
   ComparisonItem,
   ComparisonState,
@@ -146,4 +161,4 @@ export type {
   DecompressionResult,
   PreviewResult,
 } from './pakt-service';
-export type { PaktLayerProfileId };
+export type { CompressibilityResult, PaktLayerProfileId };
