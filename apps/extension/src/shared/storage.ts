@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_SEMANTIC_BUDGET, type PaktLayerProfileId } from '@sriinnu/pakt';
+import { type FontPreset, isFontPreset } from '../popup/fonts';
 
 const PROFILE_IDS: readonly PaktLayerProfileId[] = [
   'structure',
@@ -24,8 +25,10 @@ export interface ExtensionSettings {
   semanticBudget: number;
   /** Auto-compress pasted content */
   autoCompress: boolean;
-  /** Theme: 'system' | 'dark' | 'light' */
-  theme: 'system' | 'dark' | 'light';
+  /** Theme: 'system' | 'dark' | 'light' | 'oled' */
+  theme: 'system' | 'dark' | 'light' | 'oled';
+  /** Font preset: 'modern' | 'classic' | 'rounded' | 'system' */
+  fontPreset: FontPreset;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -33,6 +36,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   semanticBudget: DEFAULT_SEMANTIC_BUDGET,
   autoCompress: false,
   theme: 'dark',
+  fontPreset: 'modern',
 };
 
 function isProfileId(value: unknown): value is PaktLayerProfileId {
@@ -63,6 +67,7 @@ function normalizeSettings(
       raw.theme === 'system' || raw.theme === 'light' || raw.theme === 'dark'
         ? raw.theme
         : DEFAULT_SETTINGS.theme,
+    fontPreset: isFontPreset(raw.fontPreset) ? raw.fontPreset : DEFAULT_SETTINGS.fontPreset,
   };
 }
 

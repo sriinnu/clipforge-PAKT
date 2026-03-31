@@ -52,6 +52,12 @@ export const MIN_DELTA_ROWS = 3;
  */
 export const MIN_DELTA_RATIO = 0.3;
 
+/**
+ * Maximum recursion depth for delta encode/decode body traversal.
+ * Prevents stack overflow on adversarially deep ASTs.
+ */
+export const MAX_DELTA_DEPTH = 64;
+
 /** Header value that signals delta encoding is active. */
 const DELTA_HEADER_VALUE = 'delta';
 
@@ -192,9 +198,13 @@ function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
       if (prev && curr && scalarsEqual(prev, curr)) {
         newValues.push(makeSentinel());
         deltaCount++;
-      } else {
-        newValues.push(curr!);
+      } else if (curr) {
+        newValues.push(curr);
+      } else if (prev) {
+        /* Ragged row — field missing in current row, carry forward */
+        newValues.push(prev);
       }
+      /* else: both undefined on a ragged row — skip (field count mismatch) */
     }
 
     newRows.push({ type: 'tabularRow', values: newValues, position: POS });
@@ -212,7 +222,9 @@ function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
  * @param body - Document body nodes
  * @returns New body with delta-encoded tabular arrays
  */
-function deltaEncodeBody(body: BodyNode[]): { body: BodyNode[]; applied: boolean } {
+function deltaEncodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; applied: boolean } {
+  if (depth > MAX_DELTA_DEPTH) return { body, applied: false };
+
   let applied = false;
   const newBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
@@ -222,14 +234,14 @@ function deltaEncodeBody(body: BodyNode[]): { body: BodyNode[]; applied: boolean
     }
     /* Recurse into nested objects to find tabular arrays inside */
     if (node.type === 'object') {
-      const result = deltaEncodeBody(node.children);
+      const result = deltaEncodeBody(node.children, depth + 1);
       if (result.applied) applied = true;
       return { ...node, children: result.body };
     }
     /* Recurse into list array items */
     if (node.type === 'listArray') {
       const newItems = node.items.map((item) => {
-        const result = deltaEncodeBody(item.children);
+        const result = deltaEncodeBody(item.children, depth + 1);
         if (result.applied) applied = true;
         return { ...item, children: result.body };
       });
@@ -300,12 +312,17 @@ function deltaDecodeTabular(node: TabularArrayNode): TabularArrayNode {
 
     for (let f = 0; f < fieldCount; f++) {
       const curr = currRow.values[f];
+      const prev = prevRow.values[f];
       /* Resolve sentinel: copy value from previous (already decoded) row */
-      if (curr && isDeltaSentinel(curr)) {
-        newValues.push(prevRow.values[f]!);
-      } else {
-        newValues.push(curr!);
+      if (curr && isDeltaSentinel(curr) && prev) {
+        newValues.push(prev);
+      } else if (curr) {
+        newValues.push(curr);
+      } else if (prev) {
+        /* Ragged row — field missing in current row, carry forward */
+        newValues.push(prev);
       }
+      /* else: both undefined on a ragged row — skip (field count mismatch) */
     }
 
     newRows.push({ type: 'tabularRow', values: newValues, position: POS });
@@ -320,16 +337,18 @@ function deltaDecodeTabular(node: TabularArrayNode): TabularArrayNode {
  * @param body - Document body nodes (potentially delta-encoded)
  * @returns Body with all delta sentinels resolved
  */
-function deltaDecodeBody(body: BodyNode[]): BodyNode[] {
+function deltaDecodeBody(body: BodyNode[], depth = 0): BodyNode[] {
+  if (depth > MAX_DELTA_DEPTH) return body;
+
   return body.map((node): BodyNode => {
     if (node.type === 'tabularArray') return deltaDecodeTabular(node);
     if (node.type === 'object') {
-      return { ...node, children: deltaDecodeBody(node.children) };
+      return { ...node, children: deltaDecodeBody(node.children, depth + 1) };
     }
     if (node.type === 'listArray') {
       const newItems = node.items.map((item) => ({
         ...item,
-        children: deltaDecodeBody(item.children),
+        children: deltaDecodeBody(item.children, depth + 1),
       }));
       return { ...node, items: newItems };
     }

@@ -10,11 +10,11 @@ import type { PaktFormat } from '@sriinnu/pakt';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type ExtensionSettings, getSettings } from '../shared/storage';
 import { ActionBar } from './ActionBar';
-import { buildCliWorkflowSnippet, IS_MAC, MCP_CONFIG_SNIPPET, MOD } from './helpers';
 import { ProfileCard, SiteSupportCard } from './InfoCards';
 import { OutputSection, StatusMessage } from './OutputSection';
 import { Settings } from './Settings';
 import { StatsCard } from './StatsCard';
+import { IS_MAC, MCP_CONFIG_SNIPPET, MOD, buildCliWorkflowSnippet } from './helpers';
 import { BackIcon, GearIcon } from './icons';
 import {
   FORMAT_COLORS,
@@ -68,6 +68,18 @@ export function Popup() {
   const [deltaEncoded, setDeltaEncoded] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const autoCompressedRef = useRef(false);
+  /** Timer ref for copy-feedback reset (prevents leak on unmount). */
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  /** Timer ref for auto-compress notice dismissal (prevents leak on unmount). */
+  const autoNoticeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  /* Clear pending timers on unmount to prevent setState-after-unmount leaks. */
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (autoNoticeTimerRef.current) clearTimeout(autoNoticeTimerRef.current);
+    };
+  }, []);
 
   useTheme();
   const { activeTabSupport, siteSupportTitle, siteSupportBody } = useActiveTab();
@@ -117,7 +129,7 @@ export function Popup() {
     try {
       await navigator.clipboard.writeText(output);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       setStatusMsg({ text: 'Failed to copy', type: 'error' });
     }
@@ -164,7 +176,7 @@ export function Popup() {
       () =>
         runCompress(input, true, () => {
           setAutoNotice(true);
-          setTimeout(() => setAutoNotice(false), 2500);
+          autoNoticeTimerRef.current = setTimeout(() => setAutoNotice(false), 2500);
         }),
       150,
     );
@@ -312,6 +324,7 @@ export function Popup() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           rows={5}
+          aria-label="Input text to compress"
         />
         <p style={{ marginTop: 8, color: 'var(--cf-text-muted)', fontSize: 11, lineHeight: 1.45 }}>
           Paste structured content here, or let the popup load from your clipboard on open.
@@ -322,16 +335,13 @@ export function Popup() {
           status={activeTabSupport.status}
           title={siteSupportTitle}
           body={siteSupportBody}
-          onCopyCliSnippet={() => void copyWorkflowText('CLI snippet', buildCliWorkflowSnippet(input))}
+          onCopyCliSnippet={() =>
+            void copyWorkflowText('CLI snippet', buildCliWorkflowSnippet(input))
+          }
           onCopyMcpConfig={() => void copyWorkflowText('MCP config', MCP_CONFIG_SNIPPET)}
         />
 
-        <ProfileCard
-          profile={activeProfile}
-          summary={profileSummary}
-          detail={profileDetail}
-          honesty={profileHonesty}
-        />
+        <ProfileCard summary={profileSummary} detail={profileDetail} honesty={profileHonesty} />
 
         <ActionBar
           isPakt={isPakt}
@@ -388,8 +398,12 @@ export function Popup() {
 
 /** Ephemeral banner style for auto-compress notification. */
 const autoNoticeStyle: React.CSSProperties = {
-  padding: '6px 12px', borderRadius: 'var(--cf-radius-md)',
-  backgroundColor: 'var(--cf-accent-glow)', color: 'var(--cf-accent)',
-  fontSize: 11, fontWeight: 500, textAlign: 'center',
+  padding: '6px 12px',
+  borderRadius: 'var(--cf-radius-md)',
+  backgroundColor: 'var(--cf-accent-glow)',
+  color: 'var(--cf-accent)',
+  fontSize: 11,
+  fontWeight: 500,
+  textAlign: 'center',
   animation: 'notificationSlide 2.5s ease forwards',
 };

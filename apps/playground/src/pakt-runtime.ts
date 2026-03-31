@@ -147,9 +147,7 @@ export async function computeComparison(
  * @param text - Raw input text to analyze
  * @returns Compressibility analysis from pakt-core
  */
-export async function estimateCompressibility(
-  text: string,
-): Promise<CompressibilityResult> {
+export async function estimateCompressibility(text: string): Promise<CompressibilityResult> {
   return callWorker<CompressibilityResult>({ type: 'compressibility', text });
 }
 

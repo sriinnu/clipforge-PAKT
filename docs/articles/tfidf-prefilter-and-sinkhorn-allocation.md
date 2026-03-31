@@ -90,10 +90,12 @@ collectively provide more context than any single high-priority item.
 
 ### 2. Source: mHC (Manifold-Constrained Hyper-Connections)
 
-mHC (Xie, Wei et al., 2025) solves training instability in deep
-transformers by constraining mixing matrices to be **doubly stochastic**
--- matrices where all rows and columns sum to 1. This is enforced via
-**Sinkhorn-Knopp normalization**:
+PAKT's proposed budget allocation draws on the classical Sinkhorn-Knopp
+algorithm (1964) for doubly stochastic normalization, recently applied
+in neural architectures like mHC (Xie, Wei et al., 2025). mHC solves
+training instability in deep transformers by constraining mixing matrices
+to be **doubly stochastic** -- matrices where all rows and columns sum
+to 1. The normalization procedure:
 
 ```
 1. Start with unconstrained logits matrix M

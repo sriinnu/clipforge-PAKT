@@ -9,9 +9,9 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  estimateCompressibility,
   type CompressibilityLabel,
   type CompressibilityResult,
+  estimateCompressibility,
 } from '../src/compressibility.js';
 
 // ---------------------------------------------------------------------------
@@ -123,9 +123,7 @@ describe('compressibility: labels', () => {
     /* Test with inputs that produce known score ranges */
     const lowInput = 'hello';
     const lowResult = estimateCompressibility(lowInput);
-    const validLabels: CompressibilityLabel[] = [
-      'low', 'moderate', 'good', 'high', 'excellent',
-    ];
+    const validLabels: CompressibilityLabel[] = ['low', 'moderate', 'good', 'high', 'excellent'];
     expect(validLabels).toContain(lowResult.label);
   });
 
@@ -136,9 +134,13 @@ describe('compressibility: labels', () => {
     /* Moderate: small JSON */
     labels.add(estimateCompressibility('{"a":1,"b":2}').label);
     /* Good-Excellent: repetitive data */
-    labels.add(estimateCompressibility(JSON.stringify(
-      Array.from({ length: 20 }, () => ({ role: 'eng', dept: 'platform', status: 'active' }))
-    )).label);
+    labels.add(
+      estimateCompressibility(
+        JSON.stringify(
+          Array.from({ length: 20 }, () => ({ role: 'eng', dept: 'platform', status: 'active' })),
+        ),
+      ).label,
+    );
 
     expect(labels.size).toBeGreaterThanOrEqual(3); // at least 3 distinct labels
   });
@@ -217,11 +219,7 @@ describe('compressibility: breakdown', () => {
   });
 
   it('schemaUniformity is low for mixed-shape arrays', () => {
-    const data = JSON.stringify([
-      { x: 1, y: 2 },
-      { a: 3, b: 4, c: 5 },
-      { p: 6 },
-    ]);
+    const data = JSON.stringify([{ x: 1, y: 2 }, { a: 3, b: 4, c: 5 }, { p: 6 }]);
     const result = estimateCompressibility(data);
     expect(result.breakdown.schemaUniformity).toBeLessThan(0.5);
   });
@@ -287,5 +285,83 @@ describe('compressibility: edge cases', () => {
     if (decimals) {
       expect(decimals.length).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+// ===========================================================================
+// 9. YAML input scoring (Test 5a)
+// ===========================================================================
+
+describe('compressibility: YAML input', () => {
+  it('scores YAML input between 0 and 1', () => {
+    const yaml = [
+      'users:',
+      '  - name: Alice',
+      '    role: engineer',
+      '    dept: platform',
+      '  - name: Bob',
+      '    role: engineer',
+      '    dept: platform',
+      '  - name: Charlie',
+      '    role: engineer',
+      '    dept: platform',
+    ].join('\n');
+    const result = estimateCompressibility(yaml);
+    expectScoreInRange(result, 0, 1);
+    /* YAML is detected as text (or yaml) — just verify a valid result */
+    expect(result.label).toBeDefined();
+    expect(result.profile).toBeDefined();
+    expect(result.breakdown).toBeDefined();
+  });
+});
+
+// ===========================================================================
+// 10. >10MB fallback scoring (Test 5b)
+// ===========================================================================
+
+describe('compressibility: oversized input fallback', () => {
+  it('handles >10MB input without crashing and returns valid result', () => {
+    /* Generate a string >10MB that looks like JSON so the >MAX_PARSE_BYTES path triggers */
+    const row = '{"name":"Alice","role":"engineer","dept":"platform"},';
+    const repeatCount = Math.ceil(10_000_001 / row.length);
+    const bigInput = `[${row.repeat(repeatCount).slice(0, -1)}]`;
+    /* Verify we actually exceeded the threshold */
+    expect(bigInput.length).toBeGreaterThan(10_000_000);
+
+    const result = estimateCompressibility(bigInput);
+    expectScoreInRange(result, 0, 1);
+    expect(result.format).toBe('json');
+    expect(result.label).toBeDefined();
+    expect(result.profile).toBeDefined();
+    expect(result.breakdown).toBeDefined();
+  }, 30_000); /* extended timeout for large string ops */
+});
+
+// ===========================================================================
+// 11. JSON parse failure fallback (Test 6)
+// ===========================================================================
+
+describe('compressibility: JSON parse failure fallback', () => {
+  it('falls back gracefully when detect says JSON but JSON.parse rejects', () => {
+    /* detect() will classify this as JSON (starts with { and has : ) but
+       JSON.parse will fail because "invalid" is not valid JSON. */
+    const badJson = '{"key": invalid}';
+    const result = estimateCompressibility(badJson);
+
+    expectScoreInRange(result, 0, 1);
+    /* Format is still reported as JSON because detect() ran first */
+    expect(result.format).toBe('json');
+    expect(result.label).toBeDefined();
+    expect(result.profile).toBeDefined();
+    expect(result.breakdown).toBeDefined();
+    /* Should have fallen back to text-level word splitting */
+    expect(result.breakdown.repetitionDensity).toBeGreaterThanOrEqual(0);
+  });
+
+  it('handles truncated JSON arrays gracefully', () => {
+    const truncated = '[{"a":1},{"a":2},{"a":';
+    const result = estimateCompressibility(truncated);
+    expectScoreInRange(result, 0, 1);
+    expect(result.breakdown).toBeDefined();
   });
 });

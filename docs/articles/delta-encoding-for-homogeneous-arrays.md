@@ -1,7 +1,7 @@
 # Delta Encoding for Homogeneous Arrays
 
 **Source:** DeltaKV (arXiv:2602.08005, Feb 2026) -- Hao et al.
-**Relevance to PAKT:** L1.5 structural optimization for tabular data
+**Relevance to PAKT:** L1 delta structural optimization for tabular data
 **Status:** Implemented in `packages/pakt-core/src/layers/L1-delta.ts`
 
 ---
@@ -89,7 +89,7 @@ users [5]{name|role|dept|city}:
   Eve|~|~|~
 ```
 
-Token savings: 10 field values replaced by `~` sentinels. At ~1 token per
+Token savings: 9 field values replaced by `~` sentinels. At ~1 token per
 value vs 1 token for `~`, the savings come from shorter BPE sequences.
 On highly repetitive data (logs, time-series), savings reach 20-40% on
 top of L1 structural compression.
@@ -103,6 +103,21 @@ Delta encoding is counterproductive when:
 
 The implementation gates on a **minimum delta ratio**: at least 30% of
 field values must be `~` for delta encoding to activate.
+
+### 3.4 Disambiguating `~` in User Data
+
+A literal `~` in the original data must not be confused with a delta
+sentinel. Two mechanisms prevent this:
+
+1. **L1's `NEEDS_QUOTE_RE`** force-quotes any value that is exactly `~`,
+   producing `"~"` in the tabular output. Delta sentinels are always
+   unquoted bare `~`.
+2. **`isDeltaSentinel()`** checks `quoted === false` before treating a
+   tilde as a delta marker. A quoted `"~"` is treated as a literal value
+   and preserved verbatim through decompression.
+
+This means user data containing tildes round-trips correctly -- the
+quoting distinguishes data from compression metadata.
 
 ---
 
@@ -124,8 +139,8 @@ field values must be `~` for delta encoding to activate.
 
 ## 5. References
 
-1. Hao et al., "DeltaKV: Residual-based KV Cache Compression via
-   Long-range Similarity," arXiv:2602.08005, Feb 2026.
+1. Hao et al., "DeltaKV: Residual-Based KV Cache Compression via
+   Long-Range Similarity," arXiv:2602.08005, Feb 2026.
 2. He et al., "ZipCache: Accurate and Efficient KV Cache Quantization
    with Salient Token Identification," arXiv:2405.14256, May 2024.
 3. Chari & Van Durme, "Compactor: Efficient KV Cache Compression via

@@ -1,6 +1,8 @@
 :root {
   color-scheme: dark;
-  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  --pg-font: "Avenir Next", "Trebuchet MS", sans-serif;
+  --pg-font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  font-family: var(--pg-font);
   --bg: #0f1418;
   --bg-soft: #1a232a;
   --panel: rgba(11, 18, 24, 0.84);
@@ -13,7 +15,7 @@
   --success: #62d2a2;
   --warning: #ffcb6b;
   --danger: #ff8b8b;
-  --editor-font: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --editor-font: var(--pg-font-mono);
 }
 
 * {
@@ -629,11 +631,21 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
-.compressibility-low { color: var(--danger); }
-.compressibility-moderate { color: var(--warning); }
-.compressibility-good { color: var(--accent); }
-.compressibility-high { color: var(--success); }
-.compressibility-excellent { color: #52e0a0; }
+.compressibility-low {
+  color: var(--danger);
+}
+.compressibility-moderate {
+  color: var(--warning);
+}
+.compressibility-good {
+  color: var(--accent);
+}
+.compressibility-high {
+  color: var(--success);
+}
+.compressibility-excellent {
+  color: #52e0a0;
+}
 
 /* ---- Delta encoding badge ---- */
 

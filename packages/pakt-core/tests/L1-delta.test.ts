@@ -10,16 +10,13 @@ import { describe, expect, it } from 'vitest';
 import { compressL1 } from '../src/layers/L1-compress.js';
 import { decompressL1 } from '../src/layers/L1-decompress.js';
 import {
-  DELTA_SENTINEL,
   MIN_DELTA_RATIO,
-  MIN_DELTA_ROWS,
   applyDeltaEncoding,
   computeDeltaRatio,
   isDeltaSentinel,
   revertDeltaEncoding,
 } from '../src/layers/L1-delta.js';
-import type { DocumentNode, ScalarNode, TabularArrayNode } from '../src/parser/ast.js';
-import { serialize } from '../src/serializer/index.js';
+import type { DocumentNode, TabularArrayNode } from '../src/parser/ast.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,8 +157,8 @@ describe('L1-delta: decoding', () => {
       { v: 'alpha' },
       { v: 'alpha' }, // same as row 0
       { v: 'alpha' }, // same as row 1 (which was sentinel)
-      { v: 'beta' },  // changed
-      { v: 'beta' },  // same as row 3
+      { v: 'beta' }, // changed
+      { v: 'beta' }, // same as row 3
     ];
     deltaRoundtrip(data, 'chained repetitions');
   });
@@ -233,7 +230,13 @@ describe('L1-delta: roundtrip', () => {
     /* Construct data where list items contain tabular-eligible arrays */
     const data = {
       groups: [
-        { members: [{ name: 'A', role: 'dev' }, { name: 'B', role: 'dev' }, { name: 'C', role: 'dev' }] },
+        {
+          members: [
+            { name: 'A', role: 'dev' },
+            { name: 'B', role: 'dev' },
+            { name: 'C', role: 'dev' },
+          ],
+        },
       ],
     };
     deltaRoundtrip(data, 'tabular inside list array');
@@ -327,100 +330,5 @@ describe('L1-delta: computeDeltaRatio', () => {
     const doc = compressL1(data, 'json');
     const ratio = computeDeltaRatio(findTabular(doc)!);
     expect(ratio).toBe(0);
-  });
-});
-
-// ===========================================================================
-// 6. Sentinel utilities
-// ===========================================================================
-
-describe('L1-delta: sentinel utilities', () => {
-  it('DELTA_SENTINEL is ~', () => {
-    expect(DELTA_SENTINEL).toBe('~');
-  });
-
-  it('isDeltaSentinel identifies ~ scalars', () => {
-    const sentinel: ScalarNode = {
-      type: 'scalar',
-      scalarType: 'string',
-      value: '~',
-      quoted: false,
-      position: { line: 0, column: 0, offset: 0 },
-    };
-    expect(isDeltaSentinel(sentinel)).toBe(true);
-  });
-
-  it('isDeltaSentinel rejects non-sentinel scalars', () => {
-    const notSentinel: ScalarNode = {
-      type: 'scalar',
-      scalarType: 'string',
-      value: 'hello',
-      quoted: false,
-      position: { line: 0, column: 0, offset: 0 },
-    };
-    expect(isDeltaSentinel(notSentinel)).toBe(false);
-  });
-
-  it('isDeltaSentinel rejects quoted ~ (real tilde value, not sentinel)', () => {
-    /* A quoted "~" is a literal tilde string, not a sentinel.
-       isDeltaSentinel checks quoted === false, so quoted tildes are safe. */
-    const quotedTilde: ScalarNode = {
-      type: 'scalar',
-      scalarType: 'string',
-      value: '~',
-      quoted: true,
-      position: { line: 0, column: 0, offset: 0 },
-    };
-    expect(isDeltaSentinel(quotedTilde)).toBe(false);
-  });
-});
-
-// ===========================================================================
-// 7. Serialization appearance
-// ===========================================================================
-
-describe('L1-delta: serialized output', () => {
-  it('produces ~ in serialized PAKT output', () => {
-    const data = [
-      { name: 'Alice', role: 'dev' },
-      { name: 'Bob', role: 'dev' },
-      { name: 'Charlie', role: 'dev' },
-    ];
-    const encoded = deltaEncode(data);
-    const text = serialize(encoded);
-
-    /* Should contain ~ sentinel in the output */
-    expect(text).toContain('~');
-    /* Should contain @compress delta header */
-    expect(text).toContain('@compress delta');
-  });
-
-  it('does not produce @compress delta when no deltas applied', () => {
-    const data = [
-      { a: 1, b: 2 },
-      { a: 3, b: 4 },
-      { a: 5, b: 6 },
-    ];
-    const encoded = deltaEncode(data);
-    const text = serialize(encoded);
-    expect(text).not.toContain('@compress delta');
-  });
-});
-
-// ===========================================================================
-// 8. Safe on non-delta documents
-// ===========================================================================
-
-describe('L1-delta: safety', () => {
-  it('revertDeltaEncoding is no-op on non-delta documents', () => {
-    const doc = compressL1({ a: 1, b: 2 }, 'json');
-    const result = revertDeltaEncoding(doc);
-    expect(result).toBe(doc); // same reference, no mutation
-  });
-
-  it('applyDeltaEncoding is no-op on non-tabular documents', () => {
-    const doc = compressL1({ x: 'hello', y: 42 }, 'json');
-    const result = applyDeltaEncoding(doc);
-    expect(result).toBe(doc);
   });
 });

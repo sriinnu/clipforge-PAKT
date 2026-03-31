@@ -12,11 +12,11 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@sriinnu/pakt": "workspace:*",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.0.0",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0",
     "@tauri-apps/plugin-sql": "^2.0.0",
-    "@sriinnu/pakt": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.0"

@@ -1,8 +1,9 @@
 import type { PaktFormat } from '@sriinnu/pakt';
 import { VERSION } from '@sriinnu/pakt';
 import type { FC } from 'react';
+import { FONT_PRESETS } from '../fonts';
 import { useHistoryStore } from '../stores/historyStore';
-import { useSettingsStore } from '../stores/settingsStore';
+import { type FontPreset, useSettingsStore } from '../stores/settingsStore';
 
 const OUTPUT_FORMATS: { value: PaktFormat; label: string }[] = [
   { value: 'json', label: 'JSON' },
@@ -145,6 +146,25 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
             The current release ships the menu bar shell in its validated dark-glass theme. Theme
             switching is not exposed here until the shell itself can apply it reliably.
           </p>
+        </div>
+
+        <div className="desktop-card desktop-card-inner">
+          <p className="desktop-section-title">Font preset</p>
+          <p className="desktop-copy" style={{ marginTop: '8px' }}>
+            All fonts are bundled locally — no network requests at runtime.
+          </p>
+          <div className="desktop-segmented" style={{ marginTop: '10px' }}>
+            {Array.from(Object.entries(FONT_PRESETS)).map(([key, cfg]) => (
+              <button
+                type="button"
+                key={key}
+                className={`desktop-segment ${settings.fontPreset === key ? 'is-active' : ''}`}
+                onClick={() => settings.setFontPreset(key as FontPreset)}
+              >
+                {cfg.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="desktop-card desktop-card-inner">

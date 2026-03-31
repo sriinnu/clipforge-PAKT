@@ -4,7 +4,6 @@
  * and active compression profile. Keeps Popup.tsx under the 400-line limit.
  */
 
-import type { PaktLayerProfile } from '@sriinnu/pakt';
 import { clearBtnStyle } from './styles';
 
 /** Shared card wrapper style used by both info cards. */
@@ -73,8 +72,6 @@ export function SiteSupportCard({
 // ---- Profile Card -----------------------------------------------------------
 
 interface ProfileCardProps {
-  /** Resolved layer profile, or null while loading. */
-  profile: PaktLayerProfile | null;
   /** User-facing summary string (e.g. "Standard (std)"). */
   summary: string;
   /** Description of the profile. */

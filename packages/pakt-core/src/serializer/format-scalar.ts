@@ -41,7 +41,15 @@ export function formatTabularCell(scalar: ScalarNode): string {
   return formatScalar(scalar);
 }
 
-/** Format a string value, quoting it if necessary for PAKT safety. */
+/**
+ * Format a string value, quoting it if necessary for PAKT safety.
+ *
+ * Note on `~`: bare `~` is the delta sentinel (L1-delta) and must stay
+ * unquoted when wasQuoted=false. Real user-supplied `~` values always
+ * have wasQuoted=true (set by the parser and L2-clone NEEDS_QUOTE_AFTER_EXPAND_RE),
+ * so they are force-quoted via the wasQuoted branch above. Adding `~` to
+ * needsQuoting() would break delta sentinel round-trips.
+ */
 function formatString(value: string, wasQuoted: boolean): string {
   if (wasQuoted || needsQuoting(value)) {
     return quoteString(value);

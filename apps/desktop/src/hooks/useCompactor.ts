@@ -117,7 +117,9 @@ export function useCompactor(): CompactorState {
   const [compressedTokens, setCompressedTokens] = useState(0);
   const [savings, setSavings] = useState(0);
   const [compressibilityScore, setCompressibilityScore] = useState(0);
-  const [compressibilityLabel, setCompressibilityLabel] = useState<CompressibilityLabel | null>(null);
+  const [compressibilityLabel, setCompressibilityLabel] = useState<CompressibilityLabel | null>(
+    null,
+  );
   const [isProcessing, setIsProcessing] = useState(false);
 
   /** Set input text and run auto-detection to update the format badge. */
