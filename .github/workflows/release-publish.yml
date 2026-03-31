@@ -1,0 +1,223 @@
+# ============================================================================
+# Standalone Workflow: npm Publish with Provenance on Release
+# ============================================================================
+#
+# COPY THIS FILE into your repo at: .github/workflows/release-publish.yml
+#
+# This is a standalone version of the reusable npm-publish workflow.
+# Use this when the reusable workflow is in a private repo (domain-knowledge)
+# that your target repo cannot reference via workflow_call.
+#
+# TARGET REPOS: clipforge-PAKT, harmon, portpilot, Runic, kosha-discovery
+#
+# ============================================================================
+# WHY OIDC PROVENANCE MATTERS
+# ============================================================================
+# npm provenance creates a cryptographic link between a published package
+# and the exact GitHub Actions run that built it. When someone runs
+# `npm audit signatures`, they can verify:
+#   - Which GitHub repo produced the package
+#   - Which commit was checked out
+#   - Which workflow run built and published it
+#
+# This makes it impossible for an attacker to publish a tampered version
+# even if they steal your npm token -- the provenance signature would not
+# match any GitHub Actions run. npm shows a green checkmark on packages
+# with valid provenance at npmjs.com.
+#
+# ============================================================================
+# WHY ACTIONS ARE PINNED TO COMMIT SHAs
+# ============================================================================
+# Git tags are mutable. A compromised action maintainer (or a stolen PAT)
+# can force-push malicious code to an existing tag like `v4`. Every repo
+# using `actions/checkout@v4` would then execute the attacker's code.
+#
+# Commit SHAs are immutable. Pinning to a full 40-char SHA ensures you
+# always get the exact code you audited. The version comment (e.g. # v4)
+# is kept for human readability only.
+#
+# To update: check the action's releases page, verify the new SHA, and
+# update the pin. Tools like Dependabot or Renovate can automate this.
+#
+# ============================================================================
+# NPM_TOKEN SETUP (one-time, per repo)
+# ============================================================================
+# 1. Go to https://www.npmjs.com/settings/<your-user>/tokens
+# 2. Create a "Granular Access Token":
+#    - Type: Automation (bypasses 2FA for CI)
+#    - Scope: Read and write (publish only)
+#    - Packages: Select only the packages this repo publishes
+#    - Expiration: Set a reasonable expiry (90-365 days)
+# 3. In your GitHub repo: Settings > Secrets > Actions
+#    - Add secret: NPM_TOKEN = <the token from step 2>
+#
+# This workflow replaces manual `npm publish` entirely. To publish:
+#   1. Update version in package.json
+#   2. Commit and push
+#   3. Create a GitHub Release (tag matching the version, e.g. v0.5.0)
+#   4. This workflow runs automatically: verify -> publish with provenance
+#
+# ============================================================================
+
+name: Release & Publish to npm
+
+on:
+  release:
+    types: [published]
+
+# ---------------------------------------------------------------------------
+# Minimal permissions for the entire workflow
+# contents: read  -- checkout the code
+# id-token: write -- request OIDC token for npm provenance signing
+# ---------------------------------------------------------------------------
+permissions:
+  contents: read
+  id-token: write
+
+# Cancel in-progress runs for the same release
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # Job 1: Verify -- build and test must pass before publishing
+  # =========================================================================
+  verify:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      # -- Checkout at the release tag with full history --
+      # actions/checkout v4 pinned to SHA (immutable)
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      # -- Detect package manager from lockfile --
+      - name: Detect package manager
+        id: detect-pm
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+          else
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -- Install pnpm if this repo uses it --
+      # pnpm/action-setup v4 pinned to SHA
+      - name: Install pnpm
+        if: steps.detect-pm.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          run_install: false
+
+      # -- Setup Node.js with dependency caching --
+      # actions/setup-node v4 pinned to SHA
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: ${{ steps.detect-pm.outputs.manager }}
+
+      # -- Install dependencies from lockfile (deterministic) --
+      - name: Install dependencies
+        run: |
+          if [ "${{ steps.detect-pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      # -- Build the package --
+      - name: Build
+        run: |
+          if [ "${{ steps.detect-pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm build
+          else
+            npm run build
+          fi
+
+      # -- Run the full test suite --
+      - name: Test
+        run: |
+          if [ "${{ steps.detect-pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm test
+          else
+            npm test
+          fi
+
+  # =========================================================================
+  # Job 2: Publish -- only after verify succeeds
+  # =========================================================================
+  publish:
+    name: Publish to npm (with provenance)
+    needs: verify
+    runs-on: ubuntu-latest
+    # Explicit job-level permissions for OIDC provenance
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # -- Detect package manager --
+      - name: Detect package manager
+        id: detect-pm
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+          else
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -- Install pnpm if needed --
+      - name: Install pnpm
+        if: steps.detect-pm.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          run_install: false
+
+      # -- Setup Node.js with npm registry URL for publishing --
+      # registry-url is required so setup-node creates the .npmrc
+      # that NODE_AUTH_TOKEN will authenticate against.
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: ${{ steps.detect-pm.outputs.manager }}
+
+      # -- Install dependencies (build needs them) --
+      - name: Install dependencies
+        run: |
+          if [ "${{ steps.detect-pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      # -- Build (publish needs dist output) --
+      - name: Build
+        run: |
+          if [ "${{ steps.detect-pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm build
+          else
+            npm run build
+          fi
+
+      # ---------------------------------------------------------------
+      # Publish with provenance
+      #
+      # --provenance: requests Sigstore-signed OIDC attestation
+      # --access public: required for scoped packages (@sriinnu/*)
+      #
+      # NODE_AUTH_TOKEN: authenticates to npm (the automation token)
+      # id-token: write: lets npm request the GitHub OIDC token that
+      #   Sigstore uses to create the provenance attestation
+      # ---------------------------------------------------------------
+      - name: Publish to npm with provenance
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
