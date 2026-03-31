@@ -23,7 +23,11 @@ const COMPRESSIBILITY_COLORS: Record<CompressibilityLabel, string> = {
   excellent: 'text-indigo-300 bg-indigo-400/10 border-indigo-300/20',
 };
 
-const TokenBar: FC<TokenBarProps> = ({ originalTokens, compressedTokens, compressibilityLabel }) => {
+const TokenBar: FC<TokenBarProps> = ({
+  originalTokens,
+  compressedTokens,
+  compressibilityLabel,
+}) => {
   const savings =
     originalTokens > 0
       ? Math.round(((originalTokens - compressedTokens) / originalTokens) * 100)

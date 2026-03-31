@@ -21,6 +21,9 @@
   --shell-warning: #f2b95d;
   --shell-danger: #ff7979;
   --shell-shadow: rgba(0, 0, 0, 0.58);
+  --shell-font: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --shell-font-mono: "SF Mono", "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
 }
 
 html,
@@ -32,8 +35,7 @@ body,
   overflow: hidden;
   background: transparent;
   color: var(--shell-ink);
-  font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--shell-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   box-sizing: border-box;
@@ -481,7 +483,7 @@ input:focus-visible {
   min-height: 276px;
   resize: none;
   padding: 14px 15px;
-  font-family: "SF Mono", "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+  font-family: var(--shell-font-mono);
   font-size: 0.74rem;
   line-height: 1.58;
   user-select: text;
@@ -619,7 +621,7 @@ input:focus-visible {
   padding: 0 9px;
   background: var(--shell-accent-soft);
   color: var(--shell-accent);
-  font-family: "SF Mono", "IBM Plex Mono", monospace;
+  font-family: var(--shell-font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.08em;
 }
@@ -700,7 +702,7 @@ input:focus-visible {
 
 .desktop-token-label strong {
   color: var(--shell-ink);
-  font-family: "SF Mono", "IBM Plex Mono", monospace;
+  font-family: var(--shell-font-mono);
   font-size: 0.79rem;
 }
 

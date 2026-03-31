@@ -1,6 +1,6 @@
 import {
-  PAKT_LAYER_PROFILES,
   type CompressibilityResult,
+  PAKT_LAYER_PROFILES,
   type PaktFormat,
   type PaktLayerProfile,
   type PaktLayerProfileId,

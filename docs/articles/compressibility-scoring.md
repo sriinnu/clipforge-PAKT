@@ -3,7 +3,8 @@
 **Source:** "Data Distribution Matters" (arXiv:2602.01778, Feb 2026) -- Lv et al.
 **Also:** Compactor (arXiv:2507.08143) -- context-calibrated compression
 **Relevance to PAKT:** Pre-compression analysis, `pakt inspect` enhancement
-**Status:** Implemented in `packages/pakt-core/src/compressibility.ts`
+**Status:** Partially implemented in `packages/pakt-core/src/compressibility.ts`
+Core scoring is implemented. `compress()` fast-path and MCP `pakt_inspect` integration are proposed.
 
 ---
 
@@ -116,12 +117,12 @@ Why: all unique values, short keys, no arrays, minimal structural overhead.
 
 ## 4. Integration Points
 
-- **`pakt inspect`**: Returns `compressibility` field alongside existing
-  savings analysis. Agents can check compressibility *before* deciding
-  to compress.
-- **`compress()` fast-path**: When compressibility < 0.1, `compress()`
-  can short-circuit and return the original input immediately.
-- **MCP `pakt_inspect`**: Adds `compressibilityScore` and
+- **`pakt inspect`** (planned): Will return `compressibility` field alongside
+  existing savings analysis. Agents will be able to check compressibility
+  *before* deciding to compress.
+- **`compress()` fast-path** (planned): When compressibility < 0.1,
+  `compress()` could short-circuit and return the original input immediately.
+- **MCP `pakt_inspect`** (planned): Could add `compressibilityScore` and
   `compressibilityLabel` to the inspect response.
 
 ---
@@ -143,7 +144,18 @@ trying to avoid).
 
 ---
 
-## 6. References
+## 6. Usage
+
+```ts
+import { estimateCompressibility } from '@sriinnu/pakt';
+
+const result = estimateCompressibility(jsonString);
+console.log(result.score, result.label, result.profile);
+```
+
+---
+
+## 7. References
 
 1. Lv et al., "Data Distribution Matters: A Data-Centric Perspective
    on Context Compression," arXiv:2602.01778, Feb 2026.

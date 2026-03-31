@@ -73,17 +73,17 @@ text-level compression**. No other system combines all three properties.
 **Gist Tokens** (Mu et al., arXiv:2304.08467, Apr 2023)
 - Fine-tunes LLMs with special compression tokens
 - Prompts compressed into virtual token representations
-- **Critical finding (Dec 2024 study, arXiv:2412.17483):** Fails on
-  synthetic recall tasks (needle-in-haystack). Near-lossless on
-  summarization but catastrophic on exact retrieval.
+- **Critical finding (Dec 2024 study, arXiv:2412.17483):** Comprehensive
+  study shows gist tokens fail on exact recall tasks (needle-in-haystack).
+  Near-lossless on summarization but catastrophic on exact retrieval.
 - **PAKT validation:** Confirms need for lossless compression layers
 
 **GistPool** (Petrov et al., arXiv:2504.08934, Apr 2025)
-- Fixes gisting's long-context failure via average pooling
+- Extends gisting to long contexts via in-context compression
 - No architecture changes to decoder
 
 **UniGist** (Deng et al., arXiv:2509.15763, Sep 2025)
-- Chunk-free training with "gist shift trick"
+- General, hardware-aligned sequence-level compression
 - Handles both detail-recall and long-range dependencies
 
 **Sentence-Anchored Gist** (Tarasov et al., arXiv:2511.08128, Nov 2025)
@@ -95,10 +95,11 @@ text-level compression**. No other system combines all three properties.
 **AutoCompressors** (Chevalier et al., arXiv:2305.14788, May 2023)
 - Trains LLMs to produce "summary vectors" via unsupervised LM
 - Foundation paper for learned compression
-- No follow-up as of March 2026
+- No direct follow-up by the original authors as of March 2026
+  (GistPool, UniGist, and others build on the same foundation)
 
 **ARC-Encoder** (Pilchen et al., arXiv:2510.20535, Oct 2025)
-- Separate encoder, works across multiple decoder LLMs
+- Learns compressed text representations for LLMs
 - 4-8x compression without fine-tuning the decoder
 - **PAKT validation:** Portable encoder validates model-agnostic approach
 
@@ -131,12 +132,12 @@ text-level compression**. No other system combines all three properties.
 ### 4.3 Delta / Residual
 
 **DeltaKV** (Hao et al., arXiv:2602.08005, Feb 2026)
-- Stores deltas between similar KV entries
+- Residual-based compression exploiting long-range similarity between KV entries
 - **PAKT adaptation:** Delta encoding for tabular arrays (implemented)
 
 ### 4.4 Pitfalls
 
-**Pitfalls of KV Cache Compression** (arXiv:2510.00231, Oct 2025)
+**The Pitfalls of KV Cache Compression** (arXiv:2510.00231, Oct 2025)
 - KV compression degrades multi-instruction tasks
 - Can cause system prompt leakage
 - **PAKT advantage:** Text-level compression avoids these failure modes
@@ -146,23 +147,23 @@ text-level compression**. No other system combines all three properties.
 ## 5. Empirical Findings (Meta-Studies)
 
 ### 5.1 Extractive > Abstractive for Structured Data
-**Source:** Jha et al., arXiv:2407.08892, Jul 2024 (UC Berkeley)
+**Source:** Jha et al., "Characterizing Prompt Compression Methods for Long Context Inference," arXiv:2407.08892, Jul 2024 (UC Berkeley)
 - Extractive compression outperforms abstractive for long-context inference
 - **Validates PAKT's approach** (structural extraction, not summarization)
 
 ### 5.2 Moderate Compression Improves Performance
-**Source:** Zhang et al., arXiv:2505.00019, Apr 2025
+**Source:** Zhang et al., "An Empirical Study on Prompt Compression for Large Language Models," arXiv:2505.00019, Apr 2025
 - Compression removes noise, can improve LLM accuracy on LongBench
 - Compression hurts more on short contexts than long ones
 - **Validates PAKT's structural denoising** (removing format overhead)
 
 ### 5.3 Lossy Compression Fails on Exact Recall
-**Source:** Deng et al., arXiv:2412.17483, Dec 2024
+**Source:** Deng et al., "A Silver Bullet or a Compromise for Full Attention? A Comprehensive Study of Gist Token-based Context Compression," arXiv:2412.17483, Dec 2024
 - Gist-based compression catastrophically fails on needle-in-haystack
 - **Validates PAKT's lossless-first design** (L1-L3 preserve everything)
 
 ### 5.4 Data Distribution Determines Compression Quality
-**Source:** Lv et al., arXiv:2602.01778, Feb 2026
+**Source:** Lv et al., "Data Distribution Matters: A Data-Centric Perspective on Context Compression for Large Language Model," arXiv:2602.01778, Feb 2026
 - High-entropy input compresses poorly regardless of method
 - **Motivates PAKT's compressibility scoring** (implemented)
 
@@ -204,18 +205,18 @@ text-level compression**. No other system combines all three properties.
 5. Zhang, X. et al. "SCOPE: Summarization-Based Context Compression for Efficient LLM Prompting." arXiv:2508.15813, Aug 2025.
 6. "FrugalPrompt: Token Attribution-Based Prompt Compression." arXiv:2510.16439, Oct 2025.
 7. Mu, J. et al. "Learning to Compress Prompts with Gist Tokens." arXiv:2304.08467, Apr 2023.
-8. Deng, Y. et al. "When Gist Tokens Fail: Evaluating Compression Tokens on Exact Recall Tasks." arXiv:2412.17483, Dec 2024.
-9. Petrov, A. et al. "GistPool: Efficient Context Compression via Average Pooling." arXiv:2504.08934, Apr 2025.
-10. Deng, Y. et al. "UniGist: Unified Gist Token Training for Chunk-Free Context Compression." arXiv:2509.15763, Sep 2025.
+8. Deng, Y. et al. "A Silver Bullet or a Compromise for Full Attention? A Comprehensive Study of Gist Token-based Context Compression." arXiv:2412.17483, Dec 2024.
+9. Petrov, A. et al. "Long Context In-Context Compression by Getting to the Gist of Gisting." arXiv:2504.08934, Apr 2025.
+10. Deng, Y. et al. "UniGist: Towards General and Hardware-aligned Sequence-level Long Context Compression." arXiv:2509.15763, Sep 2025.
 11. Tarasov, S. et al. "Sentence-Anchored Gist Compression for Long-Context LLMs." arXiv:2511.08128, Nov 2025.
 12. Chevalier, A. et al. "Adapting Language Models to Compress Contexts." arXiv:2305.14788, May 2023.
-13. Pilchen, M. et al. "ARC-Encoder: Portable Context Compression across Decoder LLMs." arXiv:2510.20535, Oct 2025.
+13. Pilchen, M. et al. "ARC-Encoder: Learning Compressed Text Representations for Large Language Models." arXiv:2510.20535, Oct 2025.
 14. Ge, T. et al. "In-Context Autoencoder for Context Compression in a Large Language Model." arXiv:2307.06945, Jul 2023.
 15. Chari, S. & Van Durme, B. "Compactor: Efficient KV Cache Compression via Approximate Leverage Scores." arXiv:2507.08143, Jul 2025.
 16. He, J. et al. "ZipCache: Accurate and Efficient KV Cache Quantization with Salient Token Identification." arXiv:2405.14256, May 2024.
 17. Staniszewski, M. & Lancucki, A. "KVTC: KV Cache Compression via Decorrelation and Entropy Coding." arXiv:2511.01815, Nov 2025.
-18. Hao, Y. et al. "DeltaKV: Delta-Based Residual Compression for KV Caches." arXiv:2602.08005, Feb 2026.
-19. "Pitfalls of KV Cache Compression for Multi-Instruction Tasks." arXiv:2510.00231, Oct 2025.
-20. Jha, A. et al. "Extractive vs. Abstractive Context Compression for Long-Context Inference." arXiv:2407.08892, Jul 2024.
-21. Zhang, Y. et al. "When Compression Improves LLM Performance: A Noise-Removal Perspective." arXiv:2505.00019, Apr 2025.
-22. Lv, H. et al. "Data Distribution Matters: How Input Entropy Determines Compression Quality." arXiv:2602.01778, Feb 2026.
+18. Hao, Y. et al. "DeltaKV: Residual-Based KV Cache Compression via Long-Range Similarity." arXiv:2602.08005, Feb 2026.
+19. "The Pitfalls of KV Cache Compression." arXiv:2510.00231, Oct 2025.
+20. Jha, A. et al. "Characterizing Prompt Compression Methods for Long Context Inference." arXiv:2407.08892, Jul 2024.
+21. Zhang, Y. et al. "An Empirical Study on Prompt Compression for Large Language Models." arXiv:2505.00019, Apr 2025.
+22. Lv, H. et al. "Data Distribution Matters: A Data-Centric Perspective on Context Compression for Large Language Model." arXiv:2602.01778, Feb 2026.

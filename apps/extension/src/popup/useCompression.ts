@@ -134,7 +134,17 @@ export function useCompression(
         setProcessing(false);
       }
     },
-    [settings, processing, detectedFormat, setOutput, setStats, setStatusMsg, setProcessing, setCompressibility, setDeltaEncoded],
+    [
+      settings,
+      processing,
+      detectedFormat,
+      setOutput,
+      setStats,
+      setStatusMsg,
+      setProcessing,
+      setCompressibility,
+      setDeltaEncoded,
+    ],
   );
 
   const handleDecompress = useCallback(() => {

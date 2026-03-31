@@ -8,7 +8,7 @@
  * requested format.
  */
 
-import { decompressL2, revertDeltaEncoding, reverseL3Transforms } from './layers/index.js';
+import { decompressL2, reverseL3Transforms, revertDeltaEncoding } from './layers/index.js';
 import type { CommentNode, DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
 import { bodyToValue, toCsv, toJson, toMarkdown, toText, toYaml } from './reverse/index.js';

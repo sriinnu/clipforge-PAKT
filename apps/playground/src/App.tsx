@@ -5,9 +5,9 @@ import {
   type PaktLayerProfileId,
   getPaktLayerProfile,
 } from '@sriinnu/pakt';
+import type { CompressibilityResult } from '@sriinnu/pakt';
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import paktLogo from '../../../assets/pakt-logo.svg';
-import type { CompressibilityResult } from '@sriinnu/pakt';
 import {
   type ComparisonItem,
   type ComparisonState,

@@ -13,9 +13,9 @@ const deltaChipStyle: React.CSSProperties = {
   fontWeight: 600,
   padding: '1px 6px',
   borderRadius: 4,
-  backgroundColor: '#8b5cf618',
-  color: '#8b5cf6',
-  border: '1px solid #8b5cf630',
+  backgroundColor: 'var(--cf-accent-glow)',
+  color: 'var(--cf-accent)',
+  border: '1px solid var(--cf-accent)',
 };
 
 interface OutputSectionProps {
@@ -57,6 +57,7 @@ export function OutputSection({ output, copied, deltaEncoded, mod, onCopy }: Out
         style={{ ...textareaStyle, minHeight: 80, backgroundColor: 'var(--cf-surface)' }}
         value={output}
         readOnly
+        aria-label="Compressed output"
       />
       <button
         type="button"
@@ -88,6 +89,8 @@ export function StatusMessage({ statusMsg }: StatusMessageProps) {
 
   return (
     <div
+      role="alert"
+      aria-live="polite"
       style={{
         ...statusMsgStyle,
         backgroundColor:

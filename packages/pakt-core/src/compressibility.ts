@@ -13,21 +13,10 @@
  * - Value brevity: average value length (shorter = less compressible)
  *
  * Performance: for inputs larger than {@link MAX_SAMPLE_SIZE}, only a prefix
- * sample is analyzed (structure scoring, CSV lines, text words). JSON parsing
- * uses the full input (required for valid parse) but caps extracted values at
- * {@link MAX_VALUES} via a single merged tree walk.
+ * sample is analyzed. JSON parsing is skipped for inputs over {@link MAX_PARSE_BYTES}.
+ * Extracted values capped at {@link MAX_VALUES} via a single merged tree walk.
  *
  * @see docs/articles/compressibility-scoring.md
- *
- * @example
- * ```ts
- * import { estimateCompressibility } from './compressibility.js';
- *
- * const result = estimateCompressibility('[{"a":1,"b":"x"},{"a":2,"b":"x"},{"a":3,"b":"x"}]');
- * console.log(result.score);    // e.g. 0.55
- * console.log(result.label);    // 'good'
- * console.log(result.profile);  // 'standard'
- * ```
  */
 
 import { detect } from './detect.js';
@@ -85,14 +74,20 @@ const MAX_VALUES = 2000;
 /** Max CSV lines to process for value extraction. */
 const MAX_CSV_LINES = 200;
 
+/** Max input bytes before skipping JSON.parse deep analysis (DoS guard). */
+const MAX_PARSE_BYTES = 10_000_000;
+
+/** Max cells to retain per CSV line (prevents spread-explosion on pathological input). */
+const MAX_CELLS_PER_LINE = 500;
+
 // ---- Scoring weights (sum to 1.0) -----------------------------------------
 
 /** Weight for repetition density in the final score. */
 const W_REPETITION = 0.35;
 /** Weight for structural overhead in the final score. */
-const W_STRUCTURE = 0.30;
+const W_STRUCTURE = 0.3;
 /** Weight for schema uniformity in the final score. */
-const W_SCHEMA = 0.20;
+const W_SCHEMA = 0.2;
 /** Weight for value length bonus/penalty in the final score. */
 const W_VALUE_LEN = 0.15;
 
@@ -153,7 +148,11 @@ function analyzeStructure(data: unknown): StructureAnalysis {
         const fingerprints: string[] = [];
         for (const item of node) {
           if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-            fingerprints.push(Object.keys(item as Record<string, unknown>).sort().join(','));
+            fingerprints.push(
+              Object.keys(item as Record<string, unknown>)
+                .sort()
+                .join(','),
+            );
           }
         }
         if (fingerprints.length > 1) schemas.push(fingerprints);
@@ -227,21 +226,26 @@ function scoreStructure(input: string): number {
  * @returns Score from 0.0 (no arrays / all different shapes) to 1.0 (all identical shapes)
  */
 function scoreSchema(schemas: string[][]): number {
-  if (schemas.length === 0) return 0.5; // no arrays → neutral
+  if (schemas.length === 0) return 0; // no arrays → no evidence of tabular compressibility
 
-  let totalPairs = 0;
-  let matchingPairs = 0;
+  let totalItems = 0;
+  let maxCountSum = 0;
 
   for (const fingerprints of schemas) {
     if (fingerprints.length < 2) continue;
-    const reference = fingerprints[0]!;
-    for (let i = 1; i < fingerprints.length; i++) {
-      totalPairs++;
-      if (fingerprints[i] === reference) matchingPairs++;
+    /* Majority-vote: find the most common fingerprint */
+    const counts = new Map<string, number>();
+    let localMax = 0;
+    for (const fp of fingerprints) {
+      const c = (counts.get(fp) ?? 0) + 1;
+      counts.set(fp, c);
+      if (c > localMax) localMax = c;
     }
+    totalItems += fingerprints.length;
+    maxCountSum += localMax;
   }
 
-  return totalPairs === 0 ? 0.5 : matchingPairs / totalPairs;
+  return totalItems === 0 ? 0 : maxCountSum / totalItems;
 }
 
 /**
@@ -287,7 +291,6 @@ function scoreToLabel(score: number): CompressibilityLabel {
  * @returns Recommended profile identifier
  */
 function scoreToProfile(score: number): PaktLayerProfileId {
-  if (score < 0.2) return 'structure';
   if (score < 0.4) return 'structure';
   if (score < 0.6) return 'standard';
   if (score < 0.8) return 'tokenizer';
@@ -323,16 +326,6 @@ function scoreToProfile(score: number): PaktLayerProfileId {
  * }
  * ```
  *
- * @example
- * ```ts
- * // Use with MCP inspect tool
- * const r = estimateCompressibility(text);
- * return {
- *   compressibilityScore: r.score,
- *   compressibilityLabel: r.label,
- *   recommendedProfile: r.profile,
- * };
- * ```
  */
 export function estimateCompressibility(input: string): CompressibilityResult {
   const detection = detect(input);
@@ -342,23 +335,33 @@ export function estimateCompressibility(input: string): CompressibilityResult {
   let schemas: string[][] = [];
 
   if (detection.format === 'json') {
-    try {
-      /* JSON.parse needs the full input; analyzeStructure caps values internally */
-      const parsed = JSON.parse(input);
-      const analysis = analyzeStructure(parsed);
-      values = analysis.values;
-      schemas = analysis.schemas;
-    } catch {
-      /* Fall back to text-level analysis on sampled prefix */
+    if (input.length > MAX_PARSE_BYTES) {
+      /* Skip deep JSON analysis for oversized inputs (DoS guard) */
       const sample = input.length > MAX_SAMPLE_SIZE ? input.slice(0, MAX_SAMPLE_SIZE) : input;
       values = sample.split(/\s+/).filter((w) => w.length > 0);
+    } else {
+      try {
+        /* JSON.parse needs the full input; analyzeStructure caps values internally */
+        const parsed = JSON.parse(input);
+        const analysis = analyzeStructure(parsed);
+        values = analysis.values;
+        schemas = analysis.schemas;
+      } catch {
+        /* Fall back to text-level analysis on sampled prefix */
+        const sample = input.length > MAX_SAMPLE_SIZE ? input.slice(0, MAX_SAMPLE_SIZE) : input;
+        values = sample.split(/\s+/).filter((w) => w.length > 0);
+      }
     }
   } else if (detection.format === 'csv') {
     /* CSV: split lines into cells, cap at MAX_CSV_LINES */
     const lines = input.split('\n').filter((l) => l.trim().length > 0);
     const capped = lines.length > MAX_CSV_LINES ? lines.slice(0, MAX_CSV_LINES) : lines;
     for (const line of capped) {
-      values.push(...line.split(/[,\t|;]/).map((c) => c.trim()));
+      const cells = line
+        .split(/[,\t|;]/)
+        .slice(0, MAX_CELLS_PER_LINE)
+        .map((c) => c.trim());
+      values.push(...cells);
     }
     /* CSV is inherently uniform — boost schema score */
     if (capped.length > 1) schemas = [capped.map(() => 'csv-row')];
