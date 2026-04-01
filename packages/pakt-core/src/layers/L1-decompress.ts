@@ -221,7 +221,8 @@ export function decompressL1(body: BodyNode[]): unknown {
 
   // Special case: if the only node is a root-array wrapper, unwrap it
   if (body.length === 1) {
-    const first = body[0]!;
+    const first = body[0];
+    if (!first) return bodyToObject(body);
 
     // Root array wrappers
     if (

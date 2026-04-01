@@ -111,8 +111,8 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   // First positional arg is the subcommand
   if (i < argv.length) {
-    const first = argv[i]!;
-    if (!first.startsWith('--')) {
+    const first = argv[i];
+    if (first && !first.startsWith('--')) {
       result.command = first;
       i++;
     }
@@ -120,8 +120,8 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   // Second positional arg (if not starting with --) is the file path
   if (i < argv.length) {
-    const second = argv[i]!;
-    if (!second.startsWith('--')) {
+    const second = argv[i];
+    if (second && !second.startsWith('--')) {
       result.file = second;
       i++;
     }
@@ -129,7 +129,8 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   // Parse remaining --key value pairs and --flag switches
   while (i < argv.length) {
-    const arg = argv[i]!;
+    const arg = argv[i];
+    if (!arg) break;
     if (arg.startsWith('--')) {
       const key = arg.slice(2);
       const next = argv[i + 1];

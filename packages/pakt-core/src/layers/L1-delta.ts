@@ -141,8 +141,9 @@ export function computeDeltaRatio(node: TabularArrayNode): number {
 
   let deltaCount = 0;
   for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = node.rows[r - 1]!;
-    const currRow = node.rows[r]!;
+    const prevRow = node.rows[r - 1];
+    const currRow = node.rows[r];
+    if (!prevRow || !currRow) continue;
     for (let f = 0; f < fieldCount; f++) {
       const prev = prevRow.values[f];
       const curr = currRow.values[f];
@@ -181,14 +182,17 @@ function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
   const fieldCount = node.fields.length;
   const totalCells = (node.rows.length - 1) * fieldCount;
   if (totalCells === 0) return node;
+  const firstRow = node.rows[0];
+  if (!firstRow) return node;
 
   /* Single pass: encode optimistically while counting deltas */
-  const newRows: TabularRowNode[] = [node.rows[0]!]; // row 0 = reference
+  const newRows: TabularRowNode[] = [firstRow]; // row 0 = reference
   let deltaCount = 0;
 
   for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = node.rows[r - 1]!;
-    const currRow = node.rows[r]!;
+    const prevRow = node.rows[r - 1];
+    const currRow = node.rows[r];
+    if (!prevRow || !currRow) continue;
     const newValues: ScalarNode[] = [];
 
     for (let f = 0; f < fieldCount; f++) {
@@ -305,12 +309,15 @@ function deltaDecodeTabular(
   if (node.rows.length < 2) return { node, resolvedAllSentinels: true };
 
   const fieldCount = node.fields.length;
-  const newRows: TabularRowNode[] = [node.rows[0]!]; // row 0 is always full
+  const firstRow = node.rows[0];
+  if (!firstRow) return { node, resolvedAllSentinels: true };
+  const newRows: TabularRowNode[] = [firstRow]; // row 0 is always full
   let resolvedAllSentinels = true;
 
   for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = newRows[r - 1]!; // use already-decoded previous row
-    const currRow = node.rows[r]!;
+    const prevRow = newRows[r - 1]; // use already-decoded previous row
+    const currRow = node.rows[r];
+    if (!prevRow || !currRow) continue;
     const newValues: ScalarNode[] = [];
 
     for (let f = 0; f < fieldCount; f++) {

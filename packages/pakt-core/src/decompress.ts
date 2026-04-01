@@ -153,15 +153,16 @@ function extractEnvelope(body: import('./parser/ast.js').BodyNode[]): string[] |
   if (body.length === 0) return null;
 
   // First node must be a comment with `@envelope http`
-  const first = body[0]!;
+  const first = body[0];
+  if (!first) return null;
   if (first.type !== 'comment') return null;
   if ((first as CommentNode).text !== '@envelope http') return null;
 
   // Collect subsequent comment nodes as preamble lines
   const preamble: string[] = [];
   for (let i = 1; i < body.length; i++) {
-    const node = body[i]!;
-    if (node.type !== 'comment') break;
+    const node = body[i];
+    if (!node || node.type !== 'comment') break;
     preamble.push((node as CommentNode).text);
   }
 

@@ -173,7 +173,8 @@ function buildObjectNode(key: string, data: Record<string, unknown>): ObjectNode
 }
 
 function buildTabularArray(key: string, arr: Array<Record<string, unknown>>): TabularArrayNode {
-  const fields = Object.keys(arr[0]!);
+  const first = arr[0];
+  const fields = first ? Object.keys(first) : [];
   const rows: TabularRowNode[] = arr.map((obj) => ({
     type: 'tabularRow' as const,
     values: fields.map((f) => toScalar(obj[f])),
