@@ -7,8 +7,10 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const repoRoot = join(__dirname, '..', '..');
 const fixturesDir = join(repoRoot, 'packages', 'pakt-core', 'benchmarks', 'fixtures');
 const outputPath = join(repoRoot, 'docs', 'BENCHMARK-SNAPSHOT.md');
+const packageJsonPath = join(repoRoot, 'packages', 'pakt-core', 'package.json');
 const L4_BUDGET_RATIO = 0.7;
 const MIN_L4_BUDGET = 12;
+const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { version: string };
 
 const FIXTURES = [
   {
@@ -103,7 +105,7 @@ const bestL4 = rows.reduce((winner, row) => (row.l4Delta > winner.l4Delta ? row 
 const lines = [
   '# Benchmark Snapshot',
   '',
-  'Release-facing fixture snapshot for `@sriinnu/pakt@0.5.0`.',
+  `Release-facing fixture snapshot for \`@sriinnu/pakt@${version}\`.`,
   '',
   '## Method',
   '',

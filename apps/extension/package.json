@@ -1,6 +1,6 @@
 {
   "name": "@sriinnu/clipforge-extension",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "author": "Sriinnu",
   "license": "MIT",
   "private": true,
@@ -12,15 +12,15 @@
   },
   "dependencies": {
     "@sriinnu/pakt": "workspace:*",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.0.0",
-    "typescript": "^5.8.0",
-    "vite": "^6.0.0"
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3"
   }
 }

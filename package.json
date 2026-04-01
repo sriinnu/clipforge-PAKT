@@ -3,7 +3,7 @@
   "private": true,
   "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=22"
   },
@@ -16,6 +16,8 @@
     "build:desktop:web": "pnpm --filter @sriinnu/clipforge-desktop build",
     "build:desktop": "pnpm --filter @sriinnu/clipforge-desktop tauri build",
     "build:apps": "pnpm build:playground && pnpm build:extension && pnpm build:desktop:web",
+    "verify:lockfile": "pnpm install --frozen-lockfile",
+    "verify:release-artifacts": "node scripts/release/verify-no-sourcemaps.mjs apps/desktop/dist apps/extension/dist apps/playground/dist packages/pakt-core/dist",
     "test": "turbo run test",
     "test:core": "pnpm --filter @sriinnu/pakt test",
     "test:playground": "pnpm --filter @sriinnu/clipforge-playground test",
@@ -35,9 +37,9 @@
     "fresh": "pnpm nuke && pnpm install && pnpm build"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "@types/node": "^25.2.3",
-    "turbo": "^2.4.0",
-    "typescript": "^5.7.0"
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^25.5.0",
+    "turbo": "^2.9.3",
+    "typescript": "^6.0.2"
   }
 }

@@ -1,6 +1,6 @@
 {
   "productName": "ClipForge PAKT",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "identifier": "com.sriinnu.clipforge",
   "build": {
     "frontendDist": "../dist",
