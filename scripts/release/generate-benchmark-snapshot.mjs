@@ -10,7 +10,7 @@ const outputPath = join(repoRoot, 'docs', 'BENCHMARK-SNAPSHOT.md');
 const packageJsonPath = join(repoRoot, 'packages', 'pakt-core', 'package.json');
 const L4_BUDGET_RATIO = 0.7;
 const MIN_L4_BUDGET = 12;
-const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { version: string };
+const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
 
 const FIXTURES = [
   {

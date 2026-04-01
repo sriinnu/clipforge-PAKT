@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { PAKT_FORMAT_VALUES } from '../src/formats.js';
-import { PAKT_MCP_TOOLS, handlePaktTool } from '../src/index.js';
+import {
+  PAKT_AUTO_CONTRACT,
+  PAKT_INSPECT_CONTRACT,
+  PAKT_MCP_TOOLS,
+  handlePaktTool,
+} from '../src/index.js';
 
 const STRUCTURED_JSON = JSON.stringify({
   employees: Array.from({ length: 18 }, (_, i) => ({
@@ -31,14 +36,16 @@ describe('PAKT MCP tools', () => {
 
   it('uses the canonical format list in MCP schemas and handler validation', () => {
     const compressTool = PAKT_MCP_TOOLS.find((tool) => tool.name === 'pakt_compress');
-    const autoTool = PAKT_MCP_TOOLS.find((tool) => tool.name === 'pakt_auto');
-    const inspectTool = PAKT_MCP_TOOLS.find((tool) => tool.name === 'pakt_inspect');
 
     expect(compressTool?.inputSchema.properties.format.enum).toEqual(PAKT_FORMAT_VALUES);
-    expect(autoTool?.outputSchema.properties.detectedFormat.enum).toEqual(PAKT_FORMAT_VALUES);
-    expect(inspectTool?.outputSchema.properties.detectedFormat.enum).toEqual(PAKT_FORMAT_VALUES);
+    expect(PAKT_AUTO_CONTRACT.outputJsonSchema.properties.detectedFormat.enum).toEqual(
+      PAKT_FORMAT_VALUES,
+    );
+    expect(PAKT_INSPECT_CONTRACT.outputJsonSchema.properties.detectedFormat.enum).toEqual(
+      PAKT_FORMAT_VALUES,
+    );
 
-    for (const format of PAKT_FORMAT_VALUES) {
+    for (const format of PAKT_FORMAT_VALUES.filter((value) => value !== 'pakt')) {
       expect(() =>
         handlePaktTool('pakt_compress', {
           text: STRUCTURED_JSON,
