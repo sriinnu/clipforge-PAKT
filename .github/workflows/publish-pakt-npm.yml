@@ -1,0 +1,94 @@
+name: Publish @sriinnu/pakt to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (example: v0.6.0)'
+        required: true
+        type: string
+      publish_npm:
+        description: 'Publish package to npm'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Ensure annotated tag exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse "${{ steps.meta.outputs.tag }}^{tag}" >/dev/null
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate tag matches @sriinnu/pakt version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.meta.outputs.tag }}"
+          VERSION_FROM_TAG="${TAG#v}"
+          VERSION_FROM_PKG="$(node -p "JSON.parse(require('fs').readFileSync('packages/pakt-core/package.json','utf8')).version")"
+          if [[ "$VERSION_FROM_TAG" != "$VERSION_FROM_PKG" ]]; then
+            echo "Tag version ($VERSION_FROM_TAG) does not match packages/pakt-core version ($VERSION_FROM_PKG)."
+            exit 1
+          fi
+
+      - name: Guard against duplicate npm publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync('packages/pakt-core/package.json','utf8')).version")"
+          if npm view "@sriinnu/pakt@${VERSION}" version >/dev/null 2>&1; then
+            echo "@sriinnu/pakt@${VERSION} already exists on npm."
+            exit 1
+          fi
+
+      - name: Build package
+        run: pnpm --filter @sriinnu/pakt build
+
+      - name: Publish to npm
+        if: ${{ github.event_name == 'push' || github.event.inputs.publish_npm == 'true' }}
+        working-directory: packages/pakt-core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
