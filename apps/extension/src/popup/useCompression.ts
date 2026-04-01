@@ -11,8 +11,15 @@ import {
   createProfiledPaktOptions,
   decompress,
   decompressMixed,
+  estimateCompressibility,
 } from '@sriinnu/pakt';
-import type { DecompressResult, MixedCompressResult, PaktFormat, PaktResult } from '@sriinnu/pakt';
+import type {
+  CompressibilityLabel,
+  DecompressResult,
+  MixedCompressResult,
+  PaktFormat,
+  PaktResult,
+} from '@sriinnu/pakt';
 import { useCallback } from 'react';
 import type { ExtensionSettings } from '../shared/storage';
 
@@ -22,11 +29,21 @@ export interface CompressionStats {
   savings: number;
 }
 
+/** Pre-compression compressibility estimate exposed to the UI. */
+export interface CompressibilityInfo {
+  /** Numeric score from 0.0 to 1.0 */
+  score: number;
+  /** Human-readable label: low | moderate | good | high | excellent */
+  label: CompressibilityLabel;
+}
+
 export interface CompressionHandlers {
   setOutput: (text: string) => void;
   setStats: (stats: CompressionStats | null) => void;
   setStatusMsg: (msg: { text: string; type: 'success' | 'error' | 'info' } | null) => void;
   setProcessing: (value: boolean) => void;
+  setCompressibility: (info: CompressibilityInfo | null) => void;
+  setDeltaEncoded: (value: boolean) => void;
 }
 
 const MIN_MEANINGFUL_SAVINGS_PERCENT = 1;
@@ -39,13 +56,24 @@ export function useCompression(
   decompressFormat: PaktFormat,
   handlers: CompressionHandlers,
 ) {
-  const { setOutput, setStats, setStatusMsg, setProcessing } = handlers;
+  const { setOutput, setStats, setStatusMsg, setProcessing, setCompressibility, setDeltaEncoded } =
+    handlers;
 
   const runCompress = useCallback(
     (text: string, isAuto = false, onAutoNotice?: () => void) => {
       if (!text.trim() || processing || !settings) return;
       setStatusMsg(null);
       setProcessing(true);
+      setDeltaEncoded(false);
+
+      /* Estimate compressibility before running the pipeline */
+      try {
+        const estimate = estimateCompressibility(text);
+        setCompressibility({ score: estimate.score, label: estimate.label });
+      } catch {
+        setCompressibility(null);
+      }
+
       try {
         const options = createProfiledPaktOptions(settings.compressionProfileId, {
           ...(settings.compressionProfileId === 'semantic'
@@ -84,6 +112,12 @@ export function useCompression(
         }
 
         setOutput(compressed);
+
+        /* Check if delta encoding was used in the compressed output */
+        if (compressed.includes('@compress delta')) {
+          setDeltaEncoded(true);
+        }
+
         setStatusMsg({
           text: `Packed locally with ${Math.round(savingsPercent)}% token savings.`,
           type: 'success',
@@ -100,7 +134,17 @@ export function useCompression(
         setProcessing(false);
       }
     },
-    [settings, processing, detectedFormat, setOutput, setStats, setStatusMsg, setProcessing],
+    [
+      settings,
+      processing,
+      detectedFormat,
+      setOutput,
+      setStats,
+      setStatusMsg,
+      setProcessing,
+      setCompressibility,
+      setDeltaEncoded,
+    ],
   );
 
   const handleDecompress = useCallback(() => {

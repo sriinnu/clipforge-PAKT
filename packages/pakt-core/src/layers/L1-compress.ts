@@ -45,7 +45,7 @@ const POS: SourcePosition = createPosition(0, 0, 0);
  * Characters / patterns that force a string value to be quoted so the
  * PAKT parser can round-trip it without loss.
  */
-const NEEDS_QUOTE_RE = /[:\|]|^\$|^%|^\s|\s$/;
+const NEEDS_QUOTE_RE = /[:\|]|^\$|^%|^~$|^\s|\s$/;
 
 /**
  * Strings whose unquoted form would be misread as another scalar type.

@@ -5,6 +5,7 @@ import {
   compressSource,
   computeComparison,
   decompressSource,
+  getCompressibility,
   preloadPakt,
 } from './pakt-service';
 
@@ -19,7 +20,8 @@ type WorkerRequest =
     }
   | { id: number; type: 'compressSource'; input: string; config: CompressionConfig }
   | { id: number; type: 'decompressSource'; input: string; format: PaktFormat }
-  | { id: number; type: 'computeComparison'; input: string; semanticBudget?: number };
+  | { id: number; type: 'computeComparison'; input: string; semanticBudget?: number }
+  | { id: number; type: 'compressibility'; text: string };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -68,6 +70,14 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           id: message.id,
           ok: true,
           payload: await computeComparison(message.input, message.semanticBudget),
+        });
+        return;
+      case 'compressibility':
+        /* Synchronous estimator — no await needed */
+        respond({
+          id: message.id,
+          ok: true,
+          payload: getCompressibility(message.text),
         });
         return;
       default: {

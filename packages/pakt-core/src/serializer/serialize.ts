@@ -68,15 +68,15 @@ function emitHeaders(headers: HeaderNode[], lines: string[]): string[] {
   const postDictLines: string[] = [];
 
   for (const ht of PRE_DICT_HEADERS) {
-    const header = headers.find((h) => h.headerType === ht);
-    if (header) {
+    /* Emit ALL headers of each type (not just the first) to support
+       multiple @compress headers (e.g., @compress delta + @compress semantic). */
+    for (const header of headers.filter((h) => h.headerType === ht)) {
       lines.push(`@${header.headerType} ${header.value}`);
     }
   }
 
   for (const ht of POST_DICT_HEADERS) {
-    const header = headers.find((h) => h.headerType === ht);
-    if (header) {
+    for (const header of headers.filter((h) => h.headerType === ht)) {
       postDictLines.push(`@${header.headerType} ${header.value}`);
     }
   }

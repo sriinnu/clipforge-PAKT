@@ -25,6 +25,13 @@ import type {
   TabularRowNode,
 } from '../parser/ast.js';
 
+/**
+ * Pattern matching values that must be quoted to avoid misinterpretation.
+ * Specifically, bare `~` is the delta sentinel — expanded values that equal
+ * `~` must be force-quoted to prevent false delta detection on re-encode.
+ */
+const NEEDS_QUOTE_AFTER_EXPAND_RE = /^~$/;
+
 // ---------------------------------------------------------------------------
 // Scalar collection
 // ---------------------------------------------------------------------------
@@ -123,7 +130,11 @@ export function cloneScalar(
           type: 'scalar',
           scalarType: 'string',
           value: replacement,
-          quoted: false,
+          /* Preserve original quoting intent, but also force-quote `~` expansions
+             to prevent false delta sentinels. During compression the replacement
+             is an alias (e.g. `$a`) so sc.quoted is typically false; during
+             decompression (includeQuoted=true) we honour the original flag. */
+          quoted: (includeQuoted && sc.quoted) || NEEDS_QUOTE_AFTER_EXPAND_RE.test(replacement),
           position: sc.position,
         };
       }
@@ -164,7 +175,13 @@ export function cloneScalar(
           type: 'scalar',
           scalarType: 'string',
           value: expanded,
-          quoted: false,
+          /* After expansion the value is restored to its original form.
+             Only force-quote if the expanded result is `~` (delta sentinel).
+             Do NOT blindly preserve sc.quoted here — the compression step
+             sets quoted=true for substring placeholders, but expanded values
+             should revert to unquoted so downstream consumers see them
+             correctly (e.g. collectStringScalars, delta sentinel detection). */
+          quoted: NEEDS_QUOTE_AFTER_EXPAND_RE.test(expanded),
           position: sc.position,
         };
       }

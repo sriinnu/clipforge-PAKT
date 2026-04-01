@@ -500,7 +500,7 @@ const MenuBarPanel: FC = () => {
             </div>
 
             <div className="desktop-chip-row">
-              <FormatBadge format={compactor.format} />
+              <FormatBadge format={compactor.format} compressedOutput={compactor.output} />
               <span className="desktop-hero-chip">{model}</span>
               <span className="desktop-hero-chip">
                 {activeLayerCodes.length > 0 ? activeLayerCodes.join(' · ') : 'No layers'}
@@ -559,7 +559,7 @@ const MenuBarPanel: FC = () => {
 
                 <div className="desktop-status-line">
                   <div className="desktop-inline-metrics">
-                    <FormatBadge format={compactor.format} />
+                    <FormatBadge format={compactor.format} compressedOutput={compactor.output} />
                     <span className="desktop-card-meta">
                       {lastAction === 'compress' ? 'Packed output is current' : 'Source is current'}
                     </span>
@@ -682,6 +682,7 @@ const MenuBarPanel: FC = () => {
               <TokenBar
                 originalTokens={compactor.originalTokens}
                 compressedTokens={compactor.compressedTokens}
+                compressibilityLabel={compactor.compressibilityLabel}
               />
             </div>
           </div>

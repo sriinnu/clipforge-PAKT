@@ -11,6 +11,7 @@ import {
   getSettings,
   saveSettings,
 } from '../shared/storage';
+import { FONT_PRESETS, type FontPreset } from './fonts';
 
 function Toggle({
   value,
@@ -168,11 +169,61 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
           options={[
             { label: 'System', value: 'system' as const },
             { label: 'Dark', value: 'dark' as const },
+            { label: 'OLED', value: 'oled' as const },
             { label: 'Light', value: 'light' as const },
           ]}
           value={settings.theme}
           onChange={(v) => update({ theme: v as ExtensionSettings['theme'] })}
         />
+      </div>
+
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Font</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {Array.from(Object.entries(FONT_PRESETS)).map(([key, cfg]) => {
+            const isActive = settings.fontPreset === key;
+            return (
+              <button
+                type="button"
+                key={key}
+                onClick={() => update({ fontPreset: key as FontPreset })}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  padding: '8px 10px',
+                  borderRadius: 'var(--cf-radius-md)',
+                  border: `1.5px solid ${isActive ? 'var(--cf-accent)' : 'var(--cf-border)'}`,
+                  background: isActive ? 'var(--cf-accent-glow)' : 'var(--cf-surface)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'var(--cf-transition)',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: cfg.ui,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: isActive ? 'var(--cf-accent)' : 'var(--cf-text)',
+                  }}
+                >
+                  {cfg.label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: cfg.mono,
+                    fontSize: 11,
+                    color: 'var(--cf-text-muted)',
+                    letterSpacing: '-0.2px',
+                  }}
+                >
+                  {'The quick brown fox → 0.42'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={infoStyle}>
@@ -190,6 +241,8 @@ const containerStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 16,
+  overflowY: 'auto',
+  maxHeight: '460px',
 };
 
 const sectionStyle: React.CSSProperties = {
