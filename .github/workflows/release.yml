@@ -75,8 +75,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
-        run: pnpm build --filter @sriinnu/pakt
+      - name: Build core package
+        run: pnpm --filter @sriinnu/pakt build
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
