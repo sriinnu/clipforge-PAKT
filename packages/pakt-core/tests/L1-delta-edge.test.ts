@@ -230,7 +230,7 @@ describe('L1-delta: cloneScalar expansion producing ~', () => {
 // ===========================================================================
 
 describe('L1-delta: ragged rows in deltaEncodeTabular', () => {
-  it('handles rows with different value counts without crashing', () => {
+  it('preserves carry-forward behavior for ragged rows through encode and decode', () => {
     /* Build a tabular array manually where rows have unequal lengths */
     const fields = [sc('name'), sc('role'), sc('dept')];
     const rows: TabularRowNode[] = [
@@ -248,10 +248,39 @@ describe('L1-delta: ragged rows in deltaEncodeTabular', () => {
     };
     const doc: DocumentNode = { type: 'document', headers: [], body: [tabular] };
 
-    /* Should not throw */
-    const result = applyDeltaEncoding(doc);
-    expect(result).toBeDefined();
-    expect(result.type).toBe('document');
+    const encoded = applyDeltaEncoding(doc);
+    const encodedTabular = encoded.body[0] as TabularArrayNode;
+
+    expect(encoded.headers).toHaveLength(1);
+    expect(encodedTabular.rows[0]?.values).toHaveLength(3);
+    expect(encodedTabular.rows[1]?.values).toHaveLength(3);
+    expect(encodedTabular.rows[2]?.values).toHaveLength(3);
+    expect(encodedTabular.rows[3]?.values).toHaveLength(3);
+
+    const decoded = revertDeltaEncoding(encoded);
+    const decodedTabular = decoded.body[0] as TabularArrayNode;
+
+    expect(decoded.headers).toHaveLength(0);
+    expect(decodedTabular.rows[0]?.values.map((value) => value.value)).toEqual([
+      'Alice',
+      'dev',
+      'eng',
+    ]);
+    expect(decodedTabular.rows[1]?.values.map((value) => value.value)).toEqual([
+      'Alice',
+      'dev',
+      'eng',
+    ]);
+    expect(decodedTabular.rows[2]?.values.map((value) => value.value)).toEqual([
+      'Alice',
+      'dev',
+      'eng',
+    ]);
+    expect(decodedTabular.rows[3]?.values.map((value) => value.value)).toEqual([
+      'Alice',
+      'dev',
+      'eng',
+    ]);
   });
 });
 
@@ -260,7 +289,7 @@ describe('L1-delta: ragged rows in deltaEncodeTabular', () => {
 // ===========================================================================
 
 describe('L1-delta: MAX_DELTA_DEPTH bail-out', () => {
-  it('returns input unchanged for deeply nested ASTs beyond depth 64', () => {
+  it('preserves the delta header when decode bails out on deep ASTs', () => {
     /* Build a chain of nested objects deeper than MAX_DELTA_DEPTH */
     const leaf: TabularArrayNode = {
       type: 'tabularArray',
@@ -268,8 +297,8 @@ describe('L1-delta: MAX_DELTA_DEPTH bail-out', () => {
       fields: [sc('a'), sc('b')],
       rows: [
         { type: 'tabularRow', values: [sc('x'), sc('y')], position: POS },
-        { type: 'tabularRow', values: [sc('x'), sc('y')], position: POS },
-        { type: 'tabularRow', values: [sc('x'), sc('y')], position: POS },
+        { type: 'tabularRow', values: [sc('~'), sc('~')], position: POS },
+        { type: 'tabularRow', values: [sc('~'), sc('~')], position: POS },
       ],
       position: POS,
     };
@@ -293,13 +322,44 @@ describe('L1-delta: MAX_DELTA_DEPTH bail-out', () => {
     /* No @compress delta header because nothing was actually encoded */
     expect(encoded).toBe(doc);
 
-    /* Decode: adding a fake delta header and running revert should not crash */
+    /* Decode: preserve the header because the sentinels remain undecoded */
     const withHeader: DocumentNode = {
       ...doc,
       headers: [{ type: 'header', headerType: 'compress', value: 'delta', position: POS }],
     };
     const decoded = revertDeltaEncoding(withHeader);
-    expect(decoded).toBeDefined();
-    expect(decoded.type).toBe('document');
+    expect(decoded.headers).toEqual(withHeader.headers);
+
+    let cursor = decoded.body[0] as ObjectNode | TabularArrayNode;
+    while (cursor.type === 'object') {
+      cursor = cursor.children[0] as ObjectNode | TabularArrayNode;
+    }
+
+    expect(cursor.rows[1]?.values.map((value) => value.value)).toEqual(['~', '~']);
+  });
+
+  it('preserves the delta header when sentinels remain unresolved', () => {
+    const doc: DocumentNode = {
+      type: 'document',
+      headers: [{ type: 'header', headerType: 'compress', value: 'delta', position: POS }],
+      body: [
+        {
+          type: 'tabularArray',
+          key: 'data',
+          fields: [sc('a'), sc('b')],
+          rows: [
+            { type: 'tabularRow', values: [sc('x')], position: POS },
+            { type: 'tabularRow', values: [sc('~'), sc('~')], position: POS },
+          ],
+          position: POS,
+        },
+      ],
+    };
+
+    const decoded = revertDeltaEncoding(doc);
+    const tabular = decoded.body[0] as TabularArrayNode;
+
+    expect(decoded.headers).toEqual(doc.headers);
+    expect(tabular.rows[1]?.values.map((value) => value.value)).toEqual(['x', '~']);
   });
 });

@@ -37,7 +37,7 @@ function applyThemeClass(theme: 'system' | 'dark' | 'light' | 'oled'): void {
  * Updates `--cf-font` and `--cf-font-mono` on the root element.
  */
 function applyFontPreset(preset: FontPreset): void {
-  const config = FONT_PRESETS[preset];
+  const config = FONT_PRESETS[preset] ?? FONT_PRESETS.modern;
   const root = document.documentElement;
   root.style.setProperty('--cf-font', config.ui);
   root.style.setProperty('--cf-font-mono', config.mono);

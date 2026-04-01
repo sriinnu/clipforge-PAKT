@@ -24,6 +24,7 @@
 import { compress } from '../compress.js';
 import { decompress } from '../decompress.js';
 import { detect } from '../detect.js';
+import { isPaktFormat, PAKT_FORMAT_VALUES } from '../formats.js';
 import { compressMixed } from '../mixed/index.js';
 import { countTokens } from '../tokens/index.js';
 import type { PaktFormat, PaktOptions } from '../types.js';
@@ -52,13 +53,6 @@ export class PaktToolInputError extends Error {
 }
 
 /**
- * Valid format values for the `format` parameter.
- * Includes 'pakt' so that callers explicitly passing format:'pakt' get a
- * passthrough result rather than a misleading "Invalid format" error.
- */
-const VALID_FORMATS = new Set<PaktFormat>(['json', 'yaml', 'csv', 'markdown', 'text', 'pakt']);
-
-/**
  * Validate that a value is a non-empty string.
  * @param value - The value to check
  * @param name - Parameter name for error messages
@@ -81,11 +75,11 @@ function validateFormat(value: unknown): PaktFormat | undefined {
   if (typeof value !== 'string') {
     throw new PaktToolInputError(`format must be a string, got ${typeof value}`);
   }
-  if (!VALID_FORMATS.has(value as PaktFormat)) {
-    const valid = Array.from(VALID_FORMATS).join(', ');
+  if (!isPaktFormat(value)) {
+    const valid = PAKT_FORMAT_VALUES.join(', ');
     throw new PaktToolInputError(`Invalid format "${value}". Valid formats: ${valid}`);
   }
-  return value as PaktFormat;
+  return value;
 }
 
 /**

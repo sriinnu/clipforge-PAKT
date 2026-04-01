@@ -43,6 +43,10 @@ function isProfileId(value: unknown): value is PaktLayerProfileId {
   return typeof value === 'string' && PROFILE_IDS.includes(value as PaktLayerProfileId);
 }
 
+function isTheme(value: unknown): value is ExtensionSettings['theme'] {
+  return value === 'system' || value === 'light' || value === 'dark' || value === 'oled';
+}
+
 function normalizeSettings(
   raw: Partial<ExtensionSettings> & LegacyExtensionSettings,
 ): ExtensionSettings {
@@ -63,12 +67,35 @@ function normalizeSettings(
     semanticBudget,
     autoCompress:
       typeof raw.autoCompress === 'boolean' ? raw.autoCompress : DEFAULT_SETTINGS.autoCompress,
-    theme:
-      raw.theme === 'system' || raw.theme === 'light' || raw.theme === 'dark'
-        ? raw.theme
-        : DEFAULT_SETTINGS.theme,
+    theme: isTheme(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme,
     fontPreset: isFontPreset(raw.fontPreset) ? raw.fontPreset : DEFAULT_SETTINGS.fontPreset,
   };
+}
+
+function normalizeSettingsChange(raw: Record<string, unknown>): Partial<ExtensionSettings> {
+  const updated: Partial<ExtensionSettings> = {};
+
+  if (isProfileId(raw.compressionProfileId)) {
+    updated.compressionProfileId = raw.compressionProfileId;
+  }
+
+  if (Number.isInteger(raw.semanticBudget) && (raw.semanticBudget as number) > 0) {
+    updated.semanticBudget = raw.semanticBudget as number;
+  }
+
+  if (typeof raw.autoCompress === 'boolean') {
+    updated.autoCompress = raw.autoCompress;
+  }
+
+  if (isTheme(raw.theme)) {
+    updated.theme = raw.theme;
+  }
+
+  if (isFontPreset(raw.fontPreset)) {
+    updated.fontPreset = raw.fontPreset;
+  }
+
+  return updated;
 }
 
 /**
@@ -111,13 +138,14 @@ export function onSettingsChange(
   const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
     if (area !== 'sync') return;
 
-    const updated: Partial<ExtensionSettings> = {};
+    const rawUpdated: Record<string, unknown> = {};
     for (const [key, change] of Object.entries(changes)) {
       if (key in DEFAULT_SETTINGS) {
-        (updated as Record<string, unknown>)[key] = change.newValue;
+        rawUpdated[key] = change.newValue;
       }
     }
 
+    const updated = normalizeSettingsChange(rawUpdated);
     if (Object.keys(updated).length > 0) {
       callback(updated);
     }

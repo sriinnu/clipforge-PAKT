@@ -160,6 +160,24 @@ describe('validate: undefined alias errors', () => {
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.code === 'E005' && e.message.includes('$a'))).toBe(true);
   });
+
+  it('reports the exact line and column for the first undefined alias occurrence', () => {
+    const pakt = ['@from json', '  role: $z', 'name: $z'].join('\n');
+    const result = validate(pakt);
+    const error = result.errors.find((entry) => entry.code === 'E005' && entry.message.includes('$z'));
+
+    expect(error).toMatchObject({ line: 2, column: 9 });
+  });
+
+  it('reports inline-array alias locations using the first occurrence', () => {
+    const pakt = ['@from json', 'tags [2]: $missing,$missing'].join('\n');
+    const result = validate(pakt);
+    const error = result.errors.find(
+      (entry) => entry.code === 'E005' && entry.message.includes('$missing'),
+    );
+
+    expect(error).toMatchObject({ line: 2, column: 11 });
+  });
 });
 
 // ===========================================================================

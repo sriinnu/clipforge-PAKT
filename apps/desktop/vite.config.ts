@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+const isRelease = process.env.CF_RELEASE === '1';
+
 // https://v2.tauri.app/start/frontend/vite/
 export default defineConfig({
   plugins: [react()],
@@ -20,7 +22,6 @@ export default defineConfig({
   build: {
     // Tauri uses Chromium on Windows and WebKit on macOS/Linux
     target: process.env.TAURI_PLATFORM === 'windows' ? 'chrome105' : 'safari14',
-    // Produce sourcemaps for Tauri debug builds
-    sourcemap: !!process.env.TAURI_DEBUG,
+    sourcemap: !isRelease,
   },
 });

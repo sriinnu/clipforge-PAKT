@@ -18,6 +18,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { build } from 'vite';
+import { stripBuildArtifacts } from '../../scripts/release/strip-build-artifacts.mjs';
+import { verifyNoSourcemaps } from '../../scripts/release/verify-no-sourcemaps.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
@@ -130,3 +132,9 @@ await build({
     },
   },
 });
+
+if (!isDev) {
+  const distDir = resolve(__dirname, 'dist');
+  stripBuildArtifacts(distDir);
+  verifyNoSourcemaps([distDir]);
+}
