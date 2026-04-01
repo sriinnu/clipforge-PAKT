@@ -164,7 +164,9 @@ describe('validate: undefined alias errors', () => {
   it('reports the exact line and column for the first undefined alias occurrence', () => {
     const pakt = ['@from json', '  role: $z', 'name: $z'].join('\n');
     const result = validate(pakt);
-    const error = result.errors.find((entry) => entry.code === 'E005' && entry.message.includes('$z'));
+    const error = result.errors.find(
+      (entry) => entry.code === 'E005' && entry.message.includes('$z'),
+    );
 
     expect(error).toMatchObject({ line: 2, column: 9 });
   });

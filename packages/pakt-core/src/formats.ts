@@ -9,7 +9,9 @@ const INTERNAL_PAKT_FORMAT_VALUES = [
   'pakt',
 ] as const satisfies readonly PaktFormat[];
 
-export const PAKT_FORMAT_VALUES = Object.freeze([...INTERNAL_PAKT_FORMAT_VALUES]) as readonly PaktFormat[];
+export const PAKT_FORMAT_VALUES = Object.freeze([
+  ...INTERNAL_PAKT_FORMAT_VALUES,
+]) as readonly PaktFormat[];
 
 const PAKT_FORMAT_SET = new Set<PaktFormat>(INTERNAL_PAKT_FORMAT_VALUES);
 

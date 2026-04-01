@@ -59,21 +59,25 @@ export function stripBuildArtifacts(targetDir) {
   }
   const rootRealPath = realpathSync(root);
 
-  walk(rootRealPath, (filePath) => {
-    if (filePath.endsWith('.map')) {
-      rmSync(filePath, { force: true });
-      return;
-    }
+  walk(
+    rootRealPath,
+    (filePath) => {
+      if (filePath.endsWith('.map')) {
+        rmSync(filePath, { force: true });
+        return;
+      }
 
-    const extension = extname(filePath);
-    if (
-      TEXT_EXTENSIONS.has(extension) ||
-      filePath.endsWith('.d.ts') ||
-      filePath.endsWith('.d.cts')
-    ) {
-      stripSourceMapReference(filePath);
-    }
-  }, rootRealPath);
+      const extension = extname(filePath);
+      if (
+        TEXT_EXTENSIONS.has(extension) ||
+        filePath.endsWith('.d.ts') ||
+        filePath.endsWith('.d.cts')
+      ) {
+        stripSourceMapReference(filePath);
+      }
+    },
+    rootRealPath,
+  );
 }
 
 const isDirectRun = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

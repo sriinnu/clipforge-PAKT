@@ -101,7 +101,8 @@ export function parseYamlBlock(
   baseIndent: number,
 ): unknown {
   if (start >= end) return null;
-  const firstLine = lines[start]!;
+  const firstLine = lines[start];
+  if (!firstLine) return null;
   if (firstLine.trimmed.startsWith('- ')) return parseYamlList(lines, start, end, baseIndent);
   return parseYamlObject(lines, start, end, baseIndent);
 }
@@ -119,7 +120,8 @@ export function parseYamlList(
   const result: unknown[] = [];
   let i = start;
   while (i < end) {
-    const line = lines[i]!;
+    const line = lines[i];
+    if (!line) break;
     if (line.indent < baseIndent) break;
     if (!line.trimmed.startsWith('- ')) {
       i++;
@@ -129,7 +131,12 @@ export function parseYamlList(
     const kvMatch = content.match(/^([a-zA-Z_][a-zA-Z0-9_.\-]*):\s+(.*)/);
     if (kvMatch) {
       const obj: Record<string, unknown> = {};
-      obj[kvMatch[1]!] = yamlScalar(kvMatch[2]!);
+      const [, key, value] = kvMatch;
+      if (!key) {
+        i++;
+        continue;
+      }
+      obj[key] = yamlScalar(value ?? '');
       const itemIndent = line.indent + 2;
       let j = i + 1;
       while (j < end && (lines[j]?.indent ?? 0) >= itemIndent) j++;
@@ -176,7 +183,8 @@ export function parseYamlObject(
   const obj: Record<string, unknown> = {};
   let i = start;
   while (i < end) {
-    const line = lines[i]!;
+    const line = lines[i];
+    if (!line) break;
     if (line.indent < baseIndent) break;
     if (line.indent > baseIndent) {
       i++;

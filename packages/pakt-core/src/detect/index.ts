@@ -142,7 +142,8 @@ export function detect(input: string): DetectionResult {
   // Pick the candidate with the highest confidence
   if (candidates.length > 0) {
     candidates.sort((a, b) => b.confidence - a.confidence);
-    const winner = candidates[0]!;
+    const winner = candidates[0];
+    if (!winner) return null;
     return {
       format: winner.format,
       confidence: winner.confidence,

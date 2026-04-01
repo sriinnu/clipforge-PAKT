@@ -30,7 +30,8 @@ export function stripJsonComments(text: string): string {
   let inString = false;
   let escaped = false;
   while (i < text.length) {
-    const ch = text[i]!;
+    const ch = text[i];
+    if (ch === undefined) break;
     if (inString) {
       result += ch;
       if (escaped) escaped = false;

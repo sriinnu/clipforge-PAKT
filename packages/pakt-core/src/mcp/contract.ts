@@ -7,8 +7,8 @@
  * TypeScript types, and SDK registration all derive from these contracts.
  */
 
-import * as z from 'zod/v4';
 import { PAKT_FORMAT_VALUES } from '../formats.js';
+import * as z from 'zod/v4';
 const AUTO_ACTION_VALUES = ['compressed', 'decompressed'] as const;
 const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is'] as const;
 
