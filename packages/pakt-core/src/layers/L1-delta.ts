@@ -141,8 +141,9 @@ export function computeDeltaRatio(node: TabularArrayNode): number {
 
   let deltaCount = 0;
   for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = node.rows[r - 1]!;
-    const currRow = node.rows[r]!;
+    const prevRow = node.rows[r - 1];
+    const currRow = node.rows[r];
+    if (!prevRow || !currRow) continue;
     for (let f = 0; f < fieldCount; f++) {
       const prev = prevRow.values[f];
       const curr = currRow.values[f];
@@ -181,14 +182,17 @@ function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
   const fieldCount = node.fields.length;
   const totalCells = (node.rows.length - 1) * fieldCount;
   if (totalCells === 0) return node;
+  const firstRow = node.rows[0];
+  if (!firstRow) return node;
 
   /* Single pass: encode optimistically while counting deltas */
-  const newRows: TabularRowNode[] = [node.rows[0]!]; // row 0 = reference
+  const newRows: TabularRowNode[] = [firstRow]; // row 0 = reference
   let deltaCount = 0;
 
   for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = node.rows[r - 1]!;
-    const currRow = node.rows[r]!;
+    const prevRow = node.rows[r - 1];
+    const currRow = node.rows[r];
+    if (!prevRow || !currRow) continue;
     const newValues: ScalarNode[] = [];
 
     for (let f = 0; f < fieldCount; f++) {
@@ -201,7 +205,7 @@ function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
       } else if (curr) {
         newValues.push(curr);
       } else if (prev) {
-        /* Ragged row — field missing in current row, carry forward */
+        /* Preserve historical carry-forward semantics for ragged rows. */
         newValues.push(prev);
       }
       /* else: both undefined on a ragged row — skip (field count mismatch) */
@@ -299,15 +303,21 @@ export function applyDeltaEncoding(doc: DocumentNode): DocumentNode {
  * @param node - Delta-encoded tabular array node
  * @returns Tabular array with all sentinels resolved to real values
  */
-function deltaDecodeTabular(node: TabularArrayNode): TabularArrayNode {
-  if (node.rows.length < 2) return node;
+function deltaDecodeTabular(
+  node: TabularArrayNode,
+): { node: TabularArrayNode; resolvedAllSentinels: boolean } {
+  if (node.rows.length < 2) return { node, resolvedAllSentinels: true };
 
   const fieldCount = node.fields.length;
-  const newRows: TabularRowNode[] = [node.rows[0]!]; // row 0 is always full
+  const firstRow = node.rows[0];
+  if (!firstRow) return { node, resolvedAllSentinels: true };
+  const newRows: TabularRowNode[] = [firstRow]; // row 0 is always full
+  let resolvedAllSentinels = true;
 
   for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = newRows[r - 1]!; // use already-decoded previous row
-    const currRow = node.rows[r]!;
+    const prevRow = newRows[r - 1]; // use already-decoded previous row
+    const currRow = node.rows[r];
+    if (!prevRow || !currRow) continue;
     const newValues: ScalarNode[] = [];
 
     for (let f = 0; f < fieldCount; f++) {
@@ -316,10 +326,13 @@ function deltaDecodeTabular(node: TabularArrayNode): TabularArrayNode {
       /* Resolve sentinel: copy value from previous (already decoded) row */
       if (curr && isDeltaSentinel(curr) && prev) {
         newValues.push(prev);
+      } else if (curr && isDeltaSentinel(curr)) {
+        resolvedAllSentinels = false;
+        newValues.push(curr);
       } else if (curr) {
         newValues.push(curr);
       } else if (prev) {
-        /* Ragged row — field missing in current row, carry forward */
+        /* Preserve historical carry-forward semantics for ragged rows. */
         newValues.push(prev);
       }
       /* else: both undefined on a ragged row — skip (field count mismatch) */
@@ -328,7 +341,7 @@ function deltaDecodeTabular(node: TabularArrayNode): TabularArrayNode {
     newRows.push({ type: 'tabularRow', values: newValues, position: POS });
   }
 
-  return { ...node, rows: newRows };
+  return { node: { ...node, rows: newRows }, resolvedAllSentinels };
 }
 
 /**
@@ -337,23 +350,33 @@ function deltaDecodeTabular(node: TabularArrayNode): TabularArrayNode {
  * @param body - Document body nodes (potentially delta-encoded)
  * @returns Body with all delta sentinels resolved
  */
-function deltaDecodeBody(body: BodyNode[], depth = 0): BodyNode[] {
-  if (depth > MAX_DELTA_DEPTH) return body;
+function deltaDecodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; complete: boolean } {
+  if (depth > MAX_DELTA_DEPTH) return { body, complete: false };
 
-  return body.map((node): BodyNode => {
-    if (node.type === 'tabularArray') return deltaDecodeTabular(node);
+  let complete = true;
+  const decodedBody = body.map((node): BodyNode => {
+    if (node.type === 'tabularArray') {
+      const result = deltaDecodeTabular(node);
+      if (!result.resolvedAllSentinels) complete = false;
+      return result.node;
+    }
     if (node.type === 'object') {
-      return { ...node, children: deltaDecodeBody(node.children, depth + 1) };
+      const result = deltaDecodeBody(node.children, depth + 1);
+      if (!result.complete) complete = false;
+      return { ...node, children: result.body };
     }
     if (node.type === 'listArray') {
-      const newItems = node.items.map((item) => ({
-        ...item,
-        children: deltaDecodeBody(item.children, depth + 1),
-      }));
+      const newItems = node.items.map((item) => {
+        const result = deltaDecodeBody(item.children, depth + 1);
+        if (!result.complete) complete = false;
+        return { ...item, children: result.body };
+      });
       return { ...node, items: newItems };
     }
     return node;
   });
+
+  return { body: decodedBody, complete };
 }
 
 // ---------------------------------------------------------------------------
@@ -382,11 +405,10 @@ export function revertDeltaEncoding(doc: DocumentNode): DocumentNode {
   );
   if (!hasDelta) return doc;
 
-  const body = deltaDecodeBody(doc.body);
-  /* Remove the @compress delta header after decoding */
-  const headers = doc.headers.filter(
-    (h) => !(h.headerType === 'compress' && h.value === DELTA_HEADER_VALUE),
-  );
+  const { body, complete } = deltaDecodeBody(doc.body);
+  const headers = complete
+    ? doc.headers.filter((h) => !(h.headerType === 'compress' && h.value === DELTA_HEADER_VALUE))
+    : doc.headers;
 
   return { ...doc, headers, body };
 }

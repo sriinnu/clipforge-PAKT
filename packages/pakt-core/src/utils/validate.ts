@@ -6,15 +6,10 @@
  * The {@link repair} function is re-exported from `./repair.js`.
  */
 
+import { isPaktFormat } from '../formats.js';
 import type { ValidationError, ValidationResult, ValidationWarning } from '../types.js';
 
 export { repair } from './repair.js';
-
-// ---------------------------------------------------------------------------
-// Known formats (must match PaktFormat)
-// ---------------------------------------------------------------------------
-
-const KNOWN_FORMATS = new Set(['json', 'yaml', 'csv', 'markdown', 'pakt', 'text']);
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -58,7 +53,7 @@ export function validate(pakt: string): ValidationResult {
   let dictOpen = false;
   let dictOpenLine = -1;
   const definedAliases = new Map<string, number>(); // alias -> line
-  const usedAliases = new Set<string>();
+  const usedAliases = new Map<string, { line: number; column: number }>();
   let inTabular = false;
   let tabularKey = '';
   let tabularDeclaredCount = 0;
@@ -125,7 +120,7 @@ export function validate(pakt: string): ValidationResult {
     if (trimmed.startsWith('@from ')) {
       hasFrom = true;
       const fmt = trimmed.slice(6).trim();
-      if (!KNOWN_FORMATS.has(fmt)) {
+      if (!isPaktFormat(fmt)) {
         errors.push({
           line: lineNum,
           column: 7,
@@ -207,7 +202,7 @@ export function validate(pakt: string): ValidationResult {
           code: 'E006',
         });
       }
-      collectAliasUsage(trimmed, usedAliases);
+      collectAliasUsage(line, lineNum, usedAliases);
       continue;
     }
 
@@ -237,7 +232,7 @@ export function validate(pakt: string): ValidationResult {
           code: 'E007',
         });
       }
-      for (const item of items) collectAliasUsage(item, usedAliases);
+      collectAliasUsage(line, lineNum, usedAliases);
       continue;
     }
 
@@ -259,7 +254,7 @@ export function validate(pakt: string): ValidationResult {
     }
 
     // ---- Scan body lines for alias usage ----------------------------------
-    collectAliasUsage(trimmed, usedAliases);
+    collectAliasUsage(line, lineNum, usedAliases);
   }
 
   // ---- Finalize any open tabular block ------------------------------------
@@ -310,11 +305,11 @@ export function validate(pakt: string): ValidationResult {
   }
 
   // ---- Undefined alias references (error) ---------------------------------
-  for (const alias of usedAliases) {
+  for (const [alias, usage] of usedAliases) {
     if (!definedAliases.has(alias)) {
       errors.push({
-        line: 1,
-        column: 1,
+        line: usage.line,
+        column: usage.column,
         message: `Undefined alias "${alias}" used in body`,
         code: 'E005',
       });
@@ -373,12 +368,18 @@ function countListItems(lines: string[], startIdx: number, parentIndent: number)
   return count;
 }
 
-/** Collect `$alias` references from a text line into the usedAliases set. */
-function collectAliasUsage(text: string, used: Set<string>): void {
+/** Collect `$alias` references from a text line into the usedAliases map. */
+function collectAliasUsage(
+  text: string,
+  line: number,
+  used: Map<string, { line: number; column: number }>,
+): void {
   const aliasRe = /\$\w+/g;
   let m: RegExpExecArray | null = aliasRe.exec(text);
   while (m !== null) {
-    used.add(m[0]);
+    if (!used.has(m[0])) {
+      used.set(m[0], { line, column: m.index + 1 });
+    }
     m = aliasRe.exec(text);
   }
 }

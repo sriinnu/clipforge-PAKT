@@ -82,8 +82,9 @@ export function detectYaml(input: string, lines: string[]): Candidate | null {
   // Check for YAML-specific indented blocks under keys
   let hasIndentedBlock = false;
   for (let i = 1; i < lines.length; i++) {
-    const prev = lines[i - 1]!;
-    const curr = lines[i]!;
+    const prev = lines[i - 1];
+    const curr = lines[i];
+    if (prev === undefined || curr === undefined) continue;
     // Previous line ends with : (key with nested content) and current is indented
     if (/^[a-zA-Z_]\S*:\s*$/.test(prev.trim()) && /^\s{2,}/.test(curr) && curr.trim().length > 0) {
       hasIndentedBlock = true;
