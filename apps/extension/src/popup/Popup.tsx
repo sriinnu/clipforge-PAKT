@@ -8,12 +8,14 @@
 import { detect, getPaktLayerProfile } from '@sriinnu/pakt';
 import type { PaktFormat } from '@sriinnu/pakt';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getSupportedSite, listSupportedSiteLabels } from '../shared/site-support';
 import { type ExtensionSettings, getSettings } from '../shared/storage';
 import { ActionBar } from './ActionBar';
+import { ProfileCard, SiteSupportCard } from './InfoCards';
+import { OutputSection, StatusMessage } from './OutputSection';
 import { Settings } from './Settings';
 import { StatsCard } from './StatsCard';
-import { BackIcon, CheckIcon, CopyIcon, GearIcon } from './icons';
+import { IS_MAC, MCP_CONFIG_SNIPPET, MOD, buildCliWorkflowSnippet } from './helpers';
+import { BackIcon, GearIcon } from './icons';
 import {
   FORMAT_COLORS,
   FORMAT_LABELS,
@@ -22,66 +24,24 @@ import {
   bodyStyle,
   clearBtnStyle,
   containerStyle,
-  copyBtnStyle,
   footerLinkStyle,
   footerStyle,
   formatBadgeStyle,
   gearBtnStyle,
   headerStyle,
   logoStyle,
-  outputLabelStyle,
-  statusMsgStyle,
   textareaStyle,
   topBarStyle,
   versionBadgeStyle,
 } from './styles';
-import { useCompression } from './useCompression';
+import { useActiveTab } from './useActiveTab';
+import { type CompressibilityInfo, useCompression } from './useCompression';
 import { useTheme } from './useTheme';
 
-const IS_MAC = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
-const MOD = IS_MAC ? '\u2318' : 'Ctrl';
-const MCP_CONFIG_SNIPPET = JSON.stringify(
-  {
-    mcpServers: {
-      pakt: {
-        command: 'npx',
-        args: ['-y', '@sriinnu/pakt', 'serve', '--stdio'],
-      },
-    },
-  },
-  null,
-  2,
-);
-
-function encodeBase64(input: string): string {
-  const bytes = new TextEncoder().encode(input);
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
-}
-
-function buildCliWorkflowSnippet(input: string): string {
-  const payload =
-    input.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim() ||
-    '{"paste":"structured payload here","tip":"run pakt inspect first"}';
-  const payloadBase64 = encodeBase64(payload);
-  const decodeCommand = `node --input-type=module -e "process.stdout.write(Buffer.from('${payloadBase64}','base64').toString('utf8'))"`;
-  return [`${decodeCommand} | pakt inspect`, `${decodeCommand} | pakt auto`].join('\n');
-}
-
+/** Auto-compress banner shown briefly after paste-triggered compression. */
 function AutoCompressNotice() {
   return <div style={autoNoticeStyle}>Auto-compressed locally on paste</div>;
 }
-
-type ActiveTabSupport = {
-  status: 'loading' | 'supported' | 'unsupported' | 'unknown';
-  hostname: string | null;
-  label: string | null;
-};
-
-const SUPPORTED_SITE_LABELS = listSupportedSiteLabels();
 
 export function Popup() {
   const [input, setInput] = useState('');
@@ -102,15 +62,27 @@ export function Popup() {
   const [copied, setCopied] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [autoNotice, setAutoNotice] = useState(false);
-  const [activeTabSupport, setActiveTabSupport] = useState<ActiveTabSupport>({
-    status: 'loading',
-    hostname: null,
-    label: null,
-  });
+  /** Pre-compression compressibility estimate (score + label). */
+  const [compressibility, setCompressibility] = useState<CompressibilityInfo | null>(null);
+  /** Whether the compressed output uses delta encoding. */
+  const [deltaEncoded, setDeltaEncoded] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const autoCompressedRef = useRef(false);
+  /** Timer ref for copy-feedback reset (prevents leak on unmount). */
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  /** Timer ref for auto-compress notice dismissal (prevents leak on unmount). */
+  const autoNoticeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  /* Clear pending timers on unmount to prevent setState-after-unmount leaks. */
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (autoNoticeTimerRef.current) clearTimeout(autoNoticeTimerRef.current);
+    };
+  }, []);
 
   useTheme();
+  const { activeTabSupport, siteSupportTitle, siteSupportBody } = useActiveTab();
 
   useEffect(() => {
     getSettings().then(setSettings);
@@ -125,38 +97,6 @@ export function Popup() {
       .catch(() => {
         /* clipboard access denied */
       });
-  }, []);
-
-  useEffect(() => {
-    if (typeof chrome === 'undefined' || !chrome.tabs?.query) {
-      setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
-      return;
-    }
-
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
-        return;
-      }
-
-      const rawUrl = tabs[0]?.url;
-      if (!rawUrl) {
-        setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
-        return;
-      }
-
-      try {
-        const hostname = new URL(rawUrl).hostname;
-        const supportedSite = getSupportedSite(hostname);
-        setActiveTabSupport({
-          status: supportedSite ? 'supported' : 'unsupported',
-          hostname,
-          label: supportedSite?.label ?? null,
-        });
-      } catch {
-        setActiveTabSupport({ status: 'unknown', hostname: null, label: null });
-      }
-    });
   }, []);
 
   useEffect(() => {
@@ -177,7 +117,7 @@ export function Popup() {
     detectedFormat,
     input,
     decompressFormat,
-    { setOutput, setStats, setStatusMsg, setProcessing },
+    { setOutput, setStats, setStatusMsg, setProcessing, setCompressibility, setDeltaEncoded },
   );
 
   const handleCompress = useCallback(() => {
@@ -189,7 +129,7 @@ export function Popup() {
     try {
       await navigator.clipboard.writeText(output);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       setStatusMsg({ text: 'Failed to copy', type: 'error' });
     }
@@ -201,6 +141,8 @@ export function Popup() {
     setStats(null);
     setStatusMsg(null);
     setCopied(false);
+    setCompressibility(null);
+    setDeltaEncoded(false);
     autoCompressedRef.current = false;
     inputRef.current?.focus();
   }, []);
@@ -234,7 +176,7 @@ export function Popup() {
       () =>
         runCompress(input, true, () => {
           setAutoNotice(true);
-          setTimeout(() => setAutoNotice(false), 2500);
+          autoNoticeTimerRef.current = setTimeout(() => setAutoNotice(false), 2500);
         }),
       150,
     );
@@ -274,18 +216,6 @@ export function Popup() {
   const formatColor = FORMAT_COLORS[detectedFormat] ?? '#6b7280';
   const formatLabel = FORMAT_LABELS[detectedFormat] ?? detectedFormat;
   const formatTooltip = FORMAT_TOOLTIPS[detectedFormat] ?? '';
-  const siteSupportTitle =
-    activeTabSupport.status === 'supported'
-      ? `Inline support active on ${activeTabSupport.label}`
-      : activeTabSupport.status === 'unsupported'
-        ? `Inline support not available on ${activeTabSupport.hostname}`
-        : 'Inline site support unavailable';
-  const siteSupportBody =
-    activeTabSupport.status === 'supported'
-      ? 'This tab supports the inline ClipForge pill. You can still use the popup locally and copy the result back into the chat box when you want tighter control.'
-      : activeTabSupport.status === 'unsupported'
-        ? `This popup still works locally, but inline injection is currently validated for ${SUPPORTED_SITE_LABELS}. Use Copy Result here or move repeated workflows into the CLI or MCP server.`
-        : `The popup can still compress locally. Inline injection is currently validated for ${SUPPORTED_SITE_LABELS}.`;
   const activeProfile = settings ? getPaktLayerProfile(settings.compressionProfileId) : null;
   const profileSummary = activeProfile
     ? `${activeProfile.label} (${activeProfile.shortLabel})${activeProfile.requiresSemanticBudget ? ` · budget ${settings?.semanticBudget}` : ''}`
@@ -366,6 +296,20 @@ export function Popup() {
             />
             {formatLabel}
           </div>
+          {/* Compressibility badge — shown after estimation */}
+          {compressibility && (
+            <div
+              style={{
+                ...formatBadgeStyle,
+                backgroundColor: 'var(--cf-accent-glow)',
+                color: 'var(--cf-accent)',
+                borderColor: 'var(--cf-accent)',
+              }}
+              title={`Compressibility: ${Math.round(compressibility.score * 100)}%`}
+            >
+              {compressibility.label.charAt(0).toUpperCase() + compressibility.label.slice(1)}
+            </div>
+          )}
           {input.trim() && (
             <button type="button" style={clearBtnStyle} onClick={handleClear} title="Clear">
               Clear
@@ -380,78 +324,24 @@ export function Popup() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           rows={5}
+          aria-label="Input text to compress"
         />
-        <p
-          style={{
-            marginTop: 8,
-            color: 'var(--cf-text-muted)',
-            fontSize: 11,
-            lineHeight: 1.45,
-          }}
-        >
+        <p style={{ marginTop: 8, color: 'var(--cf-text-muted)', fontSize: 11, lineHeight: 1.45 }}>
           Paste structured content here, or let the popup load from your clipboard on open.
           Compression stays local in the extension until you copy or paste it elsewhere.
         </p>
 
-        <div
-          style={{
-            marginTop: 10,
-            padding: '10px 12px',
-            borderRadius: 12,
-            border: '1px solid var(--cf-border)',
-            background: 'var(--cf-surface)',
-            display: 'grid',
-            gap: 4,
-          }}
-        >
-          <strong style={{ fontSize: 12, color: 'var(--cf-text)' }}>{siteSupportTitle}</strong>
-          <span style={{ fontSize: 11, color: 'var(--cf-text-muted)', lineHeight: 1.5 }}>
-            {siteSupportBody}
-          </span>
-          {activeTabSupport.status !== 'supported' ? (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-              <button
-                type="button"
-                style={{ ...clearBtnStyle, padding: '6px 10px', fontSize: 11 }}
-                onClick={() => void copyWorkflowText('CLI snippet', buildCliWorkflowSnippet(input))}
-              >
-                Copy CLI snippet
-              </button>
-              <button
-                type="button"
-                style={{ ...clearBtnStyle, padding: '6px 10px', fontSize: 11 }}
-                onClick={() => void copyWorkflowText('MCP config', MCP_CONFIG_SNIPPET)}
-              >
-                Copy MCP config
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <SiteSupportCard
+          status={activeTabSupport.status}
+          title={siteSupportTitle}
+          body={siteSupportBody}
+          onCopyCliSnippet={() =>
+            void copyWorkflowText('CLI snippet', buildCliWorkflowSnippet(input))
+          }
+          onCopyMcpConfig={() => void copyWorkflowText('MCP config', MCP_CONFIG_SNIPPET)}
+        />
 
-        <div
-          style={{
-            marginTop: 10,
-            padding: '10px 12px',
-            borderRadius: 12,
-            border: '1px solid var(--cf-border)',
-            background: 'var(--cf-surface)',
-            display: 'grid',
-            gap: 4,
-          }}
-        >
-          <strong style={{ fontSize: 12, color: 'var(--cf-text)' }}>
-            Active compression profile
-          </strong>
-          <span style={{ fontSize: 11, color: 'var(--cf-text)', lineHeight: 1.5 }}>
-            {profileSummary}
-          </span>
-          <span style={{ fontSize: 11, color: 'var(--cf-text-muted)', lineHeight: 1.5 }}>
-            {profileDetail}
-          </span>
-          <span style={{ fontSize: 11, color: 'var(--cf-text-dim)', lineHeight: 1.5 }}>
-            {profileHonesty}
-          </span>
-        </div>
+        <ProfileCard summary={profileSummary} detail={profileDetail} honesty={profileHonesty} />
 
         <ActionBar
           isPakt={isPakt}
@@ -465,76 +355,48 @@ export function Popup() {
 
         <StatsCard stats={stats} loading={processing} />
 
-        {output && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              animation: 'fadeIn 0.2s ease',
-            }}
-          >
-            <span style={outputLabelStyle}>Output</span>
-            <textarea
-              style={{ ...textareaStyle, minHeight: 80, backgroundColor: 'var(--cf-surface)' }}
-              value={output}
-              readOnly
-            />
-            <button
-              type="button"
-              style={{
-                ...copyBtnStyle,
-                backgroundColor: copied ? 'var(--cf-success)' : 'var(--cf-accent)',
-              }}
-              onClick={handleCopy}
-              title={`Copy result (${MOD}+Shift+C)`}
-            >
-              {copied ? <CheckIcon /> : <CopyIcon />}
-              {copied ? 'Copied!' : 'Copy Result'}
-            </button>
-          </div>
-        )}
+        <OutputSection
+          output={output}
+          copied={copied}
+          deltaEncoded={deltaEncoded}
+          mod={MOD}
+          onCopy={handleCopy}
+        />
 
-        {statusMsg && (
-          <div
-            style={{
-              ...statusMsgStyle,
-              backgroundColor:
-                statusMsg.type === 'success'
-                  ? 'var(--cf-success-glow)'
-                  : statusMsg.type === 'info'
-                    ? 'var(--cf-surface)'
-                    : 'var(--cf-error-glow)',
-              color:
-                statusMsg.type === 'success'
-                  ? 'var(--cf-success)'
-                  : statusMsg.type === 'info'
-                    ? 'var(--cf-text-muted)'
-                    : 'var(--cf-error)',
-            }}
-          >
-            {statusMsg.text}
-          </div>
-        )}
+        <StatusMessage statusMsg={statusMsg} />
       </div>
 
       <div style={footerStyle}>
         <span style={{ color: 'var(--cf-text-dim)', fontSize: 11 }}>
           {isPakt ? `${MOD}+Enter to expand` : `${MOD}+Enter to compress`}
         </span>
-        <a
-          href="https://github.com/sriinnu/clipforge-PAKT#readme"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={footerLinkStyle}
-        >
-          Docs
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <a
+            href="https://github.com/sriinnu/clipforge-PAKT#readme"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={footerLinkStyle}
+          >
+            Docs
+          </a>
+          <span style={{ color: 'var(--cf-text-dim)', fontSize: 10 }}>
+            {'© 2026 '}
+            <a
+              href="https://www.npmjs.com/package/@sriinnu/pakt"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...footerLinkStyle, fontSize: 10 }}
+            >
+              Sriinnu
+            </a>
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
+/** Ephemeral banner style for auto-compress notification. */
 const autoNoticeStyle: React.CSSProperties = {
   padding: '6px 12px',
   borderRadius: 'var(--cf-radius-md)',

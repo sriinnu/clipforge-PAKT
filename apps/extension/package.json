@@ -1,6 +1,8 @@
 {
   "name": "@sriinnu/clipforge-extension",
-  "version": "0.5.0",
+  "version": "0.6.0",
+  "author": "Sriinnu",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

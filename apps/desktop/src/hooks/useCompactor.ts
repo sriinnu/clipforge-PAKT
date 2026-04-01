@@ -17,8 +17,9 @@ import {
   decompress,
   decompressMixed,
   detect,
+  estimateCompressibility,
 } from '@sriinnu/pakt';
-import type { PaktFormat, PaktOptions } from '@sriinnu/pakt';
+import type { CompressibilityLabel, PaktFormat, PaktOptions } from '@sriinnu/pakt';
 import { useCallback, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,10 @@ export interface CompactorState {
   compressedTokens: number;
   /** Savings percentage (0-100). */
   savings: number;
+  /** Compressibility score (0.0–1.0), available after compression. */
+  compressibilityScore: number;
+  /** Human-readable compressibility label (low/moderate/good/high/excellent). */
+  compressibilityLabel: CompressibilityLabel | null;
   /** True while a compress/decompress operation is running. */
   isProcessing: boolean;
   /** Set the input text and auto-detect its format. */
@@ -111,6 +116,10 @@ export function useCompactor(): CompactorState {
   const [originalTokens, setOriginalTokens] = useState(0);
   const [compressedTokens, setCompressedTokens] = useState(0);
   const [savings, setSavings] = useState(0);
+  const [compressibilityScore, setCompressibilityScore] = useState(0);
+  const [compressibilityLabel, setCompressibilityLabel] = useState<CompressibilityLabel | null>(
+    null,
+  );
   const [isProcessing, setIsProcessing] = useState(false);
 
   /** Set input text and run auto-detection to update the format badge. */
@@ -143,6 +152,11 @@ export function useCompactor(): CompactorState {
       }
       setIsProcessing(true);
       try {
+        // Estimate compressibility before running the pipeline
+        const compressibility = estimateCompressibility(text);
+        setCompressibilityScore(compressibility.score);
+        setCompressibilityLabel(compressibility.label);
+
         const detected = detect(text);
         const effectiveFormat = options?.fromFormat ?? detected.format;
 
@@ -271,6 +285,8 @@ export function useCompactor(): CompactorState {
     originalTokens,
     compressedTokens,
     savings,
+    compressibilityScore,
+    compressibilityLabel,
     isProcessing,
     setInput,
     compress: doCompress,

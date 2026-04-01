@@ -1,6 +1,7 @@
 /**
  * CSS custom properties and shared style objects for the ClipForge popup.
- * Dark theme is default. Light via `.theme-light`, system via media query.
+ * Dark theme is default. Light via `.theme-light`, OLED via `.theme-oled`,
+ * system via media query.
  */
 
 /** Global CSS injected once into the <head> element. */
@@ -47,6 +48,24 @@ export const CSS_VARS = `
     --cf-border: #e0dce8;
     --cf-border-focus: #7c3aed;
   }
+  /* OLED Black — true black for OLED screens, battery-friendly */
+  .theme-oled {
+    --cf-bg: #000000;
+    --cf-surface: #0a0a0f;
+    --cf-surface-hover: #141420;
+    --cf-accent: #818cf8;
+    --cf-accent-hover: #6366f1;
+    --cf-accent-glow: rgba(129, 140, 248, 0.12);
+    --cf-success: #34d399;
+    --cf-success-glow: rgba(52, 211, 153, 0.10);
+    --cf-error: #f87171;
+    --cf-error-glow: rgba(248, 113, 113, 0.10);
+    --cf-text: #e2e8f0;
+    --cf-text-muted: #94a3b8;
+    --cf-text-dim: #64748b;
+    --cf-border: #1e1e2e;
+    --cf-border-focus: #818cf8;
+  }
   /* System theme — auto-switch light when OS is light */
   @media (prefers-color-scheme: light) {
     .theme-system {
@@ -70,7 +89,7 @@ export const CSS_VARS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     width: 350px;
-    max-height: 500px;
+    max-height: 580px;
     overflow-y: auto;
     background: var(--cf-bg);
     color: var(--cf-text);
@@ -127,7 +146,11 @@ export const CSS_VARS = `
   }
 `;
 
-/** Background tint colors for each detected format badge. */
+/**
+ * Background tint colors for each detected format badge.
+ * Uses raw hex because these are format-specific semantic colors,
+ * not theme-dependent — they stay consistent across themes for recognition.
+ */
 export const FORMAT_COLORS: Record<string, string> = {
   json: '#f59e0b',
   yaml: '#3b82f6',

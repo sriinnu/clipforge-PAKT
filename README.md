@@ -114,6 +114,35 @@ const detected = detect('name,role\nAlice,dev');
 console.log(detected.format); // 'csv'
 ```
 
+### Compressibility Scoring (0.6+)
+
+```ts
+import { estimateCompressibility } from '@sriinnu/pakt';
+
+const score = estimateCompressibility(myJson);
+console.log(score.score);    // 0.72
+console.log(score.label);    // 'high'
+console.log(score.profile);  // 'tokenizer' — recommended layer profile
+console.log(score.breakdown); // { repetitionDensity, structuralOverhead, schemaUniformity, valueLengthScore }
+```
+
+### Delta Encoding (0.6+)
+
+Delta encoding activates automatically on tabular arrays with 30%+ repeated adjacent values. No code change needed — `compress()` applies it as a post-pass on L1.
+
+```
+@from json
+@compress delta
+users [5]{name|role|dept|city}:
+  Alice|engineer|platform|NYC
+  Bob|~|~|~
+  Charlie|~|~|SF
+  Diana|designer|product|~
+  Eve|~|~|~
+```
+
+The `~` sentinel replaces unchanged fields. Fully reversible via `decompress()`.
+
 See the **[pakt-core README](./packages/pakt-core/README.md)** for comprehensive API documentation, CLI usage, format specification, and examples.
 
 Core CLI example for opt-in lossy packing:
@@ -179,6 +208,8 @@ CLI/MCP note:
 ## Key Features
 
 - **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), and an opt-in budgeted Semantic layer (L4)
+- **Delta encoding** *(new in 0.6)* -- Adjacent rows in tabular arrays that share values are replaced with `~` sentinels, saving 20-40% on repetitive data on top of L1. Inspired by DeltaKV (arXiv:2602.08005)
+- **Compressibility scoring** *(new in 0.6)* -- `estimateCompressibility()` returns a 0-1 score, label, and recommended profile before you compress. Know if compression is worth it without running the pipeline. Inspired by "Data Distribution Matters" (arXiv:2602.01778)
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
 - **Lossless data round-tripping** -- L1-L3 preserve data fidelity on decompress; L4 is explicitly lossy
 - **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
@@ -236,11 +267,24 @@ PAKT's core pipe-delimited syntax (Layer 1) is directly inspired by **[TOON Form
 
 ### Research
 
-- **CompactPrompt** (2025) -- Structured prompt compression for financial datasets, showing that redundant content in function-calling prompts can be safely removed.
-- **LLMLingua-2** (Microsoft, 2024) -- Task-agnostic prompt compression via data distillation, achieving high compression ratios with minimal accuracy loss.
-- **LTSC** (2024) -- LLM-driven Token-level Structured Compression, combining structural and token-level techniques for long text workflows.
-- **LiteToken** (2025) -- Lightweight token compression for efficient encoding of structured data in LLM contexts.
-- **Table Serialization Studies** -- Research demonstrating that pipe-delimited formats consistently outperform JSON when presenting tabular data to LLMs.
+PAKT 0.6 features are informed by a systematic survey of 25+ papers from 2024-2026. See [docs/articles/research-landscape-2024-2026.md](./docs/articles/research-landscape-2024-2026.md) for the full survey.
+
+**Directly adapted in 0.6:**
+- **DeltaKV** (Hao et al., arXiv:2602.08005, Feb 2026) -- Residual KV cache compression via long-range similarity. Adapted as delta encoding for tabular arrays.
+- **Data Distribution Matters** (Lv et al., arXiv:2602.01778, Feb 2026) -- Input entropy determines compression quality. Adapted as compressibility scoring.
+- **Compactor** (Chari & Van Durme, arXiv:2507.08143, Jul 2025) -- Context-calibrated compression ratios. Informed auto-profile recommendation.
+
+**Validating PAKT's approach:**
+- **LLMLingua-2** (Microsoft, arXiv:2403.12968, 2024) -- Task-agnostic prompt compression via data distillation. Closest neural competitor; PAKT achieves comparable savings on structured data without running a model.
+- **Gist Token Study** (Deng et al., arXiv:2412.17483, Dec 2024) -- Lossy compression fails on exact recall. Validates PAKT's lossless-first L1-L3 design.
+- **Extractive > Abstractive** (Jha et al., arXiv:2407.08892, Jul 2024) -- Extractive compression outperforms abstractive for factual content. Validates PAKT's structural approach.
+- **Compression Improves LLM Quality** (Zhang et al., arXiv:2505.00019, Apr 2025) -- Moderate compression removes noise and can improve LLM accuracy.
+
+**Previously cited:**
+- **CompactPrompt** (2025) -- Structured prompt compression for financial datasets.
+- **LTSC** (2024) -- LLM-driven Token-level Structured Compression.
+- **LiteToken** (2025) -- Lightweight token compression for structured data.
+- **Table Serialization Studies** -- Pipe-delimited formats outperform JSON for tabular LLM data.
 
 ---
 

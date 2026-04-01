@@ -28,7 +28,7 @@
  */
 
 /** Library version */
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 
 // ---------------------------------------------------------------------------
 // Core functions
@@ -59,6 +59,11 @@ export type { PrettyOptions } from './serializer/index.js';
 // ---------------------------------------------------------------------------
 
 export { compressL4, decompressL4, applyL4Transforms } from './layers/index.js';
+export {
+  applyDeltaEncoding,
+  revertDeltaEncoding,
+  DELTA_SENTINEL,
+} from './layers/index.js';
 
 // ---------------------------------------------------------------------------
 // Mixed-content compression
@@ -146,6 +151,17 @@ export type {
   PaktToolArgs,
   PaktToolResult,
 } from './mcp/index.js';
+
+// ---------------------------------------------------------------------------
+// Compressibility scoring
+// ---------------------------------------------------------------------------
+
+export { estimateCompressibility } from './compressibility.js';
+export type {
+  CompressibilityResult,
+  CompressibilityBreakdown,
+  CompressibilityLabel,
+} from './compressibility.js';
 
 // ---------------------------------------------------------------------------
 // Types
