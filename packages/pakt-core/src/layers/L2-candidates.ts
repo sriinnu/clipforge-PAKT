@@ -74,8 +74,9 @@ export function findPrefixCandidates(
   // Find common prefixes between adjacent sorted values
   const prefixCounts = new Map<string, number>();
   for (let i = 0; i < unique.length - 1; i++) {
-    const a = unique[i]!;
-    const b = unique[i + 1]!;
+    const a = unique[i];
+    const b = unique[i + 1];
+    if (a === undefined || b === undefined) continue;
     let len = 0;
     while (len < a.length && len < b.length && a[len] === b[len]) len++;
     if (len >= MIN_PREFIX_LENGTH) {

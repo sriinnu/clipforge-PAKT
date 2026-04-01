@@ -7,9 +7,8 @@
  * TypeScript types, and SDK registration all derive from these contracts.
  */
 
+import { PAKT_FORMAT_VALUES } from '../formats.js';
 import * as z from 'zod/v4';
-
-const FORMAT_VALUES = ['json', 'yaml', 'csv', 'markdown', 'text', 'pakt'] as const;
 const AUTO_ACTION_VALUES = ['compressed', 'decompressed'] as const;
 const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is'] as const;
 
@@ -164,7 +163,7 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
     format: {
       type: 'string',
       description: 'Optional format hint. Valid values: json, yaml, csv, markdown, text, pakt.',
-      enum: FORMAT_VALUES,
+      enum: PAKT_FORMAT_VALUES,
       required: false,
     },
     semanticBudget: {
@@ -188,7 +187,7 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
     format: {
       type: 'string',
       description: 'The detected or specified input format.',
-      enum: FORMAT_VALUES,
+      enum: PAKT_FORMAT_VALUES,
     },
     originalTokens: {
       type: 'number',
@@ -250,12 +249,12 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
     detectedFormat: {
       type: 'string',
       description: 'Detected format before the action was applied.',
-      enum: FORMAT_VALUES,
+      enum: PAKT_FORMAT_VALUES,
     },
     originalFormat: {
       type: 'string',
       description: 'Original structured format declared by PAKT, when decompressing.',
-      enum: FORMAT_VALUES,
+      enum: PAKT_FORMAT_VALUES,
       required: false,
     },
     inputTokens: {
@@ -319,7 +318,7 @@ export const PAKT_INSPECT_CONTRACT = defineToolContract({
     detectedFormat: {
       type: 'string',
       description: 'Detected format for the inspected input.',
-      enum: FORMAT_VALUES,
+      enum: PAKT_FORMAT_VALUES,
     },
     confidence: {
       type: 'number',
@@ -361,7 +360,7 @@ export const PAKT_INSPECT_CONTRACT = defineToolContract({
     originalFormat: {
       type: 'string',
       description: 'Original structured format declared by PAKT, when inspecting PAKT input.',
-      enum: FORMAT_VALUES,
+      enum: PAKT_FORMAT_VALUES,
       required: false,
     },
     wasLossy: {

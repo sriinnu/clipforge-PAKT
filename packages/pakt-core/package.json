@@ -1,6 +1,6 @@
 {
   "name": "@sriinnu/pakt",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "description": "PAKT compression engine — lossless-first L1-L3 compression with opt-in L4 semantic packing for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -27,7 +27,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node ../../scripts/release/strip-build-artifacts.mjs dist && node ../../scripts/release/verify-no-sourcemaps.mjs dist",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "bench": "vitest bench",
@@ -43,13 +43,13 @@
   },
   "homepage": "https://github.com/sriinnu/clipforge-PAKT#readme",
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.2.4",
-    "tsup": "^8.3.0",
-    "vitest": "^3.0.0"
+    "@vitest/coverage-v8": "^4.1.2",
+    "tsup": "^8.5.1",
+    "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.17.5",
-    "gpt-tokenizer": "^2.8.0",
-    "zod": "^4.1.5"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "gpt-tokenizer": "^2.9.0",
+    "zod": "^4.3.6"
   }
 }

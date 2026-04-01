@@ -139,7 +139,8 @@ function tryDelimiter(lines: string[], delim: string): Candidate | null {
   if (consistencyRatio < 0.8) return null;
 
   // Header should contain text fields (not all numbers)
-  const headerFields = splitCsvLine(firstLine!, delim);
+  if (firstLine === undefined) return null;
+  const headerFields = splitCsvLine(firstLine, delim);
   const allNumeric = headerFields.every((f) => /^\s*-?\d+(\.\d+)?\s*$/.test(f));
   if (allNumeric) return null; // Header is all numbers -- unlikely to be a real CSV header
 

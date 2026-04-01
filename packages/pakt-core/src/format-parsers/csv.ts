@@ -35,7 +35,8 @@ export function splitCsvLine(line: string, delim: string): string[] {
   let inQuotes = false;
   let i = 0;
   while (i < line.length) {
-    const ch = line[i]!;
+    const ch = line[i];
+    if (ch === undefined) break;
     if (inQuotes) {
       if (ch === '"') {
         if (i + 1 < line.length && line[i + 1] === '"') {
@@ -79,12 +80,16 @@ export function splitCsvLine(line: string, delim: string): string[] {
 export function detectCsvDelimiter(lines: string[]): string {
   let bestDelim = ',';
   let bestScore = -1;
+  const firstLine = lines[0];
+  if (firstLine === undefined) return bestDelim;
   for (const delim of CSV_DELIMITERS) {
-    const cols = splitCsvLine(lines[0]!, delim).length;
+    const cols = splitCsvLine(firstLine, delim).length;
     if (cols < 2) continue;
     let consistent = 0;
-    for (let i = 1; i < lines.length; i++)
-      if (splitCsvLine(lines[i]!, delim).length === cols) consistent++;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line !== undefined && splitCsvLine(line, delim).length === cols) consistent++;
+    }
     const score = consistent / (lines.length - 1);
     if (score > bestScore) {
       bestScore = score;
@@ -141,10 +146,14 @@ export function parseCsv(input: string): Record<string, unknown>[] {
   const rawLines = input.split('\n').filter((l) => l.trim().length > 0);
   if (rawLines.length < 2) return rawLines.length === 1 ? [{ _line: rawLines[0] }] : [];
   const delim = detectCsvDelimiter(rawLines);
-  const headers = splitCsvLine(rawLines[0]!, delim);
+  const headerLine = rawLines[0];
+  if (headerLine === undefined) return [];
+  const headers = splitCsvLine(headerLine, delim);
   const rows: Record<string, unknown>[] = [];
   for (let i = 1; i < rawLines.length; i++) {
-    const values = splitCsvLine(rawLines[i]!, delim);
+    const rawLine = rawLines[i];
+    if (rawLine === undefined) continue;
+    const values = splitCsvLine(rawLine, delim);
     const row: Record<string, unknown> = {};
     for (let j = 0; j < headers.length; j++) {
       const key = headers[j] ?? `col${j}`;

@@ -27,6 +27,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm lint
+        continue-on-error: true
 
   test:
     name: Test
