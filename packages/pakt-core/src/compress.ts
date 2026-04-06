@@ -19,7 +19,7 @@ import {
 } from './compress-helpers.js';
 import { DEFAULT_OPTIONS } from './constants.js';
 import { parseInput } from './format-parsers/index.js';
-import { applyDeltaEncoding, compressL1 } from './layers/index.js';
+import { applyDeltaEncoding, compressL1, compressText } from './layers/index.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktOptions, PaktResult } from './types.js';
@@ -95,11 +95,12 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   try {
     return compressPipeline(input, options, targetModel);
   } catch {
-    return buildUnchangedResult(
-      input,
-      countTokens(input, targetModel),
-      options?.fromFormat ?? 'text',
-    );
+    // Structural pipeline failed (e.g., misdetected format). Try text compression as fallback.
+    const originalTokens = countTokens(input, targetModel);
+    const textFallback = tryTextCompression(input, options?.fromFormat ?? 'text', originalTokens);
+    if (textFallback) return textFallback;
+
+    return buildUnchangedResult(input, originalTokens, options?.fromFormat ?? 'text');
   }
 }
 
@@ -114,6 +115,35 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
  * @param targetModel - Target model for token counting
  * @returns Compression result
  */
+/**
+ * Try text-level dictionary compression as a fallback when structural
+ * compression didn't save tokens. Works on any format.
+ */
+function tryTextCompression(
+  input: string,
+  detectedFormat: PaktResult['detectedFormat'],
+  originalTokens: number,
+): PaktResult | null {
+  const fmt = detectedFormat === 'markdown' ? 'markdown' : 'text';
+  const textResult = compressText(input, fmt);
+  if (!textResult) return null;
+
+  const savedTokens = textResult.originalTokens - textResult.compressedTokens;
+  return {
+    compressed: textResult.compressed,
+    originalTokens: textResult.originalTokens,
+    compressedTokens: textResult.compressedTokens,
+    savings: {
+      totalPercent: originalTokens > 0 ? Math.round((savedTokens / originalTokens) * 100) : 0,
+      totalTokens: savedTokens,
+      byLayer: { structural: 0, dictionary: savedTokens, tokenizer: 0, semantic: 0 },
+    },
+    reversible: true,
+    detectedFormat,
+    dictionary: [],
+  };
+}
+
 function compressPipeline(
   input: string,
   options: Partial<PaktOptions> | undefined,
@@ -155,11 +185,19 @@ function compressPipeline(
     targetModel,
   );
 
+  const compressedTokens = countTokens(semanticLayer.compressed, targetModel);
+
+  // If structural compression didn't help, try text compression as fallback
+  if (compressedTokens >= setup.originalTokens) {
+    const textFallback = tryTextCompression(input, setup.detectedFormat, setup.originalTokens);
+    if (textFallback) return textFallback;
+  }
+
   return buildCompressedResult(
     semanticLayer.doc,
     semanticLayer.compressed,
     setup.originalTokens,
-    countTokens(semanticLayer.compressed, targetModel),
+    compressedTokens,
     setup.detectedFormat,
     {
       structural: setup.originalTokens - l1Tokens,

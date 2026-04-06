@@ -61,4 +61,4 @@ apps/desktop/src-tauri/gen/
 npm-debug.log*
 pnpm-debug.log*
 
-.npmrc
+.npmrc.claude/worktrees/

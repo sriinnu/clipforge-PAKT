@@ -27,6 +27,7 @@ type TransformAction = 'compress' | 'decompress' | null;
 const MENU_BAR_OPEN_DURATION_MS = 220;
 const COPY_STATE_RESET_MS = 1500;
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: React component with multiple UI states and event handlers
 const MenuBarPanel: FC = () => {
   const compactor = useCompactor();
   const clipboard = useClipboard();

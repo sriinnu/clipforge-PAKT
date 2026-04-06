@@ -50,36 +50,36 @@ function recordCallFromResult(name: PaktToolName, result: PaktToolResult): void 
     case 'pakt_compress':
       recordCall({
         action: 'compress',
-        format: r['format'] as PaktFormat,
-        inputTokens: num(r['originalTokens']),
-        outputTokens: num(r['compressedTokens']),
-        savedTokens: num(r['savedTokens']),
-        savingsPercent: num(r['savings']),
-        reversible: r['reversible'] === true,
+        format: r.format as PaktFormat,
+        inputTokens: num(r.originalTokens),
+        outputTokens: num(r.compressedTokens),
+        savedTokens: num(r.savedTokens),
+        savingsPercent: num(r.savings),
+        reversible: r.reversible === true,
         timestamp: now,
       });
       break;
     case 'pakt_auto':
       recordCall({
-        action: r['action'] === 'compressed' ? 'compress' : 'decompress',
-        format: (r['detectedFormat'] as PaktFormat) ?? 'text',
-        inputTokens: num(r['inputTokens']),
-        outputTokens: num(r['outputTokens']),
-        savedTokens: num(r['savedTokens']),
-        savingsPercent: num(r['savings']),
-        reversible: r['reversible'] !== false,
+        action: r.action === 'compressed' ? 'compress' : 'decompress',
+        format: (r.detectedFormat as PaktFormat) ?? 'text',
+        inputTokens: num(r.inputTokens),
+        outputTokens: num(r.outputTokens),
+        savedTokens: num(r.savedTokens),
+        savingsPercent: num(r.savings),
+        reversible: r.reversible !== false,
         timestamp: now,
       });
       break;
     case 'pakt_inspect':
       recordCall({
         action: 'inspect',
-        format: (r['detectedFormat'] as PaktFormat) ?? 'text',
-        inputTokens: num(r['inputTokens']),
-        outputTokens: num(r['estimatedOutputTokens'], num(r['inputTokens'])),
-        savedTokens: num(r['estimatedSavedTokens']),
-        savingsPercent: num(r['estimatedSavings']),
-        reversible: r['reversible'] !== false,
+        format: (r.detectedFormat as PaktFormat) ?? 'text',
+        inputTokens: num(r.inputTokens),
+        outputTokens: num(r.estimatedOutputTokens, num(r.inputTokens)),
+        savedTokens: num(r.estimatedSavedTokens),
+        savingsPercent: num(r.estimatedSavings),
+        reversible: r.reversible !== false,
         timestamp: now,
       });
       break;
@@ -105,7 +105,13 @@ function executeTool(name: PaktToolName, args: Record<string, unknown>) {
   }
 }
 
-export function registerPaktTools(server: McpServer): void {
+/** Options for configuring PAKT tool registration. */
+export interface PaktToolOptions {
+  /** Override the pakt_auto tool description. Use this to control how aggressively the LLM uses auto-compression. */
+  autoDescription?: string;
+}
+
+export function registerPaktTools(server: McpServer, options?: PaktToolOptions): void {
   server.registerTool(
     'pakt_compress',
     {
@@ -119,7 +125,7 @@ export function registerPaktTools(server: McpServer): void {
   server.registerTool(
     'pakt_auto',
     {
-      description: PAKT_AUTO_CONTRACT.description,
+      description: options?.autoDescription ?? PAKT_AUTO_CONTRACT.description,
       inputSchema: PAKT_AUTO_CONTRACT.inputSchema,
       outputSchema: PAKT_AUTO_CONTRACT.outputSchema,
     },

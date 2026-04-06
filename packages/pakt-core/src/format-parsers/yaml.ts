@@ -111,6 +111,7 @@ export function parseYamlBlock(
  * Parse YAML list items (`- value` or `- key: value` blocks).
  * Handles nested objects under list items at increased indent.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: YAML list parsing handles nested objects at variable indent
 export function parseYamlList(
   lines: YamlLine[],
   start: number,
@@ -174,6 +175,7 @@ export function parseYamlList(
  * Parse YAML object (key: value pairs) at a given indent level.
  * Handles nested blocks for keys without inline values.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: YAML object parsing handles nested blocks and inline values
 export function parseYamlObject(
   lines: YamlLine[],
   start: number,

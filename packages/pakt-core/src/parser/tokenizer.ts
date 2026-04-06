@@ -66,6 +66,7 @@ export function tokenize(input: string): Token[] {
   let offset = 0;
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const line = lines[lineIdx]!;
     const lineNum = lineIdx + 1;
 
@@ -115,6 +116,7 @@ export function tokenize(input: string): Token[] {
  * @param lineOffset - Byte offset of the start of this line
  * @param tokens - Token accumulator (mutated in place)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: line scanner dispatches across all token types with lookahead
 function scanLineContent(
   line: string,
   startCol: number,
@@ -125,6 +127,7 @@ function scanLineContent(
   let col = startCol;
 
   while (col < line.length) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by while condition
     const ch = line[col]!;
 
     // Skip whitespace between tokens (not leading — that was INDENT)
@@ -240,6 +243,7 @@ function scanDirective(
   // Header: @keyword value
   const headerMatch = /^(\w+)\s+(.*)$/.exec(rest);
   if (headerMatch) {
+    // biome-ignore lint/style/noNonNullAssertion: capture group 1 always exists when regex matches
     const keyword = headerMatch[1]!;
     if (HEADER_KEYWORDS.has(keyword)) {
       const val = headerMatch[2]?.trim();
@@ -250,7 +254,9 @@ function scanDirective(
 
   // Bare @keyword (no value) — still valid header with empty value
   const bareMatch = /^(\w+)$/.exec(rest);
+  // biome-ignore lint/style/noNonNullAssertion: capture group 1 always exists when regex matches
   if (bareMatch && HEADER_KEYWORDS.has(bareMatch[1]!)) {
+    // biome-ignore lint/style/noNonNullAssertion: capture group 1 always exists when regex matches
     tokens.push(tok('HEADER', `@${bareMatch[1]!}`, lineNum, col + 1, lineOffset + col));
     return true;
   }
@@ -271,6 +277,7 @@ function scanDirective(
  * @param tokens - Token accumulator (mutated in place)
  * @returns New column position after scanning
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: colon scanning handles value lookahead with multiple token types
 function scanColon(
   line: string,
   startCol: number,

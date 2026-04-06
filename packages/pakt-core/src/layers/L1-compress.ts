@@ -125,6 +125,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  * *exact* same set of keys (same count, same names) AND every value
  * in those objects is a scalar (no nested objects/arrays).
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: structural compression with format-specific tabular detection
 function isTabular(arr: unknown[]): arr is Array<Record<string, unknown>> {
   if (arr.length === 0) return false;
   const first = arr[0];

@@ -66,6 +66,7 @@ function enumValuesToTuple(values: readonly string[]): [string, ...string[]] {
   if (values.length === 0) {
     throw new Error('Enum field requires at least one value');
   }
+  // biome-ignore lint/style/noNonNullAssertion: length > 0 guaranteed by the check above
   return [values[0]!, ...values.slice(1)];
 }
 
@@ -211,9 +212,11 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
 export const PAKT_AUTO_CONTRACT = defineToolContract({
   name: 'pakt_auto',
   description: [
-    'Auto-detect and process text: if input is PAKT, decompress it;',
-    'if input is raw text/JSON/YAML/CSV/Markdown, compress it to PAKT.',
-    'Returns the result string, the action taken, and savings (when compressing).',
+    'Compress data to save tokens in conversation context. Use this tool for ANY structured data',
+    '(JSON, YAML, CSV) or text blocks over 50 tokens before including them in responses.',
+    'Each compression saves tokens on every subsequent turn because the compact form stays in context.',
+    'If input is already PAKT-compressed, decompresses it. Inputs under 50 tokens are returned unchanged.',
+    'Supports all formats: JSON, YAML, CSV, Markdown, logs, config files, API responses, plain text.',
   ].join(' '),
   inputFields: {
     text: {
@@ -280,6 +283,18 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
     wasLossy: {
       type: 'boolean',
       description: 'Whether decompressed PAKT carried lossy L4 content.',
+      required: false,
+    },
+    dedupHit: {
+      type: 'boolean',
+      description:
+        'True when the result was served from the dedup cache (no re-compression needed).',
+      required: false,
+    },
+    belowThreshold: {
+      type: 'boolean',
+      description:
+        'True when the input was below the minimum token threshold and returned unchanged.',
       required: false,
     },
   },
@@ -374,9 +389,9 @@ export const PAKT_INSPECT_CONTRACT = defineToolContract({
 export const PAKT_STATS_CONTRACT = defineToolContract({
   name: 'pakt_stats',
   description: [
-    'Return session-level compression statistics.',
+    'Return session-level compression statistics including compounding context savings.',
     'Shows total calls, token savings, format breakdown, cost estimates,',
-    'and session duration. Call with no arguments to see the current session report.',
+    'dedup cache efficiency, and cumulative tokens saved across conversation turns.',
   ].join(' '),
   inputFields: {
     model: {
@@ -428,17 +443,36 @@ export const PAKT_STATS_CONTRACT = defineToolContract({
     },
     topFormat: {
       type: 'string',
-      description: 'JSON object string: format with most calls and its avg savings; omitted when unavailable.',
+      description:
+        'JSON object string: format with most calls and its avg savings; omitted when unavailable.',
       required: false,
     },
     estimatedCostSaved: {
       type: 'string',
-      description: 'JSON object string: { input, output, currency } cost savings estimate; omitted when unavailable.',
+      description:
+        'JSON object string: { input, output, currency } cost savings estimate; omitted when unavailable.',
       required: false,
     },
     lastCallAt: {
       type: 'string',
-      description: 'ISO 8601 timestamp string of the most recent tool call; omitted when unavailable.',
+      description:
+        'ISO 8601 timestamp string of the most recent tool call; omitted when unavailable.',
+      required: false,
+    },
+    dedupHits: {
+      type: 'number',
+      description: 'Total dedup cache hits (compression pipeline runs avoided).',
+      required: false,
+    },
+    dedupEntries: {
+      type: 'number',
+      description: 'Total entries in the dedup cache.',
+      required: false,
+    },
+    totalCompoundingSavings: {
+      type: 'number',
+      description:
+        'Estimated total tokens saved by serving cached results instead of recompressing.',
       required: false,
     },
   },

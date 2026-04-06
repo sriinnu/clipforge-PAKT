@@ -54,6 +54,7 @@ export interface ParserState {
 
 /** Peek at the current token without consuming. */
 export function peek(s: ParserState): Token {
+  // biome-ignore lint/style/noNonNullAssertion: tokens array always has at least an EOF token
   return s.tokens[s.pos] ?? s.tokens[s.tokens.length - 1]!;
 }
 
@@ -170,6 +171,7 @@ function parseHeaders(s: ParserState): HeaderNode[] {
     if (t.type !== 'HEADER') break;
     advance(s);
     const parts = t.value.slice(1).split(/\s+/);
+    // biome-ignore lint/style/noNonNullAssertion: split always yields at least one element
     const headerType = parts[0]! as HeaderNode['headerType'];
     const value = parts.slice(1).join(' ');
     headers.push({ type: 'header', headerType, value, position: posOf(t) } as HeaderNode);

@@ -107,6 +107,7 @@ function splitCsvLine(line: string, delim: string): string[] {
  * @param delim - The delimiter character to test
  * @returns A CSV candidate or `null` if the delimiter is a poor fit
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: CSV detection requires multi-pattern delimiter analysis
 function tryDelimiter(lines: string[], delim: string): Candidate | null {
   const delimName = delim === ',' ? 'comma' : delim === '\t' ? 'tab' : 'semicolon';
 

@@ -87,6 +87,7 @@ function normalizeIndentation(lines: string[]): string[] {
 }
 
 /** Add missing `@end` after `@dict` blocks that are never closed. */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: dict end repair tracks open/close state across multiple line types
 function fixMissingDictEnd(lines: string[]): string[] {
   const result: string[] = [];
   let dictOpen = false;
@@ -101,12 +102,14 @@ function fixMissingDictEnd(lines: string[]): string[] {
       }
       dictOpen = true;
       lastDictEntryIdx = result.length;
+      // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
       result.push(lines[i]!);
       continue;
     }
 
     if (trimmed === '@end') {
       dictOpen = false;
+      // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
       result.push(lines[i]!);
       continue;
     }
@@ -120,6 +123,7 @@ function fixMissingDictEnd(lines: string[]): string[] {
       }
     }
 
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     result.push(lines[i]!);
   }
 
@@ -135,6 +139,7 @@ function fixCountMismatches(lines: string[]): string[] {
   const result = [...lines];
 
   for (let i = 0; i < result.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const line = result[i]!;
     const trimmed = line.trim();
     const indent = line.length - line.trimStart().length;
@@ -174,6 +179,7 @@ function fixCountMismatches(lines: string[]): string[] {
 function countTabularRows(lines: string[], startIdx: number, parentIndent: number): number {
   let count = 0;
   for (let i = startIdx; i < lines.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const line = lines[i]!;
     const trimmed = line.trim();
     if (trimmed === '') break;
@@ -189,6 +195,7 @@ function countTabularRows(lines: string[], startIdx: number, parentIndent: numbe
 function countListItems(lines: string[], startIdx: number, parentIndent: number): number {
   let count = 0;
   for (let i = startIdx; i < lines.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const line = lines[i]!;
     const trimmed = line.trim();
     if (trimmed === '') continue;
@@ -215,6 +222,7 @@ function fixMixedDelimiters(lines: string[]): string[] {
   let tabularIndent = -1;
 
   for (let i = 0; i < result.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const rl = result[i]!;
     const trimmed = rl.trim();
     const indent = rl.length - rl.trimStart().length;
@@ -250,6 +258,7 @@ function countUnquotedChar(text: string, ch: string): number {
   let count = 0;
   let inQuote = false;
   for (let i = 0; i < text.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const c = text[i]!;
     if (c === '"') inQuote = !inQuote;
     else if (c === '\\' && inQuote) i++;
@@ -263,11 +272,13 @@ function replaceDelimiter(text: string, from: string, to: string): string {
   let result = '';
   let inQuote = false;
   for (let i = 0; i < text.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const c = text[i]!;
     if (c === '"') {
       inQuote = !inQuote;
       result += c;
     } else if (c === '\\' && inQuote && i + 1 < text.length) {
+      // biome-ignore lint/style/noNonNullAssertion: i+1 checked in condition above
       result += c + text[i + 1]!;
       i++;
     } else if (c === from && !inQuote) {

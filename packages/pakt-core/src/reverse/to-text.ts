@@ -101,6 +101,7 @@ function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number
   lines.push(`${prefix}${node.key}:`);
 
   for (let i = 0; i < items.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const item = items[i]!;
     lines.push(`${indent(depth + 1)}${i + 1}.`);
     for (const [key, val] of Object.entries(item)) {
@@ -126,6 +127,7 @@ function emitListArray(node: ListArrayNode, lines: string[], depth: number): voi
   lines.push(`${prefix}${node.key}:`);
 
   for (let i = 0; i < items.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const item = items[i]!;
     lines.push(`${indent(depth + 1)}${i + 1}.`);
     for (const [key, val] of Object.entries(item)) {

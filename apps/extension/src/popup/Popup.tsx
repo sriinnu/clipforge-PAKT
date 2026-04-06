@@ -43,6 +43,7 @@ function AutoCompressNotice() {
   return <div style={autoNoticeStyle}>Auto-compressed locally on paste</div>;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: React component with multiple UI states and event handlers
 export function Popup() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');

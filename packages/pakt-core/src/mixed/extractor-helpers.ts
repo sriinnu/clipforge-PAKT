@@ -52,6 +52,7 @@ export interface ExtractedBlock {
  * @param startIdx - Index of the opening `{` or `[` character.
  * @returns Index of the matching closing bracket, or -1 if not found.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: bracket matching requires tracking depth, quoting, and escape state
 export function findMatchingBracket(text: string, startIdx: number): number {
   const open = text[startIdx];
   const close = open === '{' ? '}' : ']';

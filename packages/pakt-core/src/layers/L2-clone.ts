@@ -60,6 +60,7 @@ export function collectStringScalars(
   }
 
   /** Recursively visit all body nodes. */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: AST cloning traverses all node types recursively
   function visitBody(body: readonly BodyNode[]): void {
     for (const node of body) {
       switch (node.type) {
@@ -115,6 +116,7 @@ export function collectStringScalars(
  * @param substringMap - Optional substring-to-alias map for inline compression
  * @returns A fresh ScalarNode (never the same reference)
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: body cloning handles replacement maps across node types
 export function cloneScalar(
   sc: ScalarNode,
   map: ReadonlyMap<string, string>,
