@@ -28,11 +28,19 @@ export {
   PAKT_AUTO_CONTRACT,
   PAKT_COMPRESS_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_STATS_CONTRACT,
   PAKT_MCP_CONTRACTS,
 } from './contract.js';
 
 export { registerPaktTools } from './server.js';
 export { handlePaktTool, PaktToolInputError } from './handler.js';
+export {
+  recordCall,
+  getSessionStats,
+  resetSessionStats,
+  setSessionId,
+  getSessionId,
+} from './session-stats.js';
 
 export type {
   PaktMcpContract,
@@ -45,7 +53,11 @@ export type {
   PaktInspectResult,
   PaktCompressArgs,
   PaktCompressResult,
+  PaktStatsArgs,
+  PaktStatsResult,
   PaktToolArgs,
   PaktToolName,
   PaktToolResult,
 } from './types.js';
+
+export type { CallRecord, SessionStatsResult, FormatStats } from './session-stats.js';

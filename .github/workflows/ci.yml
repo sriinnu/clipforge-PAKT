@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint (advisory)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +26,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm lint
-        continue-on-error: true
+      - run: pnpm lint:advisory
 
   test:
     name: Test

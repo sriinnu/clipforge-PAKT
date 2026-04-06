@@ -24,11 +24,13 @@
 import { compress } from '../compress.js';
 import { decompress } from '../decompress.js';
 import { detect } from '../detect.js';
-import { isPaktFormat, PAKT_FORMAT_VALUES } from '../formats.js';
+import { PAKT_FORMAT_VALUES, isPaktFormat } from '../formats.js';
 import { compressMixed } from '../mixed/index.js';
+import { readAllRecords } from '../stats/persister.js';
 import { countTokens } from '../tokens/index.js';
 import type { PaktFormat, PaktOptions } from '../types.js';
 import { validate } from '../utils/validate.js';
+import { SessionStats, getSessionStats } from './session-stats.js';
 import type {
   PaktAutoArgs,
   PaktAutoResult,
@@ -36,6 +38,8 @@ import type {
   PaktCompressResult,
   PaktInspectArgs,
   PaktInspectResult,
+  PaktStatsArgs,
+  PaktStatsResult,
   PaktToolName,
   PaktToolResult,
 } from './types.js';
@@ -358,6 +362,51 @@ function handleInspect(args: PaktInspectArgs): PaktInspectResult {
 }
 
 // ---------------------------------------------------------------------------
+// Stats handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Return session-level compression statistics.
+ *
+ * Nested objects (callsByAction, byFormat, topFormat, estimatedCostSaved)
+ * are serialized as JSON strings to conform to the flat contract schema.
+ *
+ * When `scope` is `'all'`, reads persistent stats from disk (all agents).
+ * Default scope is `'session'` (fast, in-memory only).
+ */
+function handleStats(args: PaktStatsArgs): PaktStatsResult {
+  const model = typeof args.model === 'string' && args.model.length > 0 ? args.model : 'gpt-4o';
+  const scope = args.scope === 'all' ? 'all' : 'session';
+
+  let raw;
+  if (scope === 'all') {
+    // Read all persistent records and aggregate
+    const records = readAllRecords();
+    const tempStats = new SessionStats();
+    for (const record of records) {
+      tempStats.record(record);
+    }
+    raw = tempStats.getStats(model);
+  } else {
+    raw = getSessionStats(model);
+  }
+
+  return {
+    sessionDuration: raw.sessionDuration,
+    totalCalls: raw.totalCalls,
+    totalInputTokens: raw.totalInputTokens,
+    totalOutputTokens: raw.totalOutputTokens,
+    totalSavedTokens: raw.totalSavedTokens,
+    overallSavingsPercent: raw.overallSavingsPercent,
+    callsByAction: JSON.stringify(raw.callsByAction),
+    byFormat: JSON.stringify(raw.byFormat),
+    topFormat: raw.topFormat ? JSON.stringify(raw.topFormat) : undefined,
+    estimatedCostSaved: raw.estimatedCostSaved ? JSON.stringify(raw.estimatedCostSaved) : undefined,
+    lastCallAt: raw.lastCallAt ?? undefined,
+  } as PaktStatsResult;
+}
+
+// ---------------------------------------------------------------------------
 // Main dispatch
 // ---------------------------------------------------------------------------
 
@@ -372,6 +421,8 @@ export function handlePaktTool(name: PaktToolName, args: Record<string, unknown>
       return handleAuto(args as unknown as PaktAutoArgs);
     case 'pakt_inspect':
       return handleInspect(args as unknown as PaktInspectArgs);
+    case 'pakt_stats':
+      return handleStats(args as unknown as PaktStatsArgs);
     default: {
       const _exhaustive: never = name;
       throw new Error(`Unknown PAKT MCP tool: "${String(_exhaustive)}"`);

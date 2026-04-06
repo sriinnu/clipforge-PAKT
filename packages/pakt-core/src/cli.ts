@@ -13,7 +13,8 @@
  *   pakt inspect [file] [--model gpt-4o|claude-sonnet|...] [--semantic-budget 120]
  *   pakt tokens [file] [--model gpt-4o|claude-sonnet|...]
  *   pakt savings [file] [--model gpt-4o|claude-sonnet|...]
- *   pakt serve --stdio
+ *   pakt stats [file] [--model gpt-4o|...] [--today|--week] [--agent <name>]
+ *   pakt serve --stdio [--agent-name <name>]
  *   pakt --version
  *   pakt --help
  */
@@ -27,6 +28,7 @@ import {
   cmdDetect,
   cmdInspect,
   cmdSavings,
+  cmdStats,
   cmdTokens,
 } from './cli-commands.js';
 import { startServe } from './cli-serve.js';
@@ -54,11 +56,19 @@ Usage:
   pakt compress [file] [options]    Compress input to PAKT format
   pakt decompress [file] [options]  Decompress PAKT back to original format
   pakt auto [file] [options]        Auto-detect and compress or decompress
-  pakt serve --stdio                Start MCP server over stdio
+  pakt serve --stdio [--agent-name <name>]
+                                    Start MCP server over stdio
   pakt detect [file]                Detect input format
   pakt inspect [file] [options]     Inspect whether to compress, decompress, or leave as-is
   pakt tokens [file] [options]      Count tokens in input
   pakt savings [file] [options]     Show compression savings report
+  pakt stats                        Show persistent stats (all agents, all time)
+  pakt stats [file]                 Single-shot stats report for a file
+  pakt stats --today|--week         Filter by time range
+  pakt stats --agent <name>         Filter by agent name
+  pakt stats --active               Only running agents
+  pakt stats --compact              Compact old sessions into archive
+  pakt stats --reset                Clear all stats
   pakt --version                    Print version
   pakt --help                       Show this help
 
@@ -69,6 +79,8 @@ Options:
   --semantic-budget <tokens>
                      Enable L4 semantic compression with a positive token budget
   --model <model>    Model for token counting (gpt-4o|claude-sonnet|claude-opus|claude-haiku|gpt-4o-mini)
+  --agent-name <name>
+                     Name this agent session (used with serve)
 
 Input:
   If no file argument is given, reads from stdin (pipe mode).
@@ -99,6 +111,7 @@ Examples:
  * @param argv - Raw argument strings (typically `process.argv.slice(2)`).
  * @returns Structured parsed arguments.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: simple positional + flag parser, splitting would add indirection without clarity
 function parseArgs(argv: string[]): ParsedArgs {
   const result: ParsedArgs = {
     command: undefined,
@@ -246,7 +259,7 @@ async function main(): Promise<void> {
       cmdAuto(args, readInput, parseLayers);
       break;
     case 'serve':
-      await startServe();
+      await startServe(args.options.get('agent-name'));
       return; // serve keeps the stdio transport open
     case 'detect':
       cmdDetect(args, readInput);
@@ -259,6 +272,9 @@ async function main(): Promise<void> {
       break;
     case 'savings':
       cmdSavings(args, readInput);
+      break;
+    case 'stats':
+      cmdStats(args, readInput);
       break;
     default:
       process.stderr.write(`Unknown command: "${args.command}"\n\n`);

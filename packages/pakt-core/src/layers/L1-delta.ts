@@ -303,9 +303,10 @@ export function applyDeltaEncoding(doc: DocumentNode): DocumentNode {
  * @param node - Delta-encoded tabular array node
  * @returns Tabular array with all sentinels resolved to real values
  */
-function deltaDecodeTabular(
-  node: TabularArrayNode,
-): { node: TabularArrayNode; resolvedAllSentinels: boolean } {
+function deltaDecodeTabular(node: TabularArrayNode): {
+  node: TabularArrayNode;
+  resolvedAllSentinels: boolean;
+} {
   if (node.rows.length < 2) return { node, resolvedAllSentinels: true };
 
   const fieldCount = node.fields.length;

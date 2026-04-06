@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to publish (example: v0.6.0)'
+        description: 'Tag to publish (example: v0.6.2)'
         required: true
         type: string
       publish_npm:
@@ -82,6 +82,9 @@ jobs:
             echo "@sriinnu/pakt@${VERSION} already exists on npm."
             exit 1
           fi
+
+      - name: Run package tests
+        run: pnpm --filter @sriinnu/pakt test
 
       - name: Build package
         run: pnpm --filter @sriinnu/pakt build
