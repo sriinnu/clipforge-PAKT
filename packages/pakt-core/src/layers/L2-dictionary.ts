@@ -51,6 +51,7 @@ const synPos: SourcePosition = { line: 0, column: 0, offset: 0 };
  * @param minSavings - Minimum net token savings to create an alias (default 3)
  * @returns A new DocumentNode with dictionary block and aliased body values
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: dictionary compression orchestrates candidate detection, dedup, and greedy selection
 export function compressL2(
   doc: DocumentNode,
   minSavings: number = DEFAULT_MIN_SAVINGS,
@@ -177,6 +178,7 @@ export function compressL2(
   const substringToAlias = new Map<string, string>();
   const entries: DictEntryNode[] = [];
   for (let i = 0; i < selected.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: alias is guaranteed to exist at this index
     const c = selected[i]!;
     const alias = aliasForIndex(i);
     if (c.candidateType === 'exact') {
@@ -268,6 +270,7 @@ export function extractDictEntries(doc: DocumentNode): DictEntry[] {
     // Inline alias usage (${a}, ${b}, ... at any position)
     if (sc.value.includes('${')) {
       for (const m of sc.value.matchAll(/\$\{([a-z]{1,2})\}/g)) {
+        // biome-ignore lint/style/noNonNullAssertion: alias index is guaranteed within bounds after loop check
         const alias = `$${m[1]!}`;
         aliasCount.set(alias, (aliasCount.get(alias) ?? 0) + 1);
       }

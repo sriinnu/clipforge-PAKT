@@ -278,6 +278,7 @@ export function pack(items: PackerItem[], options: PackerOptions): PackerResult 
   let usedTokens = 0;
 
   for (let i = 0; i < totalSorted; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const { item } = sorted[i]!;
     // Position ratio: 0.0 for the first (highest priority), approaching 1.0 for the last
     const positionRatio = totalSorted > 1 ? i / (totalSorted - 1) : 0;

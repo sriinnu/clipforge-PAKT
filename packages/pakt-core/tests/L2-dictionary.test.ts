@@ -67,6 +67,7 @@ const doc = (body: BodyNode[], headers: HeaderNode[] = []): DocumentNode => ({
   position: p,
 });
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: test helper walks all AST node types recursively
 function collectValues(nodes: readonly BodyNode[]): string[] {
   const result: string[] = [];
   for (const nd of nodes) {
@@ -545,6 +546,7 @@ describe('L2: substring detection', () => {
 });
 
 // Helper that collects ALL string values (quoted + unquoted)
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: test helper walks all AST node types recursively
 function collectAllValues(nodes: readonly BodyNode[]): string[] {
   const result: string[] = [];
   for (const nd of nodes) {

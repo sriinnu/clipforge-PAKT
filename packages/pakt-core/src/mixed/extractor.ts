@@ -180,6 +180,7 @@ function extractInlineJson(text: string, intervals: Array<[number, number]>): Ex
  * @param intervals - Sorted `[start, end]` intervals already claimed by other blocks.
  * @returns Array of extracted CSV blocks.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: CSV extraction needs line-by-line gap analysis with interval overlap checks
 function extractCsvSections(text: string, intervals: Array<[number, number]>): ExtractedBlock[] {
   const blocks: ExtractedBlock[] = [];
   const allLines = text.split('\n');

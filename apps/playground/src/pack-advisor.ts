@@ -247,6 +247,7 @@ function csvEscape(value: string): string {
   return value;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: CSV parser requires nested state machine logic
 function parseCsv(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];

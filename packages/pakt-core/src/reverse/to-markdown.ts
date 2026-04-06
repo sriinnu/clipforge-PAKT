@@ -193,9 +193,11 @@ function listArrayToMarkdown(node: ListArrayNode): string {
     if (entries.length === 0) {
       lines.push('- (empty)');
     } else {
+      // biome-ignore lint/style/noNonNullAssertion: entries is non-empty after length check above
       const first = entries[0]!;
       lines.push(`- **${first[0]}**: ${formatMdValue(first[1])}`);
       for (let i = 1; i < entries.length; i++) {
+        // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
         const entry = entries[i]!;
         lines.push(`  **${entry[0]}**: ${formatMdValue(entry[1])}`);
       }

@@ -35,20 +35,20 @@ function makeRecord(overrides?: Partial<CallRecord>): CallRecord {
 
 beforeEach(() => {
   tempDir = mkdtempSync(join(tmpdir(), 'pakt-stats-test-'));
-  process.env['PAKT_STATS_DIR'] = tempDir;
+  process.env.PAKT_STATS_DIR = tempDir;
   resetStatsDir();
   setDisabled(false);
 });
 
 afterEach(() => {
-  delete process.env['PAKT_STATS_DIR'];
+  process.env.PAKT_STATS_DIR = undefined;
   resetStatsDir();
 });
 
 describe('getStatsDir', () => {
   it('creates the directory if it does not exist', () => {
     const subDir = join(tempDir, 'nested', 'stats');
-    process.env['PAKT_STATS_DIR'] = subDir;
+    process.env.PAKT_STATS_DIR = subDir;
     resetStatsDir();
 
     const dir = getStatsDir();

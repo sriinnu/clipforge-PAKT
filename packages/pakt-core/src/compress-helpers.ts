@@ -1,5 +1,6 @@
 import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 import { detect } from './detect.js';
+import { compressText } from './layers/compress-text.js';
 import {
   applyL3Transforms,
   applyL4Transforms,
@@ -76,6 +77,7 @@ export function tryCompressSpecialFormats(
     return null;
   }
 
+  // First try: compress embedded structured blocks (JSON/CSV/YAML within text)
   const mixedResult = compressMixed(input, options);
   if (mixedResult.blocks.length > 0 && mixedResult.savings.totalPercent > 0) {
     return {
@@ -84,6 +86,35 @@ export function tryCompressSpecialFormats(
       compressedTokens: mixedResult.compressedTokens,
       savings: mixedResult.savings,
       reversible: mixedResult.reversible,
+      detectedFormat,
+      dictionary: [],
+    };
+  }
+
+  // Second try: dictionary compression on the text itself (repeated phrases → aliases)
+  const fmt = detectedFormat === 'markdown' ? 'markdown' : 'text';
+  const textResult = compressText(input, fmt);
+  if (textResult) {
+    const savedTokens = textResult.originalTokens - textResult.compressedTokens;
+    const savingsPercent =
+      textResult.originalTokens > 0
+        ? Math.round((savedTokens / textResult.originalTokens) * 100)
+        : 0;
+    return {
+      compressed: textResult.compressed,
+      originalTokens: textResult.originalTokens,
+      compressedTokens: textResult.compressedTokens,
+      savings: {
+        totalPercent: savingsPercent,
+        totalTokens: savedTokens,
+        byLayer: {
+          structural: 0,
+          dictionary: savedTokens,
+          tokenizer: 0,
+          semantic: 0,
+        },
+      },
+      reversible: true,
       detectedFormat,
       dictionary: [],
     };

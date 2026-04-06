@@ -73,6 +73,7 @@ function summaryKv(key: string, value: string): KeyValueNode {
  */
 function collectStringScalars(body: BodyNode[]): StringScalar[] {
   const result: StringScalar[] = [];
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: semantic strategy selection requires multi-factor analysis
   function walk(nodes: BodyNode[]): void {
     for (const node of nodes) {
       switch (node.type) {
@@ -299,10 +300,12 @@ function collapseListArray(node: ListArrayNode): void {
   const newItems: ListItemNode[] = [];
   let i = 0;
   while (i < node.items.length) {
+    // biome-ignore lint/style/noNonNullAssertion: array element guaranteed to exist after length check
     const current = node.items[i]!;
     const sig = itemSignature(current);
     let runLength = 1;
     // Count consecutive items with the same signature
+    // biome-ignore lint/style/noNonNullAssertion: array element guaranteed to exist after length check
     while (i + runLength < node.items.length && itemSignature(node.items[i + runLength]!) === sig) {
       runLength++;
     }
@@ -316,6 +319,7 @@ function collapseListArray(node: ListArrayNode): void {
       newItems.push(summaryItem);
       i += runLength;
     } else {
+      // biome-ignore lint/style/noNonNullAssertion: array element guaranteed to exist after length check
       for (let j = 0; j < runLength; j++) newItems.push(node.items[i + j]!);
       i += runLength;
     }

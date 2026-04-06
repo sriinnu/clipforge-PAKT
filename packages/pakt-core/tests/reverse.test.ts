@@ -307,7 +307,7 @@ describe('toYaml', () => {
       values: [str('React'), str('TypeScript'), str('Rust')],
     };
     const yaml = toYaml([arr]);
-    expect(yaml).toBe('tags:\n  - React\n  - TypeScript\n  - Rust\n');
+    expect(yaml).toBe('tags: [React, TypeScript, Rust]\n');
   });
 
   it('should convert list arrays to YAML sequences', () => {

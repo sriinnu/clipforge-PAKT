@@ -21,6 +21,7 @@
  * ```
  */
 
+import { createHash } from 'node:crypto';
 import { compress } from '../compress.js';
 import { decompress } from '../decompress.js';
 import { detect } from '../detect.js';
@@ -30,7 +31,8 @@ import { readAllRecords } from '../stats/persister.js';
 import { countTokens } from '../tokens/index.js';
 import type { PaktFormat, PaktOptions } from '../types.js';
 import { validate } from '../utils/validate.js';
-import { SessionStats, getSessionStats } from './session-stats.js';
+import { dedupCache } from './dedup-cache.js';
+import { SessionStats, type SessionStatsResult, getSessionStats } from './session-stats.js';
 import type {
   PaktAutoArgs,
   PaktAutoResult,
@@ -185,8 +187,16 @@ function inspectPassthroughPakt(
 /**
  * Handle a `pakt_compress` tool call.
  */
+/** Maximum input size for explicit compression (1MB). */
+const MAX_COMPRESS_INPUT_SIZE = 1024 * 1024;
+
 function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   assertNonEmptyString(args.text, 'text');
+  if (args.text.length > MAX_COMPRESS_INPUT_SIZE) {
+    throw new PaktToolInputError(
+      `Input exceeds maximum size of ${MAX_COMPRESS_INPUT_SIZE} bytes. Consider splitting large payloads.`,
+    );
+  }
   const format = validateFormat(args.format);
   const semanticBudget = validateSemanticBudget(args.semanticBudget);
   const options = buildCompressionOptions(format, semanticBudget);
@@ -251,8 +261,40 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   );
 }
 
+/** Minimum input tokens to attempt compression. Below this, overhead exceeds savings. */
+const MIN_COMPRESSION_THRESHOLD = 50;
+
+/** Maximum input size in bytes. Larger inputs skip compression to avoid CPU DoS. */
+const MAX_AUTO_INPUT_SIZE = 512 * 1024;
+
+/** Metadata stored alongside dedup cache entries for stats reporting. */
+interface DedupMeta {
+  savedTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  format: string;
+  reversible: boolean;
+  savingsPercent: number;
+}
+
+/** Maps content hash → compression metadata for dedup cache hits. Capped at 500 entries. */
+const dedupMetadata = new Map<string, DedupMeta>();
+const METADATA_CAP = 500;
+
+/** Evict oldest metadata entries when over cap. */
+function trimMetadata(): void {
+  while (dedupMetadata.size > METADATA_CAP) {
+    const oldest = dedupMetadata.keys().next().value;
+    if (oldest === undefined) break;
+    dedupMetadata.delete(oldest);
+  }
+}
+
 /**
  * Handle a `pakt_auto` tool call.
+ *
+ * Every call increments the turn counter for compounding savings tracking.
+ * Compression path: threshold check → dedup cache → pipeline → cache store.
  */
 function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   assertNonEmptyString(args.text, 'text');
@@ -260,6 +302,7 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
 
   const detected = detect(args.text);
 
+  // --- Decompression path (unchanged) ---
   if (detected.format === 'pakt') {
     const validation = validate(args.text);
     if (!validation.valid) {
@@ -269,6 +312,8 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
     }
 
     const result = decompress(args.text);
+    const decompInputTokens = countTokens(args.text);
+    const decompOutputTokens = countTokens(result.text);
     return {
       result: result.text,
       action: 'decompressed',
@@ -276,9 +321,65 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
       originalFormat: result.originalFormat,
       reversible: !result.wasLossy,
       wasLossy: result.wasLossy,
+      inputTokens: decompInputTokens,
+      outputTokens: decompOutputTokens,
+      savedTokens: decompInputTokens - decompOutputTokens,
     };
   }
 
+  // --- Compression path ---
+
+  // Size cap: skip very large inputs to prevent CPU DoS from sliding window
+  if (args.text.length > MAX_AUTO_INPUT_SIZE) {
+    const inputTokens = countTokens(args.text);
+    return {
+      result: args.text,
+      action: 'compressed',
+      savings: 0,
+      detectedFormat: detected.format,
+      inputTokens,
+      outputTokens: inputTokens,
+      savedTokens: 0,
+      reversible: true,
+      belowThreshold: true,
+    };
+  }
+
+  // Threshold: skip tiny inputs where overhead exceeds savings
+  const inputTokens = countTokens(args.text);
+  if (inputTokens < MIN_COMPRESSION_THRESHOLD) {
+    return {
+      result: args.text,
+      action: 'compressed',
+      savings: 0,
+      detectedFormat: detected.format,
+      inputTokens,
+      outputTokens: inputTokens,
+      savedTokens: 0,
+      reversible: true,
+      belowThreshold: true,
+    };
+  }
+
+  // Dedup: return cached result if we've seen this exact input before
+  const hash = createHash('sha256').update(args.text).digest('hex');
+  const cachedCompressed = dedupCache.get(hash);
+  const cachedMeta = dedupMetadata.get(hash);
+  if (cachedCompressed && cachedMeta) {
+    return {
+      result: cachedCompressed,
+      action: 'compressed',
+      savings: cachedMeta.savingsPercent,
+      detectedFormat: cachedMeta.format as PaktFormat,
+      inputTokens: cachedMeta.inputTokens,
+      outputTokens: cachedMeta.outputTokens,
+      savedTokens: cachedMeta.savedTokens,
+      reversible: cachedMeta.reversible,
+      dedupHit: true,
+    };
+  }
+
+  // Run the compression pipeline
   const compressionOptions = buildCompressionOptions(undefined, semanticBudget);
   const compressResult =
     detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv'
@@ -287,6 +388,21 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
           fromFormat: detected.format,
         })
       : compressMixed(args.text, compressionOptions);
+
+  const savedTokens = compressResult.originalTokens - compressResult.compressedTokens;
+
+  // Store in dedup cache + metadata for future hits
+  dedupCache.set(hash, compressResult.compressed);
+  dedupMetadata.set(hash, {
+    savedTokens,
+    inputTokens: compressResult.originalTokens,
+    outputTokens: compressResult.compressedTokens,
+    format: detected.format,
+    reversible: compressResult.reversible,
+    savingsPercent: compressResult.savings.totalPercent,
+  });
+  trimMetadata();
+
   return {
     result: compressResult.compressed,
     action: 'compressed',
@@ -294,7 +410,7 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
     detectedFormat: detected.format,
     inputTokens: compressResult.originalTokens,
     outputTokens: compressResult.compressedTokens,
-    savedTokens: compressResult.originalTokens - compressResult.compressedTokens,
+    savedTokens,
     reversible: compressResult.reversible,
   };
 }
@@ -378,7 +494,7 @@ function handleStats(args: PaktStatsArgs): PaktStatsResult {
   const model = typeof args.model === 'string' && args.model.length > 0 ? args.model : 'gpt-4o';
   const scope = args.scope === 'all' ? 'all' : 'session';
 
-  let raw;
+  let raw: SessionStatsResult;
   if (scope === 'all') {
     // Read all persistent records and aggregate
     const records = readAllRecords();
@@ -403,6 +519,17 @@ function handleStats(args: PaktStatsArgs): PaktStatsResult {
     topFormat: raw.topFormat ? JSON.stringify(raw.topFormat) : undefined,
     estimatedCostSaved: raw.estimatedCostSaved ? JSON.stringify(raw.estimatedCostSaved) : undefined,
     lastCallAt: raw.lastCallAt ?? undefined,
+    // Dedup and compounding (session scope only — disk reads don't have cache data)
+    ...(scope === 'session'
+      ? (() => {
+          const ds = dedupCache.getStats();
+          return {
+            dedupHits: ds.totalHits,
+            dedupEntries: ds.size,
+            totalCompoundingSavings: dedupCache.totalCompoundingSavings(),
+          };
+        })()
+      : {}),
   } as PaktStatsResult;
 }
 

@@ -168,13 +168,16 @@ function emitTopLevelBody(
 ): void {
   for (let i = 0; i < nodes.length; i++) {
     if (i > 0 && depth === 0 && opts.sectionSpacing > 0) {
+      // biome-ignore lint/style/noNonNullAssertion: i > 0 guarantees i-1 is valid
       const prev = nodes[i - 1]!;
+      // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
       const curr = nodes[i]!;
       // Keep adjacent comments tight
       if (prev.type !== 'comment' || curr.type !== 'comment') {
         for (let s = 0; s < opts.sectionSpacing; s++) lines.push('');
       }
     }
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     emitNode(nodes[i]!, lines, depth, opts);
   }
 }
@@ -331,6 +334,7 @@ function emitListItem(
   }
 
   for (let i = 0; i < listItem.children.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const child = listItem.children[i]!;
     if (i === 0) {
       const inline = formatBodyNodeInline(child);

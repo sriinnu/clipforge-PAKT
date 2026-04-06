@@ -22,6 +22,34 @@ import type {
 import { formatScalar, formatTabularCell } from './format-scalar.js';
 
 const INDENT = '  ';
+
+/** Quote a key if it contains characters that would confuse the parser. */
+function formatKey(key: string): string {
+  if (
+    key.length === 0 ||
+    key.includes(' ') ||
+    key.includes(':') ||
+    key.includes('|') ||
+    key.includes('\n') ||
+    key.includes('\t') ||
+    key.includes('\r') ||
+    key.includes('"') ||
+    key.includes('\\') ||
+    key.startsWith('$') ||
+    key.startsWith('@') ||
+    key.startsWith('%') ||
+    key.startsWith('-')
+  ) {
+    const escaped = key
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t')
+      .replace(/\r/g, '\\r');
+    return `"${escaped}"`;
+  }
+  return key;
+}
 const PRE_DICT_HEADERS: readonly string[] = ['version', 'from', 'target'];
 const POST_DICT_HEADERS: readonly string[] = ['compress', 'warning'];
 
@@ -141,21 +169,21 @@ function emitNode(node: BodyNode, lines: string[], depth: number): void {
 function emitKeyValue(node: KeyValueNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const value = formatScalar(node.value);
-  lines.push(`${prefix}${node.key}: ${value}`);
+  lines.push(`${prefix}${formatKey(node.key)}: ${value}`);
 }
 
 /** Emit a nested object: key on its own line, children indented +2 spaces. */
 function emitObject(node: ObjectNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
-  lines.push(`${prefix}${node.key}`);
+  lines.push(`${prefix}${formatKey(node.key)}`);
   emitBody(node.children, lines, depth + 1);
 }
 
 /** Emit a tabular array: `key [count]{f1|f2|...}:` with pipe-delimited rows. */
 function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
-  const fieldList = node.fields.join('|');
-  lines.push(`${prefix}${node.key} [${node.count}]{${fieldList}}:`);
+  const fieldList = node.fields.map(formatKey).join('|');
+  lines.push(`${prefix}${formatKey(node.key)} [${node.count}]{${fieldList}}:`);
   for (const row of node.rows) {
     emitTabularRow(row, lines, depth + 1);
   }
@@ -172,13 +200,13 @@ function emitTabularRow(row: TabularRowNode, lines: string[], depth: number): vo
 function emitInlineArray(node: InlineArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const values = node.values.map((v) => formatScalar(v)).join(',');
-  lines.push(`${prefix}${node.key} [${node.count}]: ${values}`);
+  lines.push(`${prefix}${formatKey(node.key)} [${node.count}]: ${values}`);
 }
 
 /** Emit a list array: `key [count]:` followed by dash-prefixed items. */
 function emitListArray(node: ListArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
-  lines.push(`${prefix}${node.key} [${node.count}]:`);
+  lines.push(`${prefix}${formatKey(node.key)} [${node.count}]:`);
   for (const item of node.items) {
     emitListItem(item, lines, depth + 1);
   }
@@ -189,6 +217,7 @@ function emitListItem(item: ListItemNode, lines: string[], depth: number): void 
   const prefix = indent(depth);
 
   for (let i = 0; i < item.children.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const child = item.children[i]!;
     if (i === 0) {
       // First child gets the dash prefix
@@ -205,11 +234,11 @@ function emitListItem(item: ListItemNode, lines: string[], depth: number): void 
 function formatBodyNodeInline(node: BodyNode): string {
   switch (node.type) {
     case 'keyValue':
-      return `${node.key}: ${formatScalar(node.value)}`;
+      return `${formatKey(node.key)}: ${formatScalar(node.value)}`;
     case 'comment':
       return `% ${node.text}`;
     case 'object':
-      return node.key;
+      return formatKey(node.key);
     default:
       return '';
   }

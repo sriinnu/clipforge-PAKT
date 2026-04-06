@@ -51,7 +51,7 @@ let cachedStatsDir: string | undefined;
 export function getStatsDir(): string {
   if (cachedStatsDir) return cachedStatsDir;
 
-  const dir = process.env['PAKT_STATS_DIR'] ?? join(homedir(), '.pakt', 'stats');
+  const dir = process.env.PAKT_STATS_DIR ?? join(homedir(), '.pakt', 'stats');
   try {
     mkdirSync(dir, { recursive: true });
     cachedStatsDir = dir;
@@ -290,6 +290,7 @@ export function getActiveSessions(): ActiveSession[] {
  * Sessions older than `maxAgeDays` (default 7) with a footer are compacted.
  * Returns the number of sessions compacted and archive entries created.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: compaction reads files, parses records, aggregates daily summaries, and does atomic write
 export function compactSessions(maxAgeDays = 7): { compacted: number; archived: number } {
   const dir = getStatsDir();
   const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
@@ -347,7 +348,9 @@ export function compactSessions(maxAgeDays = 7): { compacted: number; archived: 
     const [date, format] = key.split(':');
     const summary: DailySummary = {
       t: 'd',
+      // biome-ignore lint/style/noNonNullAssertion: split always produces both parts from 'date:format' key
       date: date!,
+      // biome-ignore lint/style/noNonNullAssertion: split always produces both parts from 'date:format' key
       format: format!,
       ...acc,
     };

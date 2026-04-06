@@ -29,6 +29,7 @@ import type { Candidate } from './types.js';
  * @param text - Possibly-commented JSON text
  * @returns Clean JSON text with all comments removed
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: JSON detection with nested structure analysis
 function stripJsonComments(text: string): string {
   let result = '';
   let i = 0;
