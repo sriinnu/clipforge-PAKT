@@ -428,17 +428,17 @@ export const PAKT_STATS_CONTRACT = defineToolContract({
     },
     topFormat: {
       type: 'string',
-      description: 'JSON object or null: format with most calls and its avg savings.',
+      description: 'JSON object string: format with most calls and its avg savings; omitted when unavailable.',
       required: false,
     },
     estimatedCostSaved: {
       type: 'string',
-      description: 'JSON object or null: { input, output, currency } cost savings estimate.',
+      description: 'JSON object string: { input, output, currency } cost savings estimate; omitted when unavailable.',
       required: false,
     },
     lastCallAt: {
       type: 'string',
-      description: 'ISO 8601 timestamp of the most recent tool call, or null.',
+      description: 'ISO 8601 timestamp string of the most recent tool call; omitted when unavailable.',
       required: false,
     },
   },
