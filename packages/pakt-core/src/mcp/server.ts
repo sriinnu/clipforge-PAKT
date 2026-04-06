@@ -59,18 +59,29 @@ function recordCallFromResult(name: PaktToolName, result: PaktToolResult): void 
         timestamp: now,
       });
       break;
-    case 'pakt_auto':
+    case 'pakt_auto': {
+      const hasTokenMetrics =
+        typeof r['inputTokens'] === 'number' &&
+        typeof r['outputTokens'] === 'number' &&
+        typeof r['savedTokens'] === 'number' &&
+        typeof r['savings'] === 'number';
+
+      if (!hasTokenMetrics) {
+        break;
+      }
+
       recordCall({
         action: r['action'] === 'compressed' ? 'compress' : 'decompress',
         format: (r['detectedFormat'] as PaktFormat) ?? 'text',
-        inputTokens: num(r['inputTokens']),
-        outputTokens: num(r['outputTokens']),
-        savedTokens: num(r['savedTokens']),
-        savingsPercent: num(r['savings']),
+        inputTokens: r['inputTokens'],
+        outputTokens: r['outputTokens'],
+        savedTokens: r['savedTokens'],
+        savingsPercent: r['savings'],
         reversible: r['reversible'] !== false,
         timestamp: now,
       });
       break;
+    }
     case 'pakt_inspect':
       recordCall({
         action: 'inspect',
