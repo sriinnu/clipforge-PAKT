@@ -39,10 +39,16 @@
     "nuke": "find . -name 'node_modules' -not -path '*/.git/*' -prune -exec rm -rf {} + ; find . -name 'dist' -not -path '*/.git/*' -not -path '*/node_modules/*' -prune -exec rm -rf {} + ; find . -name 'target' -not -path '*/.git/*' -not -path '*/node_modules/*' -prune -exec rm -rf {} + ; rm -rf .turbo",
     "fresh": "pnpm nuke && pnpm install && pnpm build"
   },
+  "pnpm": {
+    "overrides": {
+      "rollup": ">=4.59.0",
+      "path-to-regexp": ">=8.4.0"
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/node": "^25.5.0",
-    "turbo": "^2.9.3",
+    "@types/node": "^25.5.2",
+    "turbo": "^2.9.4",
     "typescript": "^6.0.2"
   }
 }
