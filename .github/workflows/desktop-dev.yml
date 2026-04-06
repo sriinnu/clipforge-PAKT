@@ -17,8 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            label: macOS
+          - os: macos-14
+            label: macOS-Silicon
+          - os: macos-13
+            label: macOS-Intel
           - os: windows-latest
             label: Windows
           - os: ubuntu-latest
@@ -59,8 +61,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
-        run: pnpm build --filter @sriinnu/pakt
+      - name: Build core package
+        run: pnpm --filter @sriinnu/pakt build
 
       - name: Build Tauri app
         working-directory: apps/desktop

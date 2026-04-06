@@ -17,6 +17,7 @@ import type {
   PaktInspectArgsFromContract,
   PaktInspectResultFromContract,
   PaktMcpContract,
+  PaktStatsArgsFromContract,
 } from './contract.js';
 
 /**
@@ -66,13 +67,35 @@ export type PaktAutoArgs = PaktAutoArgsFromContract;
 export type PaktAutoResult = PaktAutoResultFromContract;
 export type PaktInspectArgs = PaktInspectArgsFromContract;
 export type PaktInspectResult = PaktInspectResultFromContract;
+export type PaktStatsArgs = PaktStatsArgsFromContract;
+/**
+ * MCP-facing stats result. Nested objects are serialized as JSON strings
+ * to conform to the flat contract outputSchema.
+ */
+export interface PaktStatsResult {
+  sessionDuration: string;
+  totalCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalSavedTokens: number;
+  overallSavingsPercent: number;
+  callsByAction: string;
+  byFormat: string;
+  topFormat?: string;
+  estimatedCostSaved?: string;
+  lastCallAt?: string;
+}
 
 /** Union of all valid MCP tool names exposed by PAKT. */
 export type PaktToolName = PaktContractToolName;
 
 /** Union of all valid MCP tool argument types. */
-export type PaktToolArgs = PaktCompressArgs | PaktAutoArgs | PaktInspectArgs;
+export type PaktToolArgs = PaktCompressArgs | PaktAutoArgs | PaktInspectArgs | PaktStatsArgs;
 
 /** Union of all valid MCP tool result types. */
-export type PaktToolResult = PaktCompressResult | PaktAutoResult | PaktInspectResult;
+export type PaktToolResult =
+  | PaktCompressResult
+  | PaktAutoResult
+  | PaktInspectResult
+  | PaktStatsResult;
 export type { PaktMcpContract };

@@ -4,8 +4,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { registerPaktTools } from '../src/mcp/server.js';
+import { resetSessionStats } from '../src/mcp/session-stats.js';
 
 type Harness = {
   close: () => Promise<void>;
@@ -85,6 +86,10 @@ function extractJsonText(result: { content: Array<{ type: string; text?: string 
   return JSON.parse(textContent!.text!);
 }
 
+beforeEach(() => {
+  resetSessionStats();
+});
+
 afterEach(async () => {
   while (openHarnesses.length > 0) {
     const harness = openHarnesses.pop();
@@ -101,7 +106,7 @@ describe('cli-serve MCP transport', () => {
     const result = await client.listTools();
     const names = result.tools.map((tool) => tool.name).sort();
 
-    expect(names).toEqual(['pakt_auto', 'pakt_compress', 'pakt_inspect']);
+    expect(names).toEqual(['pakt_auto', 'pakt_compress', 'pakt_inspect', 'pakt_stats']);
   });
 
   it('returns structured tool results over the SDK transport', async () => {
@@ -186,7 +191,7 @@ describe('cli-serve MCP transport', () => {
     const listed = await client.listTools();
     const toolNames = listed.tools.map((tool) => tool.name).sort();
 
-    expect(toolNames).toEqual(['pakt_auto', 'pakt_compress', 'pakt_inspect']);
+    expect(toolNames).toEqual(['pakt_auto', 'pakt_compress', 'pakt_inspect', 'pakt_stats']);
 
     const result = await client.callTool({
       name: 'pakt_inspect',
@@ -201,4 +206,76 @@ describe('cli-serve MCP transport', () => {
     expect(result.isError).not.toBe(true);
     expect(parsed.recommendedAction).toBe('leave-as-is');
   }, 40_000);
+
+  it('returns empty stats when no calls have been made', async () => {
+    const { client } = await createInMemoryHarness();
+    const result = await client.callTool({
+      name: 'pakt_stats',
+      arguments: {},
+    });
+
+    expect(result.isError).not.toBe(true);
+
+    const parsed = extractJsonText(result) as {
+      totalCalls: number;
+      totalSavedTokens: number;
+      lastCallAt?: string;
+    };
+
+    expect(parsed.totalCalls).toBe(0);
+    expect(parsed.totalSavedTokens).toBe(0);
+    expect(parsed.lastCallAt).toBeUndefined();
+  });
+
+  it('accumulates stats across compress calls then reports via pakt_stats', async () => {
+    const { client } = await createInMemoryHarness();
+
+    // Make two compress calls
+    await client.callTool({
+      name: 'pakt_compress',
+      arguments: {
+        text: '{"users":[{"name":"Alice","role":"dev"},{"name":"Bob","role":"pm"}]}',
+        format: 'json',
+      },
+    });
+    await client.callTool({
+      name: 'pakt_compress',
+      arguments: {
+        text: 'id,name,role\n1,Alice,dev\n2,Bob,pm',
+        format: 'csv',
+      },
+    });
+
+    // Query stats
+    const result = await client.callTool({
+      name: 'pakt_stats',
+      arguments: {},
+    });
+
+    expect(result.isError).not.toBe(true);
+
+    const parsed = extractJsonText(result) as {
+      totalCalls: number;
+      callsByAction: string;
+      totalInputTokens: number;
+      totalSavedTokens: number;
+      overallSavingsPercent: number;
+      byFormat: string;
+      topFormat?: string;
+      lastCallAt?: string;
+    };
+
+    expect(parsed.totalCalls).toBe(2);
+    expect(parsed.totalInputTokens).toBeGreaterThan(0);
+
+    const callsByAction = JSON.parse(parsed.callsByAction) as { compress: number };
+    expect(callsByAction.compress).toBe(2);
+
+    const byFormat = JSON.parse(parsed.byFormat) as Record<string, { calls: number }>;
+    expect(byFormat['json']?.calls).toBe(1);
+    expect(byFormat['csv']?.calls).toBe(1);
+
+    expect(parsed.topFormat).toBeTruthy();
+    expect(parsed.lastCallAt).toBeTruthy();
+  });
 });

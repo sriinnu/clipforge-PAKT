@@ -1,6 +1,7 @@
 {
   "name": "@sriinnu/clipforge-pakt",
   "private": true,
+  "version": "0.6.2",
   "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
@@ -29,7 +30,8 @@
     "dev:desktop:web": "pnpm --filter @sriinnu/clipforge-desktop dev",
     "dev:desktop": "pnpm --filter @sriinnu/clipforge-desktop tauri dev",
     "start:mcp": "pnpm --filter @sriinnu/pakt build && node packages/pakt-core/dist/cli.js serve --stdio",
-    "lint": "biome check . || true",
+    "lint": "biome check .",
+    "lint:advisory": "biome check . || true",
     "lint:strict": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -37,10 +39,16 @@
     "nuke": "find . -name 'node_modules' -not -path '*/.git/*' -prune -exec rm -rf {} + ; find . -name 'dist' -not -path '*/.git/*' -not -path '*/node_modules/*' -prune -exec rm -rf {} + ; find . -name 'target' -not -path '*/.git/*' -not -path '*/node_modules/*' -prune -exec rm -rf {} + ; rm -rf .turbo",
     "fresh": "pnpm nuke && pnpm install && pnpm build"
   },
+  "pnpm": {
+    "overrides": {
+      "rollup": ">=4.59.0",
+      "path-to-regexp": ">=8.4.0"
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/node": "^25.5.0",
-    "turbo": "^2.9.3",
+    "@types/node": "^25.5.2",
+    "turbo": "^2.9.4",
     "typescript": "^6.0.2"
   }
 }

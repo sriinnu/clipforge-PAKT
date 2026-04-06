@@ -143,7 +143,8 @@ export function detect(input: string): DetectionResult {
   if (candidates.length > 0) {
     candidates.sort((a, b) => b.confidence - a.confidence);
     const winner = candidates[0];
-    if (!winner) return null;
+    if (!winner)
+      return { format: 'text', confidence: 0.5, reason: 'No structured format detected' };
     return {
       format: winner.format,
       confidence: winner.confidence,

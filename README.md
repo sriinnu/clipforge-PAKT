@@ -203,6 +203,29 @@ CLI/MCP note:
 - `semanticBudget` now cleanly opts into lossy `L4`; if you stay on `L1-L3`, the pipeline remains lossless.
 - `pakt serve --stdio` now uses the official MCP SDK stdio transport, and embedders can register the same tools programmatically via `registerPaktTools()`.
 
+### Session Stats (0.6.2)
+
+Track token savings across sessions with persistent, multi-agent support.
+
+**MCP tool:** `pakt_stats` returns compression metrics. Use `scope: 'session'` for the current process (fast, default) or `scope: 'all'` to aggregate across all agents from disk.
+
+**CLI:** `pakt stats` has two modes:
+
+```bash
+pakt stats data.json             # single-shot stats for one file
+pakt stats                       # aggregate from persistent storage
+pakt stats --today               # filter to today
+pakt stats --week                # filter to last 7 days
+pakt stats --agent research      # filter by agent name
+pakt stats --active              # only running agents
+pakt stats --compact             # archive old sessions
+pakt stats --reset               # clear all stats
+```
+
+**Named agents:** `pakt serve --stdio --agent-name research` names the session for filtering.
+
+Stats are persisted as per-agent JSONL files in `~/.pakt/stats/`. Each MCP server writes to its own file -- zero contention across 10+ concurrent agents. Old sessions are lazily compacted into daily summaries.
+
 ---
 
 ## Key Features
@@ -213,8 +236,9 @@ CLI/MCP note:
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
 - **Lossless data round-tripping** -- L1-L3 preserve data fidelity on decompress; L4 is explicitly lossy
 - **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
-- **CLI included** -- `pakt compress`, `pakt decompress`, `pakt auto`, `pakt inspect`, `pakt detect`, `pakt tokens`, `pakt savings`
-- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, and `pakt_inspect` over the official MCP SDK stdio transport for agent workflows
+- **Session stats** *(new in 0.6.2)* -- `pakt_stats` MCP tool and `pakt stats` CLI for real-time token savings tracking with persistent multi-agent support
+- **CLI included** -- `pakt compress`, `pakt decompress`, `pakt auto`, `pakt inspect`, `pakt detect`, `pakt tokens`, `pakt savings`, `pakt stats`
+- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, and `pakt_stats` over the official MCP SDK stdio transport for agent workflows
 - **Embeddable MCP tools** -- `registerPaktTools()` lets other MCP hosts add the same PAKT toolset without reimplementing schemas or handlers
 - **Small runtime dependency set** -- `gpt-tokenizer`, the MCP SDK, and `zod`
 - **Full TypeScript support** -- All types exported, dual ESM/CJS builds
