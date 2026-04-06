@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - os: macos-14
-            label: macOS-ARM
+            label: macOS-Silicon
             rust-target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
           - os: macos-13

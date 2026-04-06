@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - os: macos-14
-            label: macOS-ARM
+            label: macOS-Silicon
           - os: macos-13
             label: macOS-Intel
           - os: windows-latest
