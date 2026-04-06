@@ -33,9 +33,12 @@ export function formatScalar(scalar: ScalarNode): string {
   }
 }
 
-/** Format a tabular cell, quoting values that contain pipe characters. */
+/** Format a tabular cell, quoting values that contain pipes or spaces. */
 export function formatTabularCell(scalar: ScalarNode): string {
-  if (scalar.scalarType === 'string' && scalar.value.includes('|')) {
+  if (
+    scalar.scalarType === 'string' &&
+    (scalar.value.includes('|') || scalar.value.includes(' '))
+  ) {
     return quoteString(scalar.value);
   }
   return formatScalar(scalar);

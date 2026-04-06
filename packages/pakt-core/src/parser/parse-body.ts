@@ -41,6 +41,7 @@ import {
  * @param indent - Minimum indentation level for this body block
  * @returns Array of parsed body nodes
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: body parsing dispatches across multiple node types with indent tracking
 export function parseBody(s: ParserState, indent: number): BodyNode[] {
   const nodes: BodyNode[] = [];
   while (peek(s).type !== 'EOF') {
@@ -73,7 +74,7 @@ export function parseBody(s: ParserState, indent: number): BodyNode[] {
       continue;
     }
     if (cur.type === 'DICT_START' || cur.type === 'DICT_END' || cur.type === 'DASH') break;
-    if (cur.type === 'KEY') {
+    if (cur.type === 'KEY' || cur.type === 'QUOTED_STRING') {
       const node = parseKeyedNode(s, indent);
       if (node) nodes.push(node);
       continue;
@@ -95,9 +96,14 @@ export function parseBody(s: ParserState, indent: number): BodyNode[] {
  * @param currentIndentLevel - Indentation level of the current line
  * @returns Parsed body node, or null on error
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: keyed node parsing determines type from lookahead tokens
 function parseKeyedNode(s: ParserState, currentIndentLevel: number): BodyNode | null {
   const keyTok = advance(s);
-  const key = keyTok.value;
+  // Quoted keys: strip surrounding quotes and unescape
+  const key =
+    keyTok.type === 'QUOTED_STRING'
+      ? keyTok.value.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      : keyTok.value;
   const startPos = posOf(keyTok);
 
   // Array annotation: key [N]...
@@ -190,6 +196,7 @@ function parseArrayNode(
  * @param indent - Current indentation level
  * @returns Parsed tabular array node
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: tabular array parsing handles field headers and multi-row scanning
 function parseTabularArray(
   s: ParserState,
   key: string,
@@ -294,6 +301,7 @@ function parseInlineArray(
  * @param indent - Current indentation level
  * @returns Parsed list array node
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: list array parsing tracks dash-items with nested body recursion
 function parseListArray(
   s: ParserState,
   key: string,

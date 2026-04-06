@@ -60,6 +60,7 @@ export function useCompression(
     handlers;
 
   const runCompress = useCallback(
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: compression hook manages multiple async states
     (text: string, isAuto = false, onAutoNotice?: () => void) => {
       if (!text.trim() || processing || !settings) return;
       setStatusMsg(null);

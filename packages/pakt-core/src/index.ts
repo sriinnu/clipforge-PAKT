@@ -28,7 +28,7 @@
  */
 
 /** Library version */
-export const VERSION = '0.6.2';
+export const VERSION = '0.7.0';
 
 // ---------------------------------------------------------------------------
 // Core functions
@@ -139,6 +139,8 @@ export {
   recordCall,
   getSessionStats,
   resetSessionStats,
+  dedupCache,
+  resetDedupCache,
 } from './mcp/index.js';
 export type {
   PaktMcpContract,
@@ -159,6 +161,8 @@ export type {
   CallRecord,
   SessionStatsResult,
   FormatStats,
+  DedupEntry,
+  DedupStats,
 } from './mcp/index.js';
 
 // ---------------------------------------------------------------------------

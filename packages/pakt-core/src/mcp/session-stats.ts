@@ -106,6 +106,7 @@ export class SessionStats {
   }
 
   /** Compute aggregate stats for the session. */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: stats aggregation computes per-format and per-action breakdowns in a single pass
   getStats(model?: string): SessionStatsResult {
     const resolvedModel = model ?? 'gpt-4o';
     const now = Date.now();

@@ -29,6 +29,7 @@ import type { Candidate } from './types.js';
  * @param lines - Pre-split lines of `input`
  * @returns A candidate with confidence 0.6-0.85, or `null`
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: YAML detection with multi-pattern heuristic analysis
 export function detectYaml(input: string, lines: string[]): Candidate | null {
   const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
   if (nonEmptyLines.length === 0) return null;

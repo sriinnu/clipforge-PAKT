@@ -189,6 +189,7 @@ function getResultBadges(item: ComparisonItem): string[] {
   return ['Source'];
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: React component with multiple UI states and event handlers
 export default function App() {
   const initialSample = samples[0];
   const [viewMode, setViewMode] = useState<ViewMode>('playground');
@@ -477,6 +478,7 @@ export default function App() {
     setInput(nextValue);
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: orchestrates multi-step compression with validation and error handling
   async function handleCompress(): Promise<void> {
     if (!input.trim() || !semanticBudgetValid) return;
     if (packedInputDetected) {

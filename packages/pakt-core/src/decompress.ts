@@ -8,7 +8,12 @@
  * requested format.
  */
 
-import { decompressL2, reverseL3Transforms, revertDeltaEncoding } from './layers/index.js';
+import {
+  decompressL2,
+  decompressText,
+  reverseL3Transforms,
+  revertDeltaEncoding,
+} from './layers/index.js';
 import type { CommentNode, DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
 import { bodyToValue, toCsv, toJson, toMarkdown, toText, toYaml } from './reverse/index.js';
@@ -98,6 +103,28 @@ export function decompress(pakt: string, outputFormat?: PaktFormat): DecompressR
  * @returns Decompressed data and formatted text
  */
 function decompressPipeline(pakt: string, outputFormat?: PaktFormat): DecompressResult {
+  // 0a. If the input doesn't look like PAKT, return it unchanged.
+  // Real PAKT always starts with @from <format> or @version on the first line.
+  // This prevents false decompression of text that happens to contain @-prefixed words.
+  const trimmed = pakt.trimStart();
+  // Match detection logic: @from requires a valid format, @version requires a second signal
+  const isPaktSignature = /^@from\s+(json|yaml|csv|text|markdown|pakt)\b/.test(trimmed);
+  if (!isPaktSignature) {
+    return { data: pakt, text: pakt, originalFormat: 'text', wasLossy: false };
+  }
+
+  // 0b. Check for text/markdown compression (bypasses AST parser entirely)
+  const textFormatMatch = /^@from (text|markdown)\n/.exec(trimmed);
+  if (textFormatMatch) {
+    const expandedText = decompressText(pakt);
+    return {
+      data: expandedText,
+      text: expandedText,
+      originalFormat: textFormatMatch[1] as PaktFormat,
+      wasLossy: false,
+    };
+  }
+
   // 1. Reverse L3 tokenizer transforms if applied (before parsing)
   const normalizedPakt = reverseL3Transforms(pakt);
 

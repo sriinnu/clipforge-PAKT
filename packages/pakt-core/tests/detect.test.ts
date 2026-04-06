@@ -90,8 +90,8 @@ describe('PAKT detection', () => {
     expectFormat(input, 'pakt', 1.0);
   });
 
-  it('detects @dict header', () => {
-    const input = '@dict\n$a=developer\n$b=designer\nrole:$a';
+  it('detects @dict header with @from', () => {
+    const input = '@from json\n@dict\n$a=developer\n$b=designer\nrole:$a';
     expectFormat(input, 'pakt', 1.0);
   });
 
@@ -100,13 +100,13 @@ describe('PAKT detection', () => {
     expectFormat(input, 'pakt', 1.0);
   });
 
-  it('detects @compress header', () => {
-    const input = '@compress L1+L2\ndata|here';
+  it('detects @compress header with second PAKT signal', () => {
+    const input = '@compress L1+L2\n@from json\ndata|here';
     expectFormat(input, 'pakt', 1.0);
   });
 
-  it('detects @warning header', () => {
-    const input = '@warning lossy\nsome compressed data';
+  it('detects @warning header with second PAKT signal', () => {
+    const input = '@warning lossy\n@from json\nsome compressed data';
     expectFormat(input, 'pakt', 1.0);
   });
 

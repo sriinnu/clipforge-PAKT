@@ -124,6 +124,7 @@ function analyzeStructure(data: unknown): StructureAnalysis {
   const schemas: string[][] = [];
   let valuesFull = false;
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: recursive walk collects values and schemas in a single pass
   function walk(node: unknown): void {
     if (node === null || node === undefined) return;
 
@@ -327,6 +328,7 @@ function scoreToProfile(score: number): PaktLayerProfileId {
  * ```
  *
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: compressibility scoring combines multiple weighted factors
 export function estimateCompressibility(input: string): CompressibilityResult {
   const detection = detect(input);
 

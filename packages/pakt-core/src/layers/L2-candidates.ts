@@ -57,6 +57,7 @@ export interface AliasCandidate {
  * @param minSavings - Minimum net token savings threshold
  * @returns Array of prefix alias candidates
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: prefix detection uses sorted-adjacency scan with dominance pruning
 export function findPrefixCandidates(
   values: string[],
   exactDups: ReadonlySet<string>,
@@ -146,6 +147,7 @@ export function findPrefixCandidates(
  * @param minSavings - Minimum net token savings threshold
  * @returns Array of suffix alias candidates
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: suffix detection mirrors prefix with reverse-sort scan
 export function findSuffixCandidates(
   values: string[],
   exactDups: ReadonlySet<string>,
@@ -240,6 +242,7 @@ export function findSuffixCandidates(
  * @param minSavings - Minimum net token savings threshold
  * @returns Array of substring alias candidates
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: substring mining uses multi-window sliding scan
 export function findSubstringCandidates(
   values: string[],
   existingPatterns: ReadonlySet<string>,

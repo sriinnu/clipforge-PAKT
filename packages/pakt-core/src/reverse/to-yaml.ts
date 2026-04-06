@@ -106,14 +106,12 @@ function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number
   }
 }
 
-/** Emit an inline array as a YAML sequence. */
+/** Emit an inline array as a YAML flow sequence (e.g., key: [val1, val2]). */
 function emitInlineArray(node: InlineArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const values = inlineToArray(node);
-  lines.push(`${prefix}${node.key}:`);
-  for (const val of values) {
-    lines.push(`${indent(depth + 1)}- ${formatYamlValue(val)}`);
-  }
+  const formatted = values.map((val) => formatYamlValue(val));
+  lines.push(`${prefix}${node.key}: [${formatted.join(', ')}]`);
 }
 
 /** Emit a list array as a YAML sequence of mappings. */
@@ -135,6 +133,7 @@ function emitYamlMapping(obj: Record<string, unknown>, lines: string[], depth: n
   const keys = Object.keys(obj);
 
   for (let i = 0; i < keys.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const key = keys[i]!;
     const val = obj[key];
     if (i === 0) {
