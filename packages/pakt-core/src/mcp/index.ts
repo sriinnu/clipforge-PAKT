@@ -33,6 +33,7 @@ export {
 } from './contract.js';
 
 export { registerPaktTools } from './server.js';
+export type { PaktToolOptions } from './server.js';
 export { handlePaktTool, PaktToolInputError } from './handler.js';
 export {
   recordCall,
@@ -61,3 +62,6 @@ export type {
 } from './types.js';
 
 export type { CallRecord, SessionStatsResult, FormatStats } from './session-stats.js';
+
+export { dedupCache, resetDedupCache } from './dedup-cache.js';
+export type { DedupEntry, DedupStats } from './dedup-cache.js';

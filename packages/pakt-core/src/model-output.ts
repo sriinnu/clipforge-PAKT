@@ -26,6 +26,7 @@ const FENCED_BLOCK_RE = /```[^\n`]*\n([\s\S]*?)```/g;
  * @param options - Output/repair options
  * @returns Interpretation result describing whether decompression occurred
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: output interpretation handles multiple detection paths and fallback strategies
 export function interpretModelOutput(
   response: string,
   options?: Partial<ModelOutputOptions>,

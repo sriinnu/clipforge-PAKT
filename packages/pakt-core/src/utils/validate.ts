@@ -40,6 +40,7 @@ export { repair } from './repair.js';
  * console.log(result.valid); // true
  * ```
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: validation walks all line types tracking headers, dict, tabular, and alias state
 export function validate(pakt: string): ValidationResult {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
@@ -63,6 +64,7 @@ export function validate(pakt: string): ValidationResult {
   let tabularHeaderLine = -1;
 
   for (let i = 0; i < lines.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const line = lines[i]!;
     const lineNum = i + 1;
 
@@ -181,6 +183,7 @@ export function validate(pakt: string): ValidationResult {
     if (dictOpen) {
       const entryMatch = trimmed.match(/^(\$\w+)\s*:\s*(.*)$/);
       if (entryMatch) {
+        // biome-ignore lint/style/noNonNullAssertion: capture group 1 always exists when regex matches
         definedAliases.set(entryMatch[1]!, lineNum);
       }
       continue;
@@ -210,7 +213,9 @@ export function validate(pakt: string): ValidationResult {
     const tabMatch = trimmed.match(/^(\w[\w.]*)\s*\[(\d+)\]\s*\{([^}]+)\}\s*:$/);
     if (tabMatch) {
       inTabular = true;
+      // biome-ignore lint/style/noNonNullAssertion: capture group always exists when regex matches
       tabularKey = tabMatch[1]!;
+      // biome-ignore lint/style/noNonNullAssertion: capture group always exists when regex matches
       tabularDeclaredCount = Number.parseInt(tabMatch[2]!, 10);
       tabularFields = tabMatch[3]?.split('|').map((f) => f.trim()) ?? [];
       tabularActualCount = 0;
@@ -222,6 +227,7 @@ export function validate(pakt: string): ValidationResult {
     // ---- Detect inline array ----------------------------------------------
     const inlineMatch = trimmed.match(/^(\w[\w.]*)\s*\[(\d+)\]\s*:\s*(.+)$/);
     if (inlineMatch) {
+      // biome-ignore lint/style/noNonNullAssertion: capture group always exists when regex matches
       const declaredCount = Number.parseInt(inlineMatch[2]!, 10);
       const items = (inlineMatch[3] ?? '').split(',').map((v) => v.trim());
       if (items.length !== declaredCount) {
@@ -239,7 +245,9 @@ export function validate(pakt: string): ValidationResult {
     // ---- Detect list array header (key [N]:) ------------------------------
     const listMatch = trimmed.match(/^(\w[\w.]*)\s*\[(\d+)\]\s*:$/);
     if (listMatch) {
+      // biome-ignore lint/style/noNonNullAssertion: capture group always exists when regex matches
       const listKey = listMatch[1]!;
+      // biome-ignore lint/style/noNonNullAssertion: capture group always exists when regex matches
       const declaredCount = Number.parseInt(listMatch[2]!, 10);
       const actualCount = countListItems(lines, i + 1, leadingSpaces);
       if (actualCount !== declaredCount) {
@@ -346,6 +354,7 @@ function countPipeFields(row: string): number {
   let count = 1;
   let inQuote = false;
   for (let i = 0; i < row.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const ch = row[i]!;
     if (ch === '"') inQuote = !inQuote;
     else if (ch === '\\' && inQuote && i + 1 < row.length) i++;
@@ -358,6 +367,7 @@ function countPipeFields(row: string): number {
 function countListItems(lines: string[], startIdx: number, parentIndent: number): number {
   let count = 0;
   for (let i = startIdx; i < lines.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const line = lines[i]!;
     const trimmed = line.trim();
     if (trimmed === '') continue;

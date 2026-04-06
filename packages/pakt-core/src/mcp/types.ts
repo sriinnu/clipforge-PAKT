@@ -84,6 +84,9 @@ export interface PaktStatsResult {
   topFormat?: string;
   estimatedCostSaved?: string;
   lastCallAt?: string;
+  dedupHits?: number;
+  dedupEntries?: number;
+  totalCompoundingSavings?: number;
 }
 
 /** Union of all valid MCP tool names exposed by PAKT. */

@@ -23,7 +23,9 @@ export function computeColumnWidths(rows: TabularRowNode[], colCount: number): n
   const widths = new Array<number>(colCount).fill(0);
   for (const row of rows) {
     for (let c = 0; c < row.values.length && c < colCount; c++) {
+      // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
       const w = formatTabularCell(row.values[c]!).length;
+      // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
       if (w > widths[c]!) widths[c] = w;
     }
   }
@@ -49,6 +51,7 @@ export function emitAlignedRow(
 ): void {
   const cells: string[] = [];
   for (let c = 0; c < row.values.length; c++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const raw = formatTabularCell(row.values[c]!);
     // Pad all columns except the last
     cells.push(c < row.values.length - 1 ? raw.padEnd(widths[c] ?? 0) : raw);

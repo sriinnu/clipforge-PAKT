@@ -55,6 +55,7 @@ export interface EnvelopeDetection {
  * @param input - Full raw input text
  * @returns Envelope info with preamble, body, and byte offset, or `null`
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: HTTP envelope detection with header parsing
 export function detectEnvelope(input: string): EnvelopeDetection | null {
   const lines = input.split('\n');
 

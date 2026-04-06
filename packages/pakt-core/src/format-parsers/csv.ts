@@ -29,6 +29,7 @@ const CSV_DELIMITERS = [',', '\t', ';'] as const;
  * // ['Alice', 'New York', '30']
  * ```
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: CSV parser implements a state machine for quoted fields
 export function splitCsvLine(line: string, delim: string): string[] {
   const fields: string[] = [];
   let current = '';

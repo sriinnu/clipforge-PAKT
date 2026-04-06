@@ -48,7 +48,7 @@ describe('SessionStats', () => {
     expect(result.totalOutputTokens).toBe(30);
     expect(result.totalSavedTokens).toBe(70);
     expect(result.overallSavingsPercent).toBe(70);
-    expect(result.byFormat['json']?.calls).toBe(1);
+    expect(result.byFormat.json?.calls).toBe(1);
     expect(result.topFormat?.format).toBe('json');
     expect(result.lastCallAt).toBeTruthy();
   });
@@ -94,13 +94,13 @@ describe('SessionStats', () => {
     // Weighted savings: 620/800 = 77.5% → rounds to 78
     expect(result.overallSavingsPercent).toBe(78);
 
-    expect(result.byFormat['json']?.calls).toBe(2);
-    expect(result.byFormat['csv']?.calls).toBe(1);
+    expect(result.byFormat.json?.calls).toBe(2);
+    expect(result.byFormat.csv?.calls).toBe(1);
 
     // json: 200/300 saved → 67%
-    expect(result.byFormat['json']?.avgSavingsPercent).toBe(67);
+    expect(result.byFormat.json?.avgSavingsPercent).toBe(67);
     // csv: 420/500 → 84%
-    expect(result.byFormat['csv']?.avgSavingsPercent).toBe(84);
+    expect(result.byFormat.csv?.avgSavingsPercent).toBe(84);
   });
 
   it('computes weighted savings, not arithmetic average', () => {

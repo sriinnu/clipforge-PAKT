@@ -5,6 +5,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { resetDedupCache } from '../src/mcp/dedup-cache.js';
 import { registerPaktTools } from '../src/mcp/server.js';
 import { resetSessionStats } from '../src/mcp/session-stats.js';
 
@@ -88,6 +89,7 @@ function extractJsonText(result: { content: Array<{ type: string; text?: string 
 
 beforeEach(() => {
   resetSessionStats();
+  resetDedupCache();
 });
 
 afterEach(async () => {
@@ -272,10 +274,90 @@ describe('cli-serve MCP transport', () => {
     expect(callsByAction.compress).toBe(2);
 
     const byFormat = JSON.parse(parsed.byFormat) as Record<string, { calls: number }>;
-    expect(byFormat['json']?.calls).toBe(1);
-    expect(byFormat['csv']?.calls).toBe(1);
+    expect(byFormat.json?.calls).toBe(1);
+    expect(byFormat.csv?.calls).toBe(1);
 
     expect(parsed.topFormat).toBeTruthy();
     expect(parsed.lastCallAt).toBeTruthy();
+  });
+
+  it('returns belowThreshold for tiny inputs via pakt_auto', async () => {
+    const { client } = await createInMemoryHarness();
+    const result = await client.callTool({
+      name: 'pakt_auto',
+      arguments: { text: 'hi' },
+    });
+
+    expect(result.isError).not.toBe(true);
+
+    const parsed = extractJsonText(result) as {
+      action: string;
+      savings: number;
+      belowThreshold?: boolean;
+    };
+
+    expect(parsed.action).toBe('compressed');
+    expect(parsed.savings).toBe(0);
+    expect(parsed.belowThreshold).toBe(true);
+  });
+
+  it('returns dedupHit on second identical pakt_auto call', async () => {
+    const { client } = await createInMemoryHarness();
+    const largeJson =
+      '[{"id":1,"name":"Alice Johnson","role":"developer","dept":"Engineering","salary":95000},' +
+      '{"id":2,"name":"Bob Smith","role":"pm","dept":"Engineering","salary":105000},' +
+      '{"id":3,"name":"Carol Williams","role":"designer","dept":"Design","salary":88000},' +
+      '{"id":4,"name":"Dave Brown","role":"qa","dept":"QA","salary":87000},' +
+      '{"id":5,"name":"Eve Davis","role":"lead","dept":"Engineering","salary":120000}]';
+
+    // First call — compression pipeline runs
+    const first = await client.callTool({
+      name: 'pakt_auto',
+      arguments: { text: largeJson },
+    });
+    expect(first.isError).not.toBe(true);
+    const firstParsed = extractJsonText(first) as { result: string; dedupHit?: boolean };
+    expect(firstParsed.dedupHit).toBeUndefined();
+
+    // Second call with identical input — dedup cache hit
+    const second = await client.callTool({
+      name: 'pakt_auto',
+      arguments: { text: largeJson },
+    });
+    expect(second.isError).not.toBe(true);
+    const secondParsed = extractJsonText(second) as { result: string; dedupHit?: boolean };
+    expect(secondParsed.dedupHit).toBe(true);
+    expect(secondParsed.result).toBe(firstParsed.result);
+  });
+
+  it('pakt_stats includes compounding savings after pakt_auto calls', async () => {
+    const { client } = await createInMemoryHarness();
+    const largeJson =
+      '[{"id":1,"name":"Alice","role":"dev","salary":95000},' +
+      '{"id":2,"name":"Bob","role":"pm","salary":105000},' +
+      '{"id":3,"name":"Carol","role":"designer","salary":88000}]';
+
+    // Make a few calls to build up turns
+    await client.callTool({ name: 'pakt_auto', arguments: { text: largeJson } });
+    await client.callTool({
+      name: 'pakt_auto',
+      arguments: { text: 'just a short text for turn count' },
+    });
+    await client.callTool({ name: 'pakt_auto', arguments: { text: 'another turn' } });
+
+    const result = await client.callTool({
+      name: 'pakt_stats',
+      arguments: {},
+    });
+
+    expect(result.isError).not.toBe(true);
+    const parsed = extractJsonText(result) as {
+      dedupHits?: number;
+      dedupEntries?: number;
+      totalCompoundingSavings?: number;
+    };
+
+    expect(parsed.dedupEntries).toBeGreaterThanOrEqual(1);
+    expect(typeof parsed.totalCompoundingSavings).toBe('number');
   });
 });

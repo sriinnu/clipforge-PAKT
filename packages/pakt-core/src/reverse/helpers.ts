@@ -199,6 +199,7 @@ export function bodyToValue(nodes: BodyNode[]): unknown {
 
   // Special case: unwrap _root wrapper for root-level arrays
   if (dataNodes.length === 1) {
+    // biome-ignore lint/style/noNonNullAssertion: length checked on previous line
     const first = dataNodes[0]!;
     if (
       (first.type === 'tabularArray' ||

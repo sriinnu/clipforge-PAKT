@@ -24,6 +24,7 @@ export { parseCsv, splitCsvLine, detectCsvDelimiter, inferCsvValue } from './csv
  * @param text - JSONC source text
  * @returns JSON text with comments removed
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: JSONC comment stripping with string-literal-aware state machine
 export function stripJsonComments(text: string): string {
   let result = '';
   let i = 0;

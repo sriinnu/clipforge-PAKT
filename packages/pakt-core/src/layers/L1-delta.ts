@@ -176,6 +176,7 @@ export function computeDeltaRatio(node: TabularArrayNode): number {
  * @returns New tabular array with delta-encoded rows, or the original
  *          node unchanged if delta encoding is not beneficial
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: delta encoding traverses rows with format-specific branches
 function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
   if (node.rows.length < MIN_DELTA_ROWS) return node;
 
@@ -303,6 +304,7 @@ export function applyDeltaEncoding(doc: DocumentNode): DocumentNode {
  * @param node - Delta-encoded tabular array node
  * @returns Tabular array with all sentinels resolved to real values
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: delta decoding resolves sentinels across rows with type-aware logic
 function deltaDecodeTabular(node: TabularArrayNode): {
   node: TabularArrayNode;
   resolvedAllSentinels: boolean;

@@ -141,8 +141,10 @@ export function scanQuotedString(
   let i = start + 1; // skip opening quote
   let value = '';
   while (i < line.length) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by while condition
     const ch = line[i]!;
     if (ch === '\\' && i + 1 < line.length) {
+      // biome-ignore lint/style/noNonNullAssertion: i+1 checked above
       const next = line[i + 1]!;
       switch (next) {
         case '\\':
@@ -200,6 +202,7 @@ export function scanWord(
 ): { token: Token; end: number } {
   let i = start;
   // Read until we hit a structural delimiter or space
+  // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by while condition
   while (i < line.length && !isDelimiter(line[i]!)) {
     i++;
   }
@@ -250,6 +253,7 @@ export function isDelimiter(ch: string): boolean {
 export function findInlineComment(text: string): number {
   let inQuote = false;
   for (let i = 0; i < text.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
     const ch = text[i]!;
     if (ch === '"') {
       inQuote = !inQuote;

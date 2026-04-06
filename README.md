@@ -226,6 +226,25 @@ pakt stats --reset               # clear all stats
 
 Stats are persisted as per-agent JSONL files in `~/.pakt/stats/`. Each MCP server writes to its own file -- zero contention across 10+ concurrent agents. Old sessions are lazily compacted into daily summaries.
 
+### Auto Context Compression (0.7)
+
+PAKT automatically compresses data on every MCP tool call to reduce conversation context size. Compressed data stays in context and saves tokens on every subsequent turn.
+
+- **Content-addressed dedup** -- SHA-256 hash cache (10MB byte-budget LRU) avoids re-compressing identical data
+- **Text compression** -- line dedup + word n-gram dictionary. 57% savings on logs, 38% on repetitive text, 69% on identical lines
+- **Whitespace normalization** -- trailing spaces, blank line runs stored as metadata for lossless restoration
+- **Configurable tool description** -- `registerPaktTools(server, { autoDescription: '...' })` controls how aggressively the LLM uses auto-compression
+- **Safe detection** -- `@from John` and `@warning chemicals` correctly detected as text, not PAKT. No false positives on `@username`, `@Override`, email headers
+- **Input size caps** -- 512KB for auto, 1MB for explicit compress, 100KB for text compression. Prevents CPU DoS
+
+| Input Type | Savings | Round-trip |
+|---|---|---|
+| JSON 10 records | 27% | Lossless |
+| JSON 50 records | 33% | Lossless |
+| Log lines (duplicates) | 57% | Lossless |
+| Repetitive text | 38-69% | Lossless |
+| Normal prose (no repetition) | 0% (passthrough) | Safe |
+
 ---
 
 ## Key Features
@@ -236,6 +255,7 @@ Stats are persisted as per-agent JSONL files in `~/.pakt/stats/`. Each MCP serve
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
 - **Lossless data round-tripping** -- L1-L3 preserve data fidelity on decompress; L4 is explicitly lossy
 - **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
+- **Auto context compression** *(new in 0.7)* -- content-addressed dedup, text line dedup, word n-gram dictionary, whitespace normalization. 57% on logs, 38-69% on repetitive text
 - **Session stats** *(new in 0.6.2)* -- `pakt_stats` MCP tool and `pakt stats` CLI for real-time token savings tracking with persistent multi-agent support
 - **CLI included** -- `pakt compress`, `pakt decompress`, `pakt auto`, `pakt inspect`, `pakt detect`, `pakt tokens`, `pakt savings`, `pakt stats`
 - **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, and `pakt_stats` over the official MCP SDK stdio transport for agent workflows
