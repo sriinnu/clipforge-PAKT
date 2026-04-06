@@ -7,8 +7,8 @@
  * TypeScript types, and SDK registration all derive from these contracts.
  */
 
-import { PAKT_FORMAT_VALUES } from '../formats.js';
 import * as z from 'zod/v4';
+import { PAKT_FORMAT_VALUES } from '../formats.js';
 const AUTO_ACTION_VALUES = ['compressed', 'decompressed'] as const;
 const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is'] as const;
 
@@ -371,10 +371,84 @@ export const PAKT_INSPECT_CONTRACT = defineToolContract({
   },
 });
 
+export const PAKT_STATS_CONTRACT = defineToolContract({
+  name: 'pakt_stats',
+  description: [
+    'Return session-level compression statistics.',
+    'Shows total calls, token savings, format breakdown, cost estimates,',
+    'and session duration. Call with no arguments to see the current session report.',
+  ].join(' '),
+  inputFields: {
+    model: {
+      type: 'string',
+      description: 'Optional model identifier for cost estimation (default: gpt-4o).',
+      minLength: 1,
+      required: false,
+    },
+    scope: {
+      type: 'string',
+      description:
+        'Stats scope: "session" (current process, fast, default) or "all" (persistent stats across all agents, reads disk).',
+      enum: ['session', 'all'] as const,
+      required: false,
+    },
+  },
+  outputFields: {
+    sessionDuration: {
+      type: 'string',
+      description: 'Human-readable session duration (e.g., "14m 32s").',
+    },
+    totalCalls: {
+      type: 'number',
+      description: 'Total number of tool calls in this session.',
+    },
+    totalInputTokens: {
+      type: 'number',
+      description: 'Total input tokens processed across all calls.',
+    },
+    totalOutputTokens: {
+      type: 'number',
+      description: 'Total output tokens produced across all calls.',
+    },
+    totalSavedTokens: {
+      type: 'number',
+      description: 'Total tokens saved across all calls.',
+    },
+    overallSavingsPercent: {
+      type: 'number',
+      description: 'Weighted overall savings percentage (0-100).',
+    },
+    callsByAction: {
+      type: 'string',
+      description: 'JSON object: { compress, decompress, inspect } call counts.',
+    },
+    byFormat: {
+      type: 'string',
+      description: 'JSON object: per-format breakdown with calls, tokens, and savings.',
+    },
+    topFormat: {
+      type: 'string',
+      description: 'JSON object or null: format with most calls and its avg savings.',
+      required: false,
+    },
+    estimatedCostSaved: {
+      type: 'string',
+      description: 'JSON object or null: { input, output, currency } cost savings estimate.',
+      required: false,
+    },
+    lastCallAt: {
+      type: 'string',
+      description: 'ISO 8601 timestamp of the most recent tool call, or null.',
+      required: false,
+    },
+  },
+});
+
 export const PAKT_MCP_CONTRACTS = [
   PAKT_COMPRESS_CONTRACT,
   PAKT_AUTO_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_STATS_CONTRACT,
 ] as const;
 
 export type PaktContractToolName = (typeof PAKT_MCP_CONTRACTS)[number]['name'];
@@ -384,3 +458,5 @@ export type PaktAutoArgsFromContract = z.infer<typeof PAKT_AUTO_CONTRACT.inputSc
 export type PaktAutoResultFromContract = z.infer<typeof PAKT_AUTO_CONTRACT.outputSchema>;
 export type PaktInspectArgsFromContract = z.infer<typeof PAKT_INSPECT_CONTRACT.inputSchema>;
 export type PaktInspectResultFromContract = z.infer<typeof PAKT_INSPECT_CONTRACT.outputSchema>;
+export type PaktStatsArgsFromContract = z.infer<typeof PAKT_STATS_CONTRACT.inputSchema>;
+export type PaktStatsResultFromContract = z.infer<typeof PAKT_STATS_CONTRACT.outputSchema>;

@@ -130,11 +130,15 @@ export {
   PAKT_AUTO_CONTRACT,
   PAKT_COMPRESS_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_STATS_CONTRACT,
   PAKT_MCP_CONTRACTS,
   PAKT_MCP_TOOLS,
   registerPaktTools,
   handlePaktTool,
   PaktToolInputError,
+  recordCall,
+  getSessionStats,
+  resetSessionStats,
 } from './mcp/index.js';
 export type {
   PaktMcpContract,
@@ -147,10 +151,40 @@ export type {
   PaktAutoResult,
   PaktInspectArgs,
   PaktInspectResult,
+  PaktStatsArgs,
+  PaktStatsResult,
   PaktToolName,
   PaktToolArgs,
   PaktToolResult,
+  CallRecord,
+  SessionStatsResult,
+  FormatStats,
 } from './mcp/index.js';
+
+// ---------------------------------------------------------------------------
+// Persistent stats
+// ---------------------------------------------------------------------------
+
+export {
+  generateSessionId,
+  initSession,
+  appendRecord,
+  finalizeSession,
+  readAllRecords,
+  getActiveSessions,
+  compactSessions,
+  resetAll,
+  getStatsDir,
+} from './stats/index.js';
+export type {
+  SessionHeader,
+  SessionFooter,
+  RawRecord,
+  DailySummary,
+  ReadOptions,
+  SessionMeta,
+  ActiveSession,
+} from './stats/index.js';
 
 // ---------------------------------------------------------------------------
 // Compressibility scoring
