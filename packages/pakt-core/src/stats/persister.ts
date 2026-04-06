@@ -76,9 +76,20 @@ export function resetStatsDir(): void {
 // Session ID
 // ---------------------------------------------------------------------------
 
+function sanitizeAgentNameForSessionId(agentName?: string): string {
+  const normalized = (agentName ?? 'agent')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, 32);
+
+  return normalized || 'agent';
+}
+
 /** Generate a unique session ID: `sess-{agentName}-{8 hex chars}`. */
 export function generateSessionId(agentName?: string): string {
-  const name = agentName ?? 'agent';
+  const name = sanitizeAgentNameForSessionId(agentName);
   const suffix = randomBytes(4).toString('hex');
   return `sess-${name}-${suffix}`;
 }
