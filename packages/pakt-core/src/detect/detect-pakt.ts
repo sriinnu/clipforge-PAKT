@@ -49,12 +49,13 @@ export function detectPakt(input: string, lines: string[]): Candidate | null {
   // Primary signal: first non-empty line must start with a known PAKT @header.
   // This prevents false positives on text containing @from/@dict mid-document,
   // @username handles, @decorator patterns, etc.
-  const firstLine = lines[0]?.trim() ?? '';
+  const firstNonEmptyLine = lines.find((line) => line.trim() !== '');
+  const firstLine = firstNonEmptyLine?.trim() ?? '';
   const headerMatch = firstLine.match(/^@(\w+)/);
   const firstKeyword = headerMatch?.[1] ?? '';
 
   if (!PAKT_HEADERS.has(firstKeyword)) {
-    // First line doesn't start with a known PAKT header.
+    // First non-empty line doesn't start with a known PAKT header.
     // Still check for tabular array syntax — a very strong PAKT-specific signal.
     if (PAKT_TABULAR_RE.test(input)) {
       return { format: 'pakt', confidence: 1.0, reason: 'Contains PAKT tabular array syntax' };
