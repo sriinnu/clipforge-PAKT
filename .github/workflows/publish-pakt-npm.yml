@@ -83,11 +83,11 @@ jobs:
             exit 1
           fi
 
-      - name: Run package tests
-        run: pnpm --filter @sriinnu/pakt test
-
       - name: Build package
         run: pnpm --filter @sriinnu/pakt build
+
+      - name: Run package tests
+        run: pnpm --filter @sriinnu/pakt test
 
       - name: Publish to npm
         if: ${{ github.event_name == 'push' || github.event.inputs.publish_npm == 'true' }}
