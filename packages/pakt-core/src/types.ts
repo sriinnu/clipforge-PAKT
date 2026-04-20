@@ -100,6 +100,13 @@ export interface PaktOptions {
   dictMinSavings?: number;
   /** Token budget for L4 semantic compression. @default 0 */
   semanticBudget?: number;
+  /**
+   * Hard cap on input size in UTF-8 bytes. Inputs larger than this are
+   * returned untouched (0% savings) to protect against OOM / CPU DoS
+   * on direct library consumers. MCP and CLI entry points have their
+   * own tighter caps. @default 10_000_000 (10 MB)
+   */
+  maxInputBytes?: number;
 }
 
 // ---------------------------------------------------------------------------
