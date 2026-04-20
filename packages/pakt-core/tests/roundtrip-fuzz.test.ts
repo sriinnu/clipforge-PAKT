@@ -227,15 +227,11 @@ describe('property: JSON compress → decompress roundtrip', () => {
     );
   });
 
-  /**
-   * BUG: nested empty objects/arrays collapse during L1 compression.
-   *   [{}]      →  []
-   *   [[]]      →  [{"value":""}]
-   *   [[{}]]    →  [{"value":"[object Object]"}]
-   *   {a:{}}    →  {a:""}
-   * Awaiting user signoff on fix path.
-   */
-  it.fails('nested empty containers should survive roundtrip (BUG)', () => {
+  /* Regression: empty {}, [], and nested variants used to collapse in
+     L1-compress / emitListItem. Fixed via `{}` empty-object sentinel in
+     the serializer and the `_value`-key wrap-and-unwrap protocol for
+     non-object list items in {@link buildListArray}. */
+  it('nested empty containers survive roundtrip', () => {
     const cases: unknown[] = [[{}], [[]], [[{}]], { a: {} }];
     for (const data of cases) {
       const text = JSON.stringify(data);
@@ -246,11 +242,11 @@ describe('property: JSON compress → decompress roundtrip', () => {
     }
   });
 
-  /**
-   * BUG: array-of-array containing nested object drops inner structure.
-   *   [[{"^":{"G":0}}]]  →  [[{"^":""}]]
-   */
-  it.fails('nested array-of-array-of-object roundtrip (BUG)', () => {
+  /* Regression: `buildListArray` used to call `String(item)` on non-
+     plain-object items, producing `[object Object]` for nested arrays
+     of objects. Fixed by recursing via `buildArrayNode` under the
+     `_value` sentinel key and unwrapping on decompress. */
+  it('nested array-of-array-of-object roundtrip', () => {
     const data = [[{ '^': { G: 0 } }]];
     const text = JSON.stringify(data);
     const compressed = compress(text);
