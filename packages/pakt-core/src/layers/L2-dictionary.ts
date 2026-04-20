@@ -163,6 +163,16 @@ export function compressL2(
     }
   }
 
+  /* Cache-stable alias assignment: once greedy selection has chosen which
+     values win aliases, re-order the winners deterministically by expansion
+     before handing out $a, $b, $c, ... This way, two payloads that share
+     the same high-frequency values produce the same dict header, preserving
+     prompt-cache hits across calls to Anthropic / OpenAI caching APIs. */
+  selected.sort((a, b) => {
+    if (a.value === b.value) return 0;
+    return a.value < b.value ? -1 : 1;
+  });
+
   if (selected.length === 0) {
     return {
       type: 'document',
