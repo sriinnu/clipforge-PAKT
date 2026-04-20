@@ -17,6 +17,8 @@
   <a href="https://github.com/sriinnu/clipforge-PAKT/actions"><img src="https://img.shields.io/github/actions/workflow/status/sriinnu/clipforge-PAKT/ci.yml?label=CI&color=22c55e" alt="CI" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/stargazers"><img src="https://img.shields.io/github/stars/sriinnu/clipforge-PAKT?color=f59e0b&style=flat" alt="GitHub stars" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/pulls"><img src="https://img.shields.io/badge/PRs-welcome-a855f7" alt="PRs welcome" /></a>
+  <a href="https://github.com/sponsors/sriinnu"><img src="https://img.shields.io/badge/Sponsor-ec4899?logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub" /></a>
+  <a href="https://buymeacoffee.com/sriinnu"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee" /></a>
 </p>
 
 <p align="center">
@@ -330,6 +332,12 @@ PAKT 0.6 features are informed by a systematic survey of 25+ papers from 2024-20
 - **LTSC** (2024) -- LLM-driven Token-level Structured Compression.
 - **LiteToken** (2025) -- Lightweight token compression for structured data.
 - **Table Serialization Studies** -- Pipe-delimited formats outperform JSON for tabular LLM data.
+
+---
+
+## Support
+
+PAKT is maintained independently. If it saves you tokens and you'd like to back continued development, you can sponsor via [GitHub Sponsors](https://github.com/sponsors/sriinnu) or [Buy Me a Coffee](https://buymeacoffee.com/sriinnu). Issues, PRs, and stars help just as much.
 
 ---
 
