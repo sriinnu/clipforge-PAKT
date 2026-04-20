@@ -339,8 +339,8 @@ PAKT 0.6 features are informed by a systematic survey of 25+ papers from 2024-20
 
 PAKT sits alongside a couple of sibling tools that round out the token economy — shrink, measure, monitor:
 
-- **[tokmeter](https://github.com/sriinnu/tokmeter)** -- observability and cost-tracking for AI coding agents. Monitors token consumption across 16+ AI assistants with a TUI, daemon, and dashboard (Tauri).
-- **[Runic](https://github.com/sriinnu/Runic)** -- macOS menu bar app for tracking AI usage, costs, quotas, and token windows across providers.
+- **[tokmeter](https://github.com/sriinnu/tokmeter)** -- Token usage tracker for AI coding agents. Tracks consumption across 16+ agents through five surfaces: CLI, TUI, React web dashboard, MCP server ([Drishti](https://www.npmjs.com/package/@sriinnu/drishti)), and a macOS menu bar. Includes cost digests, cache-efficiency analytics, and a model advisor.
+- **[Runic](https://github.com/sriinnu/Runic)** -- macOS menubar app monitoring AI usage, costs, and quotas across 26 providers in real time. Charts, forecasts, budget alerts, CSV/JSON export, widgets, and a bundled CLI. Local-only, zero telemetry.
 
 PAKT reduces what you send; tokmeter and Runic tell you what you spent.
 
