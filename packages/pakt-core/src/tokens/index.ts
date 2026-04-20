@@ -51,3 +51,10 @@ export {
 // ---------------------------------------------------------------------------
 
 export { compareSavings } from './savings.js';
+
+// ---------------------------------------------------------------------------
+// Tokenizer family (L3-aware routing)
+// ---------------------------------------------------------------------------
+
+export { getTokenizerFamily, getTokenizerFamilyInfo } from './tokenizer-family.js';
+export type { TokenizerFamily, TokenizerFamilyInfo } from './tokenizer-family.js';

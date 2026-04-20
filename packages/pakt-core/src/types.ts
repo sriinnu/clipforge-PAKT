@@ -94,7 +94,20 @@ export interface PaktOptions {
   layers?: Partial<PaktLayers>;
   /** Input format. Auto-detected if not provided */
   fromFormat?: PaktFormat;
-  /** Target model for L3 tokenizer optimization */
+  /**
+   * Target model for L3 tokenizer optimization and token counting.
+   *
+   * The model string is resolved to a tokenizer family via
+   * `getTokenizerFamily(model)`:
+   * - `gpt-4o*`, `gpt-4.1`, `o1`, `o3`, `o4`, `chatgpt-4o*` -> `o200k_base`
+   * - `gpt-4`, `gpt-3.5` -> `cl100k_base`
+   * - `claude-*`, `llama-*`, unknown -> `cl100k_base` (approximate;
+   *   Claude's tokenizer is proprietary and Llama's 128k vocab is not
+   *   shipped by `gpt-tokenizer`)
+   *
+   * L3's savings gate (`compress-helpers.ts`) uses the family-resolved
+   * counter, so L3 will make the right merge decisions for the target.
+   */
   targetModel?: string;
   /** Min net token savings to create a dict alias. @default 3 */
   dictMinSavings?: number;
