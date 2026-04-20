@@ -92,6 +92,38 @@ const n = countTokens('{"hello":"world"}', 'gpt-4o');
 console.log(n);              // token count
 ```
 
+### Supported tokenizers
+
+PAKT counts tokens — and runs L3's merge-savings gate — using the tokenizer
+family that matches the target model. Use `getTokenizerFamily(model)` to
+align downstream consumers (playground, desktop, extension) with the same
+encoding the core uses.
+
+| Target model                                 | Family         | Notes                                   |
+| -------------------------------------------- | -------------- | --------------------------------------- |
+| `gpt-4o`, `gpt-4o-mini`, `o1`, `o3`, `o4`    | `o200k_base`   | Exact.                                  |
+| `gpt-4`, `gpt-4-turbo`, `gpt-3.5-turbo`      | `cl100k_base`  | Exact.                                  |
+| `claude-sonnet`, `claude-opus`, `claude-haiku` | `cl100k_base` | **Approximate** — see caveat below.     |
+| `llama-3`, `llama-3.1`                       | `cl100k_base`  | **Approximate** — see caveat below.     |
+| Unknown model strings                        | `cl100k_base`  | Fallback; `exact: false` in the info.   |
+
+Exact Claude counts require Anthropic's tokenizer, which is not publicly
+available. Llama ships a 128k SentencePiece vocab that `gpt-tokenizer`
+does not bundle. For both, PAKT uses `cl100k_base` as the closest
+publicly-available BPE — expect small drift from the provider's own
+counts. Register a custom `TokenCounter` via `registerTokenCounter(...)`
+if you need exact counts for those families.
+
+```typescript
+import { getTokenizerFamily, getTokenizerFamilyInfo } from '@sriinnu/pakt';
+
+getTokenizerFamily('gpt-4o');            // 'o200k_base'
+getTokenizerFamily('claude-opus');       // 'cl100k_base'
+
+const info = getTokenizerFamilyInfo('claude-sonnet');
+if (!info.exact) console.warn(info.approximationNote);
+```
+
 ### Compressibility scoring
 
 ```typescript

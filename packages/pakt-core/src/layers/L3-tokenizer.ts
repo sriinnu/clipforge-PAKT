@@ -10,6 +10,14 @@
  * - 1-space indent (replaces 2-space): ~2.5% savings
  * - Strip trailing zeros from decimals: ~0.1% savings
  *
+ * Tokenizer family awareness: the transforms themselves are family-
+ * independent — they reshape whitespace that every BPE treats as a
+ * standalone run of spaces. The *gating* (did L3 actually save tokens?)
+ * happens in `compress-helpers.ts` via `countTokens(text, targetModel)`,
+ * which routes to o200k_base or cl100k_base through
+ * {@link getTokenizerFamily}. So L3 accepts the transform only when it
+ * helps the target model's family.
+ *
  * Signals optimization via `@target l3` header. On decompress,
  * the header triggers reversal of text transforms before parsing.
  */
