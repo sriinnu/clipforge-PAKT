@@ -17,12 +17,46 @@ import {
   injectEnvelopePreamble,
   tryCompressSpecialFormats,
 } from './compress-helpers.js';
-import { DEFAULT_OPTIONS } from './constants.js';
+import { DEFAULT_MAX_INPUT_BYTES, DEFAULT_OPTIONS } from './constants.js';
 import { parseInput } from './format-parsers/index.js';
 import { applyDeltaEncoding, compressL1, compressText } from './layers/index.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktOptions, PaktResult } from './types.js';
+
+// ---------------------------------------------------------------------------
+// UTF-8 byte counting (allocation-free)
+// ---------------------------------------------------------------------------
+
+/**
+ * Count the UTF-8 byte length of a JS string without allocating a buffer,
+ * short-circuiting once a `stopAt` threshold is exceeded.
+ *
+ * Used by the OOM guard in {@link compress}: we want to reject oversized
+ * inputs (e.g. 100MB) without first allocating 100MB via `TextEncoder`.
+ *
+ * @param s - Input string (UTF-16 code units)
+ * @param stopAt - Return early once the running byte count reaches this
+ *   value. Pass `Infinity` to count the entire string.
+ * @returns Number of UTF-8 bytes, capped at `stopAt`.
+ */
+function utf8ByteLength(s: string, stopAt: number): number {
+  let len = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) len += 1;
+    else if (c < 0x800) len += 2;
+    else if (c < 0xd800 || c >= 0xe000) len += 3;
+    else {
+      /* Surrogate pair (high + low) encodes one supplementary codepoint
+         as 4 UTF-8 bytes. Skip the low surrogate. */
+      len += 4;
+      i++;
+    }
+    if (len >= stopAt) return len;
+  }
+  return len;
+}
 
 // ---------------------------------------------------------------------------
 // Main compress function
@@ -88,6 +122,19 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
   // 0. Early return for empty / whitespace-only input — no valid structure to compress
   if (!input || input.trim().length === 0) {
     return buildUnchangedResult(input ?? '', countTokens(input ?? '', targetModel), 'text');
+  }
+
+  /* 0.5. OOM guard for direct library consumers. MCP and CLI layers
+     have their own tighter caps; this protects `compress()` itself.
+     We count UTF-8 bytes without allocating a buffer so that a 100MB
+     input can be rejected without first allocating 100MB to measure. */
+  const maxBytes = options?.maxInputBytes ?? DEFAULT_MAX_INPUT_BYTES;
+  if (maxBytes > 0 && utf8ByteLength(input, maxBytes + 1) > maxBytes) {
+    return buildUnchangedResult(
+      input,
+      countTokens(input, targetModel),
+      options?.fromFormat ?? 'text',
+    );
   }
 
   // Graceful degradation: wrap the entire pipeline in try-catch so that

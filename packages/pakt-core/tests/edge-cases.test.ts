@@ -383,3 +383,48 @@ describe('Edge cases: empty input', () => {
     expect(result.dictionary).toEqual([]);
   });
 });
+
+// ============================ 8. Input size cap ============================
+
+describe('Edge cases: input size cap', () => {
+  it('passes through unchanged when input exceeds maxInputBytes', () => {
+    /* Build a JSON payload over a tiny explicit cap so the guard fires
+       without us having to allocate megabytes in tests. */
+    const rows = Array.from({ length: 50 }, (_, i) => ({ id: i, role: 'engineer' }));
+    const big = JSON.stringify(rows);
+    expect(big.length).toBeGreaterThan(500);
+    const result = compress(big, { fromFormat: 'json', maxInputBytes: 200 });
+    expect(result.compressed).toBe(big);
+    expect(result.savings.totalPercent).toBe(0);
+    expect(result.savings.totalTokens).toBe(0);
+    expect(result.reversible).toBe(true);
+  });
+
+  it('compresses normally when input is under the cap', () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: i, role: 'engineer' }));
+    const payload = JSON.stringify(rows);
+    const result = compress(payload, { fromFormat: 'json', maxInputBytes: 10_000 });
+    /* Should actually compress (not passthrough) */
+    expect(result.compressed.length).toBeLessThan(payload.length);
+    expect(result.savings.totalPercent).toBeGreaterThan(0);
+  });
+
+  it('treats maxInputBytes=0 as disabled (no cap)', () => {
+    /* Explicit opt-out: a consumer that knows their memory budget. */
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: i, role: 'engineer' }));
+    const payload = JSON.stringify(rows);
+    const result = compress(payload, { fromFormat: 'json', maxInputBytes: 0 });
+    expect(result.compressed.length).toBeLessThan(payload.length);
+    expect(result.savings.totalPercent).toBeGreaterThan(0);
+  });
+
+  it('measures UTF-8 bytes not char count (multi-byte input)', () => {
+    /* 4-byte UTF-8 emoji (U+1F680 = 🚀). 50 of them = 200 UTF-8 bytes
+       but only 100 UTF-16 code units. Cap at 150 bytes → must reject
+       based on real byte count, not string length. */
+    const big = JSON.stringify({ msg: '🚀'.repeat(50) });
+    const result = compress(big, { fromFormat: 'json', maxInputBytes: 150 });
+    expect(result.compressed).toBe(big);
+    expect(result.savings.totalPercent).toBe(0);
+  });
+});
