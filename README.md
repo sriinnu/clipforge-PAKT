@@ -5,8 +5,9 @@
 <h3 align="center">ClipForge PAKT</h3>
 
 <p align="center">
-  Lossless-first prompt compression for LLM data. Structured payloads drop 27-33%, repetitive text 38-69%, logs 57% tokens.<br/>
-  <i>Stop paying for syntax. Every token should carry meaning.</i>
+  The only prompt compressor that's <b>lossless</b>, <b>model-free</b>, and <b>built for structured data</b>.<br/>
+  No inference cost, no hallucinations, no byte-level tricks an LLM can't see -- just fewer tokens for the same payload.<br/>
+  <b>27-69% savings</b> on JSON / YAML / CSV / logs.
 </p>
 
 <p align="center">
@@ -36,6 +37,13 @@
 **PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. Structured payloads often see **30-50% token savings**, with higher gains on repetitive and tabular data, while preserving data fidelity across core lossless layers `L1-L3`. `L4` is separately opt-in, budgeted, and lossy.
 
 LLMs charge by the token. Structured data wastes tokens on syntax: braces, quotes, repeated keys, whitespace. PAKT eliminates the waste.
+
+### Why not X?
+
+- **LLMLingua / LLMLingua-2?** Neural compressors. They run a model to rewrite your prompt, which is lossy, model-dependent, and adds inference cost and latency. PAKT is deterministic, model-free, and free to run.
+- **TOON format?** TOON is the core inspiration for PAKT's Layer 1 pipe-delimited syntax. PAKT extends it with a dictionary layer (L2), tokenizer-aware packing (L3), delta encoding for tabular arrays, multi-format input (JSON/YAML/CSV/Markdown/Text), and an MCP server for agents.
+- **gzip / brotli?** They compress bytes, but the LLM API bills you on tokens after BPE tokenization. A gzipped prompt still costs full tokens once decoded. PAKT reshapes the text so the tokenizer itself produces fewer tokens.
+- **Just minify JSON?** Free and worth doing -- but it only removes whitespace. PAKT minifies, then layers dictionary substitution and tokenizer-aware choices on top, typically doubling the savings.
 
 ### About ClipForge
 
@@ -252,19 +260,11 @@ PAKT automatically compresses data on every MCP tool call to reduce conversation
 
 ## Key Features
 
-- **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), and an opt-in budgeted Semantic layer (L4)
-- **Delta encoding** *(new in 0.6)* -- Adjacent rows in tabular arrays that share values are replaced with `~` sentinels, saving 20-40% on repetitive data on top of L1. Inspired by DeltaKV (arXiv:2602.08005)
-- **Compressibility scoring** *(new in 0.6)* -- `estimateCompressibility()` returns a 0-1 score, label, and recommended profile before you compress. Know if compression is worth it without running the pipeline. Inspired by "Data Distribution Matters" (arXiv:2602.01778)
-- **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
-- **Lossless data round-tripping** -- L1-L3 preserve data fidelity on decompress; L4 is explicitly lossy
-- **Typical 30-50% token savings** -- Real BPE token counting via gpt-tokenizer
-- **Auto context compression** *(new in 0.7)* -- content-addressed dedup, text line dedup, word n-gram dictionary, whitespace normalization. 57% on logs, 38-69% on repetitive text
-- **Session stats** *(new in 0.6.2)* -- `pakt_stats` MCP tool and `pakt stats` CLI for real-time token savings tracking with persistent multi-agent support
-- **CLI included** -- `pakt compress`, `pakt decompress`, `pakt auto`, `pakt inspect`, `pakt detect`, `pakt tokens`, `pakt savings`, `pakt stats`
-- **MCP server included** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, and `pakt_stats` over the official MCP SDK stdio transport for agent workflows
-- **Embeddable MCP tools** -- `registerPaktTools()` lets other MCP hosts add the same PAKT toolset without reimplementing schemas or handlers
-- **Small runtime dependency set** -- `gpt-tokenizer`, the MCP SDK, and `zod`
-- **Full TypeScript support** -- All types exported, dual ESM/CJS builds
+- **Lossless by default** -- L1 (Structural), L2 (Dictionary), and L3 (Tokenizer-Aware) round-trip exactly. L4 (Semantic) is opt-in and explicitly lossy, gated by a `semanticBudget`.
+- **Multi-format** -- JSON, YAML, CSV, Markdown, and Plain Text with auto-detection, so the same pipeline handles structured, tabular, and mixed content.
+- **Tokenizer-aware via real BPE** -- Uses `gpt-tokenizer` to measure and pick tokens LLMs actually merge, not byte-level heuristics that vanish at the API boundary.
+- **MCP + CLI + library, zero model dependency** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, and `pakt_stats` to agents; the same logic ships as a CLI and a typed TypeScript library.
+- **27-69% savings with public benchmarks** -- 27-33% on JSON payloads, 57% on duplicate log lines, 38-69% on repetitive text. Full reproducible numbers in [docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md).
 
 ---
 
@@ -306,32 +306,17 @@ pnpm clean
 
 ## Inspiration & Credits
 
-PAKT would not exist without the prior work and ideas of these projects and researchers:
-
 ### TOON Format
 
 PAKT's core pipe-delimited syntax (Layer 1) is directly inspired by **[TOON Format v1.3](https://github.com/toon-format/spec)** -- the original compact notation for structured data, created by **[Nicholas Charlton](https://github.com/nichochar)** ([@nichochar](https://github.com/nichochar)). TOON demonstrated that structured data can be represented without the syntactic overhead of JSON while remaining unambiguous and machine-parseable. PAKT builds on this foundation by adding multi-format support, a dictionary compression layer, and guaranteed lossless round-tripping. TOON has implementations across Python, TypeScript, Go, Rust, .NET, Elixir, Java, and Julia -- a testament to the strength of its design.
 
-### Research
+### Key research
 
-PAKT 0.6 features are informed by a systematic survey of 25+ papers from 2024-2026. See [docs/articles/research-landscape-2024-2026.md](./docs/articles/research-landscape-2024-2026.md) for the full survey.
+- **LLMLingua-2** (Microsoft, [arXiv:2403.12968](https://arxiv.org/abs/2403.12968), 2024) -- The closest neural competitor. PAKT achieves comparable savings on structured data without running a model.
+- **Gist Token Study** (Deng et al., [arXiv:2412.17483](https://arxiv.org/abs/2412.17483), Dec 2024) -- Lossy compression fails on exact recall, which motivates PAKT's lossless-first L1-L3 design.
+- **DeltaKV** (Hao et al., [arXiv:2602.08005](https://arxiv.org/abs/2602.08005), Feb 2026) -- Residual similarity compression, adapted as PAKT's delta encoding for tabular arrays.
 
-**Directly adapted in 0.6:**
-- **DeltaKV** (Hao et al., arXiv:2602.08005, Feb 2026) -- Residual KV cache compression via long-range similarity. Adapted as delta encoding for tabular arrays.
-- **Data Distribution Matters** (Lv et al., arXiv:2602.01778, Feb 2026) -- Input entropy determines compression quality. Adapted as compressibility scoring.
-- **Compactor** (Chari & Van Durme, arXiv:2507.08143, Jul 2025) -- Context-calibrated compression ratios. Informed auto-profile recommendation.
-
-**Validating PAKT's approach:**
-- **LLMLingua-2** (Microsoft, arXiv:2403.12968, 2024) -- Task-agnostic prompt compression via data distillation. Closest neural competitor; PAKT achieves comparable savings on structured data without running a model.
-- **Gist Token Study** (Deng et al., arXiv:2412.17483, Dec 2024) -- Lossy compression fails on exact recall. Validates PAKT's lossless-first L1-L3 design.
-- **Extractive > Abstractive** (Jha et al., arXiv:2407.08892, Jul 2024) -- Extractive compression outperforms abstractive for factual content. Validates PAKT's structural approach.
-- **Compression Improves LLM Quality** (Zhang et al., arXiv:2505.00019, Apr 2025) -- Moderate compression removes noise and can improve LLM accuracy.
-
-**Previously cited:**
-- **CompactPrompt** (2025) -- Structured prompt compression for financial datasets.
-- **LTSC** (2024) -- LLM-driven Token-level Structured Compression.
-- **LiteToken** (2025) -- Lightweight token compression for structured data.
-- **Table Serialization Studies** -- Pipe-delimited formats outperform JSON for tabular LLM data.
+Full citation list and survey: [docs/research.md](./docs/research.md).
 
 ---
 
