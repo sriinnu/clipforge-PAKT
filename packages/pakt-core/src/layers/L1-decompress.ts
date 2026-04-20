@@ -121,9 +121,37 @@ function decompressInline(node: InlineArrayNode): unknown[] {
  * decompressList(node); // [{ type: 'deploy', success: true }, ...]
  * ```
  */
+/* Paired with {@link buildListArray}: items whose sole child uses the
+   `_value` sentinel key represent a primitive, null, or nested-array
+   element rather than a `{ _value: X }` object. Unwrap to recover the
+   original shape during decompression. */
+const LIST_ITEM_VALUE_SENTINEL = '_value';
+
 function decompressList(node: ListArrayNode): unknown[] {
   return node.items.map((item) => {
-    // Each list item's children form an object
+    // Empty list-item (children=[]) round-trips to `{}` — the sentinel
+    // for an empty object originally supplied as an array element.
+    if (item.children.length === 0) return {};
+
+    // Single-child unwrap: recover primitive / nested-array elements.
+    if (item.children.length === 1) {
+      const first = item.children[0];
+      if (first && 'key' in first && first.key === LIST_ITEM_VALUE_SENTINEL) {
+        switch (first.type) {
+          case 'keyValue':
+            return scalarToValue(first.value);
+          case 'inlineArray':
+            return decompressInline(first);
+          case 'tabularArray':
+            return decompressTabular(first);
+          case 'listArray':
+            return decompressList(first);
+          default:
+            break;
+        }
+      }
+    }
+
     return bodyToValue(item.children);
   });
 }

@@ -230,14 +230,11 @@ describe('sentinel fuzz: quoted-looking ~ values', () => {
     it(`roundtrips ${label}`, () => roundtrip(data, label));
   }
 
-  /**
-   * BUG: Inline arrays containing `"~"` (quoted tilde) are mis-parsed on
-   * decompress. The compressed output is syntactically valid PAKT
-   * (`arr [3]: "~",hello,"~"`), but the parser appears to break on the
-   * quoted `~` token inside an inline array, producing `{ arr: [], '~': '', hello: '' }`.
-   * Marked `.fails()` pending user signoff on the fix path.
-   */
-  it.fails('roundtrips JSON array (BUG: inline array with "~" mis-parsed)', () =>
+  /* Regression: inline arrays with a quoted "~" scalar were silently
+     dropped into the list-array branch of the parser, producing
+     `{ arr: [], '~': '', hello: '' }`. Fixed by dispatching inline-array
+     parsing on any scalar-shaped follow-token in `parseArrayNode`. */
+  it('roundtrips JSON array with quoted ~ values', () =>
     roundtrip({ arr: ['~', 'hello', '~'] }, 'JSON array'),
   );
 });
@@ -250,17 +247,11 @@ describe('sentinel fuzz: ~ as sole document value', () => {
   it('bare scalar "~" at root', () => roundtrip('~', 'root-scalar-~'));
   it('single-key object where value is "~"', () => roundtrip({ x: '~' }, 'single-key-~'));
 
-  /**
-   * BUG: Same root-cause as the inline-array bug. Root arrays are
-   * serialized as `_root [N]: ...` which is an inline array, and the
-   * quoted `"~"` tokens are mis-parsed into spurious keys on decompress.
-   */
-  it.fails('array containing only "~" (BUG: inline-array parse)', () =>
-    roundtrip(['~'], 'array-only-~'),
-  );
-  it.fails('array of three "~" strings (BUG: inline-array parse)', () =>
-    roundtrip(['~', '~', '~'], 'array-3-~'),
-  );
+  /* Regression: root arrays with quoted ~ values used to mis-parse into
+     spurious keys because the inline-array branch only fired on a VALUE
+     follow-token. Same fix as the keyed-array variant above. */
+  it('array containing only "~"', () => roundtrip(['~'], 'array-only-~'));
+  it('array of three "~" strings', () => roundtrip(['~', '~', '~'], 'array-3-~'));
 });
 
 // ===========================================================================
@@ -287,25 +278,19 @@ describe('sentinel fuzz: large tabular with scattered ~', () => {
 // 11. Inline-array edge cases — ~ at boundary of inline array serialization
 // ===========================================================================
 
-/**
- * BUG (confirmed via fuzzing): PAKT's inline-array serializer force-quotes
- * `~` to `"~"` (correctly — so delta encoding can't misinterpret it) but
- * the parser in {@link packages/pakt-core/src/parser/index.ts} does NOT
- * recognize `"~"` as a valid scalar token when it appears after `[N]: ` in
- * an inline array context. Observed serialized output:
- *   `tags [4]: "~",a,"~",b`
- * gets decompressed to:
- *   `{ tags: [], '~': '', a: '', b: '' }`
- * which is a lossless-claim violation.
+/* Regression block for inline arrays containing quoted "~" scalars.
  *
- * These tests are marked `.fails()` pending user signoff on the fix.
- * The fix likely lives in the inline-array tokenizer — allowing `"~"` as
- * a regular quoted-string scalar rather than treating it as a keyword.
- */
-describe('sentinel fuzz: ~ in inline arrays (BUG: inline-array parse)', () => {
-  it.fails('inline array with ~ values', () =>
+ * Root cause: `parseArrayNode` only took the inline-array branch when the
+ * token after the colon was a bare VALUE. When the payload started with a
+ * double quote the tokenizer split it into QUOTED_STRING/COMMA/KEY/…
+ * tokens, so the parser silently fell through to the list-array branch
+ * and the remaining scalars leaked out as top-level keys. Fix dispatches
+ * the inline-array branch on VALUE / QUOTED_STRING / NUMBER follow-tokens
+ * and extends `parseInlineArray` to consume the split token stream. */
+describe('sentinel fuzz: ~ in inline arrays (regression)', () => {
+  it('inline array with ~ values', () =>
     roundtrip({ tags: ['~', 'a', '~', 'b'] }, 'inline-~'),
   );
-  it.fails('inline array of just ~', () => roundtrip({ tags: ['~'] }, 'inline-single-~'));
-  it.fails('inline array of all ~', () => roundtrip({ tags: ['~', '~', '~'] }, 'inline-all-~'));
+  it('inline array of just ~', () => roundtrip({ tags: ['~'] }, 'inline-single-~'));
+  it('inline array of all ~', () => roundtrip({ tags: ['~', '~', '~'] }, 'inline-all-~'));
 });

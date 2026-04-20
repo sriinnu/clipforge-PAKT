@@ -147,12 +147,22 @@ export function inlineToArray(node: InlineArrayNode): (string | number | boolean
   return node.values.map((v) => scalarToJS(v));
 }
 
+/* Sentinel key written by {@link buildListArray} for primitive / nested-
+   array list items. Matching on this key during decompress recovers the
+   original element type instead of producing `{ _value: X }` wrappers. */
+const LIST_ITEM_VALUE_SENTINEL = '_value';
+
 /**
- * Convert a ListArrayNode to a JavaScript array of objects.
- * Each list item's children are converted to an object.
+ * Convert a ListArrayNode to a JavaScript array.
+ *
+ * Most items produce plain objects (from their children), but items whose
+ * sole child uses the `_value` sentinel key were written by the compressor
+ * to wrap a primitive, null, or nested array — those are unwrapped back to
+ * their original element type. Items with no children round-trip to `{}`
+ * (an empty-object array element).
  *
  * @param node - The list array node
- * @returns An array of objects
+ * @returns The decoded array of elements
  *
  * @example
  * ```ts
@@ -160,18 +170,55 @@ export function inlineToArray(node: InlineArrayNode): (string | number | boolean
  * // [{ type: 'deploy', success: true }, { type: 'alert', message: 'CPU spike' }]
  * ```
  */
-export function listToArray(node: ListArrayNode): Record<string, unknown>[] {
-  return node.items.map((item) => listItemToObject(item));
+export function listToArray(node: ListArrayNode): unknown[] {
+  return node.items.map((item) => listItemToValue(item));
 }
 
 /**
- * Convert a single ListItemNode to a JavaScript object.
+ * Convert a single ListItemNode back to its original JavaScript value.
+ * Unwraps `_value`-keyed single-child wrappers back to their primitive /
+ * array shape; empty children become `{}`; everything else decodes to an
+ * object via {@link bodyToObject}.
  *
  * @param item - The list item node
- * @returns An object representing the list item
+ * @returns The original element value
+ */
+export function listItemToValue(item: ListItemNode): unknown {
+  if (item.children.length === 0) return {};
+
+  if (item.children.length === 1) {
+    const first = item.children[0];
+    if (first && 'key' in first && first.key === LIST_ITEM_VALUE_SENTINEL) {
+      switch (first.type) {
+        case 'keyValue':
+          return scalarToJS(first.value);
+        case 'inlineArray':
+          return inlineToArray(first);
+        case 'tabularArray':
+          return tabularToArray(first);
+        case 'listArray':
+          return listToArray(first);
+        case 'object':
+          return bodyToObject(first.children);
+      }
+    }
+  }
+
+  return bodyToObject(item.children);
+}
+
+/**
+ * Backwards-compatible alias for callers that expect the legacy
+ * object-only return type. Forwards to {@link listItemToValue} and
+ * coerces non-object returns to `{}` for safety.
+ *
+ * @deprecated Prefer {@link listItemToValue}.
  */
 export function listItemToObject(item: ListItemNode): Record<string, unknown> {
-  return bodyToObject(item.children);
+  const v = listItemToValue(item);
+  return v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : {};
 }
 
 /**

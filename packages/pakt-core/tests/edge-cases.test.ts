@@ -160,16 +160,14 @@ describe('Edge cases: unicode', () => {
 
 describe('Edge cases: empty containers', () => {
   /**
-   * Known PAKT behavior: leaf-level empty objects `{}` are serialized
-   * as empty-string scalars (PAKT has no syntax for an empty object
-   * without children). Empty arrays `[]` are preserved correctly.
-   * Root-level empty objects/arrays are handled as special cases.
+   * Empty containers round-trip losslessly at every depth. Leaf-level
+   * empty objects are emitted as `key {}` (and `- {}` for list items),
+   * disambiguating them from empty-string scalars. Empty arrays remain
+   * `key [0]:` as before. Root-level empties are handled as special cases.
    */
-  it('deeply nested empty object serializes as empty string (known limitation)', () => {
+  it('deeply nested empty object roundtrips losslessly', () => {
     const emptyDeep = { a: { b: { c: {} } } };
-    const result = roundtrip(emptyDeep);
-    /* Leaf empty objects become "" in PAKT — verify structure is maintained */
-    expect(result).toEqual({ a: { b: { c: '' } } });
+    expect(roundtrip(emptyDeep)).toEqual(emptyDeep);
   });
 
   it('deeply nested empty array roundtrips', () => {
@@ -177,11 +175,9 @@ describe('Edge cases: empty containers', () => {
     expect(roundtrip(emptyArrayDeep)).toEqual(emptyArrayDeep);
   });
 
-  it('mixed empty containers — arrays preserved, empty objects become strings', () => {
+  it('mixed empty containers — arrays and objects both preserved', () => {
     const mixedEmpty = { a: {}, b: [], c: { d: {} } };
-    const result = roundtrip(mixedEmpty);
-    /* Empty arrays survive; empty objects become "" */
-    expect(result).toEqual({ a: '', b: [], c: { d: '' } });
+    expect(roundtrip(mixedEmpty)).toEqual(mixedEmpty);
   });
 
   it('empty root object roundtrips', () => {
