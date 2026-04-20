@@ -335,6 +335,17 @@ PAKT 0.6 features are informed by a systematic survey of 25+ papers from 2024-20
 
 ---
 
+## Related Projects
+
+PAKT sits alongside a couple of sibling tools that round out the token economy — shrink, measure, monitor:
+
+- **[tokmeter](https://github.com/sriinnu/tokmeter)** -- observability and cost-tracking for AI coding agents. Monitors token consumption across 16+ AI assistants with a TUI, daemon, and dashboard (Tauri).
+- **[Runic](https://github.com/sriinnu/Runic)** -- macOS menu bar app for tracking AI usage, costs, quotas, and token windows across providers.
+
+PAKT reduces what you send; tokmeter and Runic tell you what you spent.
+
+---
+
 ## Support
 
 PAKT is maintained independently. If it saves you tokens and you'd like to back continued development, you can sponsor via [GitHub Sponsors](https://github.com/sponsors/sriinnu) or [Buy Me a Coffee](https://buymeacoffee.com/sriinnu). Issues, PRs, and stars help just as much.
