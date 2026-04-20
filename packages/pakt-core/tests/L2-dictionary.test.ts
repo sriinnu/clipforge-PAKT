@@ -276,8 +276,12 @@ describe('L2: mixed node types', () => {
 
 // 7. Alias ordering
 describe('L2: alias ordering', () => {
-  it('assigns $a to the highest net-savings value', () => {
-    // "Engineering" x8: net=(3-1)*8-(3+3)=10, "in-progress" x5: net=(3-1)*5-(3+3)=4
+  it('assigns aliases lexicographically over the selected expansions', () => {
+    // Both "Engineering" and "in-progress" qualify (3+ occurrences, net>=3).
+    // Post 0.8, aliases are handed out in lex order of expansion so that
+    // the dict header is stable across related payloads, preserving prompt
+    // caches on Anthropic / OpenAI. Lex: 'Engineering' < 'in-progress'
+    // because uppercase letters sort before lowercase in ASCII.
     const tab: TabularArrayNode = {
       type: 'tabularArray',
       key: 'data',
@@ -298,8 +302,50 @@ describe('L2: alias ordering', () => {
     const compressed = compressL2(doc([tab]));
     expect(compressed.dictionary).not.toBeNull();
     expect(compressed.dictionary?.entries.length).toBeGreaterThanOrEqual(2);
+    /* Lex-first among selected winners is 'Engineering' (still $a here). */
     expect(compressed.dictionary?.entries[0]?.alias).toBe('$a');
     expect(compressed.dictionary?.entries[0]?.expansion).toBe('Engineering');
+    /* Dictionary entries must be in ascending lex order of expansion. */
+    const expansions = compressed.dictionary?.entries.map((e) => e.expansion) ?? [];
+    const sorted = [...expansions].sort();
+    expect(expansions).toEqual(sorted);
+  });
+
+  it('produces stable alias mappings across reordered inputs (cache-stable)', () => {
+    /* Same set of values, different row order. Pre-0.8 this could shuffle
+       alias assignments if net-savings ties broke differently. After the
+       lex-stable pass, $a, $b, ... must map to the same expansions. */
+    const makeDoc = (rows: TabularArrayNode['rows']): DocumentNode =>
+      doc([
+        {
+          type: 'tabularArray',
+          key: 'data',
+          count: rows.length,
+          fields: ['dept', 'status'],
+          position: p,
+          rows,
+        } satisfies TabularArrayNode,
+      ]);
+
+    const rowsA = [
+      row([s('Engineering'), s('in-progress')]),
+      row([s('Engineering'), s('in-progress')]),
+      row([s('Engineering'), s('in-progress')]),
+      row([s('Engineering'), s('in-progress')]),
+      row([s('Engineering'), s('Development')]),
+      row([s('Engineering'), s('Development')]),
+      row([s('Engineering'), s('Development')]),
+      row([s('Engineering'), s('Development')]),
+    ];
+    /* Reverse the row order — same multiset, different sequence. */
+    const rowsB = [...rowsA].reverse();
+
+    const dictA = compressL2(makeDoc(rowsA)).dictionary?.entries ?? [];
+    const dictB = compressL2(makeDoc(rowsB)).dictionary?.entries ?? [];
+
+    const mapA = Object.fromEntries(dictA.map((e) => [e.alias, e.expansion]));
+    const mapB = Object.fromEntries(dictB.map((e) => [e.alias, e.expansion]));
+    expect(mapA).toEqual(mapB);
   });
 });
 
