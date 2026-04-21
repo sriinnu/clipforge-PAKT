@@ -1,10 +1,22 @@
 /**
  * @module layers/L1-delta
- * Delta encoding for tabular arrays — inspired by DeltaKV (arXiv:2602.08005).
+ * Delta encoding orchestrator for tabular arrays — inspired by DeltaKV
+ * (arXiv:2602.08005).
  *
- * Replaces repeated adjacent values in tabular rows with `~` sentinels.
- * Row 0 is the reference frame; row N stores only fields that differ from
- * row N-1. Decompression replaces `~` with the previous row's value.
+ * Two flavours of delta encoding are combined here:
+ *
+ * 1. **Exact** (`~` sentinel) — replace a cell that equals the previous
+ *    row's value in the same column with a bare `~`. Implemented in
+ *    {@link L1-delta-exact}.
+ * 2. **Numeric** (`+N` / `-N` sentinel) — for monotonic-ish integer
+ *    columns, replace a cell with the signed difference from the
+ *    previous row (e.g. timestamps, sequential IDs). Implemented in
+ *    {@link L1-delta-numeric}.
+ *
+ * Both variants share the same `@compress delta` document header so a
+ * single decode pass can handle either form. The encode order is
+ * numeric-first, then exact, so columns that qualify for both (every
+ * diff is zero) are left to the cheaper `~` encoder.
  *
  * This runs as a post-pass on L1 structural compression, operating on
  * {@link TabularArrayNode}s in the AST. It does NOT modify objects,
@@ -16,41 +28,35 @@
  * ```ts
  * import { applyDeltaEncoding, revertDeltaEncoding } from './L1-delta.js';
  *
- * // Compress: replace repeated values with ~
  * const encoded = applyDeltaEncoding(doc);
- *
- * // Decompress: restore ~ sentinels to real values
- * const decoded = revertDeltaEncoding(doc);
+ * const decoded = revertDeltaEncoding(encoded);
  * ```
  */
 
 import { createPosition } from '../parser/ast-helpers.js';
-import type {
-  BodyNode,
-  DocumentNode,
-  HeaderNode,
-  ScalarNode,
-  SourcePosition,
-  TabularArrayNode,
-  TabularRowNode,
-} from '../parser/ast.js';
+import type { BodyNode, DocumentNode, HeaderNode, SourcePosition } from '../parser/ast.js';
+import {
+  DELTA_SENTINEL,
+  MIN_DELTA_RATIO,
+  MIN_DELTA_ROWS,
+  computeDeltaRatio,
+  deltaDecodeTabularExact,
+  deltaEncodeTabularExact,
+  isDeltaSentinel,
+} from './L1-delta-exact.js';
+import {
+  isNumericDeltaSentinel,
+  needsNumericDeltaQuote,
+  numericDeltaDecodeTabular,
+  numericDeltaEncodeTabular,
+} from './L1-delta-numeric.js';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Re-exports — preserve the module's historical public surface
 // ---------------------------------------------------------------------------
 
-/** Sentinel value that replaces unchanged fields in delta-encoded rows. */
-export const DELTA_SENTINEL = '~';
-
-/** Minimum rows for delta encoding to activate (below this, overhead > savings). */
-export const MIN_DELTA_ROWS = 3;
-
-/**
- * Minimum ratio of delta-replaceable fields to total fields for encoding
- * to be worthwhile. Below this threshold, the `@compress delta` header
- * costs more tokens than the `~` sentinels save.
- */
-export const MIN_DELTA_RATIO = 0.3;
+export { DELTA_SENTINEL, MIN_DELTA_RATIO, MIN_DELTA_ROWS, computeDeltaRatio, isDeltaSentinel };
+export { isNumericDeltaSentinel, needsNumericDeltaQuote };
 
 /**
  * Maximum recursion depth for delta encode/decode body traversal.
@@ -65,166 +71,15 @@ const DELTA_HEADER_VALUE = 'delta';
 const POS: SourcePosition = createPosition(0, 0, 0);
 
 // ---------------------------------------------------------------------------
-// Scalar comparison
+// Encode: body traversal
 // ---------------------------------------------------------------------------
 
 /**
- * Compare two scalar nodes for value equality. Two scalars are equal if
- * they have the same type and the same value.
- *
- * @param a - First scalar node
- * @param b - Second scalar node
- * @returns True if both scalars represent the same value
- */
-function scalarsEqual(a: ScalarNode, b: ScalarNode): boolean {
-  if (a.scalarType !== b.scalarType) return false;
-  return a.value === b.value;
-}
-
-/**
- * Shared frozen sentinel node — avoids allocating a new object per cell.
- * Safe to share because sentinel nodes are never mutated after creation.
- */
-const FROZEN_SENTINEL: ScalarNode = Object.freeze({
-  type: 'scalar',
-  scalarType: 'string',
-  value: DELTA_SENTINEL,
-  quoted: false,
-  position: POS,
-}) as ScalarNode;
-
-/**
- * Return the shared `~` sentinel scalar node. Uses a single frozen
- * instance to avoid per-cell allocations in large tables.
- */
-function makeSentinel(): ScalarNode {
-  return FROZEN_SENTINEL;
-}
-
-/**
- * Check if a scalar node is a `~` sentinel (used during decompression).
- *
- * @param node - Scalar node to check
- * @returns True if the node represents the delta sentinel
- */
-export function isDeltaSentinel(node: ScalarNode): boolean {
-  /* Sentinels are always unquoted. Real `~` values in user data are force-quoted
-     by toScalar() (see NEEDS_QUOTE_RE in L1-compress.ts), so quoted === true
-     means it's a real value, not a sentinel. */
-  return node.scalarType === 'string' && node.value === DELTA_SENTINEL && node.quoted === false;
-}
-
-// ---------------------------------------------------------------------------
-// Delta analysis
-// ---------------------------------------------------------------------------
-
-/**
- * Analyze a tabular array to determine if delta encoding is beneficial.
- * Returns the ratio of fields that can be replaced with `~` sentinels.
- *
- * @param node - Tabular array node to analyze
- * @returns Delta ratio (0.0 = no repetition, 1.0 = all fields repeated)
- *
- * @example
- * ```ts
- * const ratio = computeDeltaRatio(tabularNode);
- * // ratio = 0.6 means 60% of non-first-row fields are repeated
- * ```
- */
-export function computeDeltaRatio(node: TabularArrayNode): number {
-  if (node.rows.length < MIN_DELTA_ROWS) return 0;
-
-  const fieldCount = node.fields.length;
-  /* Total non-header cells that could potentially be delta-encoded */
-  const totalCells = (node.rows.length - 1) * fieldCount;
-  if (totalCells === 0) return 0;
-
-  let deltaCount = 0;
-  for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = node.rows[r - 1];
-    const currRow = node.rows[r];
-    if (!prevRow || !currRow) continue;
-    for (let f = 0; f < fieldCount; f++) {
-      const prev = prevRow.values[f];
-      const curr = currRow.values[f];
-      if (prev && curr && scalarsEqual(prev, curr)) {
-        deltaCount++;
-      }
-    }
-  }
-
-  return deltaCount / totalCells;
-}
-
-// ---------------------------------------------------------------------------
-// Delta encoding (compression)
-// ---------------------------------------------------------------------------
-
-/**
- * Apply delta encoding to a single tabular array node. Replaces field
- * values that match the previous row with `~` sentinel nodes.
- *
- * Row 0 is always preserved in full as the reference frame.
- *
- * Uses a single-pass approach: builds encoded rows optimistically while
- * counting deltas, then checks the ratio after the pass. If the ratio
- * is below {@link MIN_DELTA_RATIO}, discards the work and returns the
- * original node. This avoids the O(2*R*F) double traversal of computing
- * the ratio first and then encoding separately.
- *
- * @param node - Original tabular array node
- * @returns New tabular array with delta-encoded rows, or the original
- *          node unchanged if delta encoding is not beneficial
- */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: delta encoding traverses rows with format-specific branches
-function deltaEncodeTabular(node: TabularArrayNode): TabularArrayNode {
-  if (node.rows.length < MIN_DELTA_ROWS) return node;
-
-  const fieldCount = node.fields.length;
-  const totalCells = (node.rows.length - 1) * fieldCount;
-  if (totalCells === 0) return node;
-  const firstRow = node.rows[0];
-  if (!firstRow) return node;
-
-  /* Single pass: encode optimistically while counting deltas */
-  const newRows: TabularRowNode[] = [firstRow]; // row 0 = reference
-  let deltaCount = 0;
-
-  for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = node.rows[r - 1];
-    const currRow = node.rows[r];
-    if (!prevRow || !currRow) continue;
-    const newValues: ScalarNode[] = [];
-
-    for (let f = 0; f < fieldCount; f++) {
-      const prev = prevRow.values[f];
-      const curr = currRow.values[f];
-      /* Replace with sentinel if value unchanged from previous row */
-      if (prev && curr && scalarsEqual(prev, curr)) {
-        newValues.push(makeSentinel());
-        deltaCount++;
-      } else if (curr) {
-        newValues.push(curr);
-      } else if (prev) {
-        /* Preserve historical carry-forward semantics for ragged rows. */
-        newValues.push(prev);
-      }
-      /* else: both undefined on a ragged row — skip (field count mismatch) */
-    }
-
-    newRows.push({ type: 'tabularRow', values: newValues, position: POS });
-  }
-
-  /* Check ratio after the pass — discard work if not worthwhile */
-  if (deltaCount / totalCells < MIN_DELTA_RATIO) return node;
-
-  return { ...node, rows: newRows };
-}
-
-/**
- * Walk the AST body and apply delta encoding to all eligible tabular arrays.
+ * Walk the AST body and apply delta encoding (numeric + exact) to all
+ * eligible tabular arrays.
  *
  * @param body - Document body nodes
+ * @param depth - Current recursion depth (internal)
  * @returns New body with delta-encoded tabular arrays
  */
 function deltaEncodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; applied: boolean } {
@@ -233,9 +88,12 @@ function deltaEncodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; appli
   let applied = false;
   const newBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
-      const encoded = deltaEncodeTabular(node);
-      if (encoded !== node) applied = true;
-      return encoded;
+      /* Numeric first so all-zero-delta columns fall through to the
+         cheaper `~` encoder. */
+      const numericEncoded = numericDeltaEncodeTabular(node);
+      const fullyEncoded = deltaEncodeTabularExact(numericEncoded);
+      if (fullyEncoded !== node) applied = true;
+      return fullyEncoded;
     }
     /* Recurse into nested objects to find tabular arrays inside */
     if (node.type === 'object') {
@@ -268,12 +126,6 @@ function deltaEncodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; appli
  *
  * @param doc - Original PAKT document AST
  * @returns New document with delta-encoded tabular arrays and header
- *
- * @example
- * ```ts
- * const encoded = applyDeltaEncoding(doc);
- * // encoded.headers includes { headerType: 'compress', value: 'delta' }
- * ```
  */
 export function applyDeltaEncoding(doc: DocumentNode): DocumentNode {
   const { body, applied } = deltaEncodeBody(doc.body);
@@ -294,61 +146,16 @@ export function applyDeltaEncoding(doc: DocumentNode): DocumentNode {
 }
 
 // ---------------------------------------------------------------------------
-// Delta decoding (decompression)
+// Decode: body traversal
 // ---------------------------------------------------------------------------
 
 /**
- * Revert delta encoding on a single tabular array. Replaces `~` sentinel
- * nodes with the value from the previous row, walking forward from row 0.
- *
- * @param node - Delta-encoded tabular array node
- * @returns Tabular array with all sentinels resolved to real values
- */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: delta decoding resolves sentinels across rows with type-aware logic
-function deltaDecodeTabular(node: TabularArrayNode): {
-  node: TabularArrayNode;
-  resolvedAllSentinels: boolean;
-} {
-  if (node.rows.length < 2) return { node, resolvedAllSentinels: true };
-
-  const fieldCount = node.fields.length;
-  const firstRow = node.rows[0];
-  if (!firstRow) return { node, resolvedAllSentinels: true };
-  const newRows: TabularRowNode[] = [firstRow]; // row 0 is always full
-  let resolvedAllSentinels = true;
-
-  for (let r = 1; r < node.rows.length; r++) {
-    const prevRow = newRows[r - 1]; // use already-decoded previous row
-    const currRow = node.rows[r];
-    if (!prevRow || !currRow) continue;
-    const newValues: ScalarNode[] = [];
-
-    for (let f = 0; f < fieldCount; f++) {
-      const curr = currRow.values[f];
-      const prev = prevRow.values[f];
-      /* Resolve sentinel: copy value from previous (already decoded) row */
-      if (curr && isDeltaSentinel(curr) && prev) {
-        newValues.push(prev);
-      } else if (curr && isDeltaSentinel(curr)) {
-        resolvedAllSentinels = false;
-        newValues.push(curr);
-      } else if (curr) {
-        newValues.push(curr);
-      } else if (prev) {
-        /* Preserve historical carry-forward semantics for ragged rows. */
-        newValues.push(prev);
-      }
-      /* else: both undefined on a ragged row — skip (field count mismatch) */
-    }
-
-    newRows.push({ type: 'tabularRow', values: newValues, position: POS });
-  }
-
-  return { node: { ...node, rows: newRows }, resolvedAllSentinels };
-}
-
-/**
  * Walk the AST body and revert delta encoding on all tabular arrays.
+ *
+ * Decode order matches encode order in reverse: numeric sentinels first
+ * (they were encoded on top of the raw values), then the exact `~`
+ * sentinels. In practice the two sentinel families live on disjoint
+ * columns so the order is defensive rather than load-bearing.
  *
  * @param body - Document body nodes (potentially delta-encoded)
  * @returns Body with all delta sentinels resolved
@@ -359,9 +166,11 @@ function deltaDecodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; compl
   let complete = true;
   const decodedBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
-      const result = deltaDecodeTabular(node);
-      if (!result.resolvedAllSentinels) complete = false;
-      return result.node;
+      const numeric = numericDeltaDecodeTabular(node);
+      if (!numeric.resolvedAllSentinels) complete = false;
+      const exact = deltaDecodeTabularExact(numeric.node);
+      if (!exact.resolvedAllSentinels) complete = false;
+      return exact.node;
     }
     if (node.type === 'object') {
       const result = deltaDecodeBody(node.children, depth + 1);
@@ -387,20 +196,15 @@ function deltaDecodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; compl
 // ---------------------------------------------------------------------------
 
 /**
- * Revert delta encoding on a PAKT document. Resolves all `~` sentinels
- * back to their real values by walking rows forward from the reference frame.
+ * Revert delta encoding on a PAKT document. Resolves all `~` and `+N`/`-N`
+ * sentinels back to their real values by walking rows forward from the
+ * reference frame.
  *
  * Safe to call on documents that were not delta-encoded — returns them
  * unchanged (no `@compress delta` header means no-op).
  *
  * @param doc - Potentially delta-encoded PAKT document AST
- * @returns Document with all sentinels resolved and `@compress delta` header removed
- *
- * @example
- * ```ts
- * const decoded = revertDeltaEncoding(encoded);
- * // All ~ sentinels replaced with real values
- * ```
+ * @returns Document with all sentinels resolved and header removed
  */
 export function revertDeltaEncoding(doc: DocumentNode): DocumentNode {
   const hasDelta = doc.headers.some(

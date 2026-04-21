@@ -172,9 +172,17 @@ function emitKeyValue(node: KeyValueNode, lines: string[], depth: number): void 
   lines.push(`${prefix}${formatKey(node.key)}: ${value}`);
 }
 
-/** Emit a nested object: key on its own line, children indented +2 spaces. */
+/** Emit a nested object: key on its own line, children indented +2 spaces.
+ *
+ * An empty-object sentinel is required to disambiguate `{a:{}}` from a bare
+ * key (which the parser would otherwise treat as `{a:""}` after the legacy
+ * fallback in `parseKeyedNode`). */
 function emitObject(node: ObjectNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
+  if (node.children.length === 0) {
+    lines.push(`${prefix}${formatKey(node.key)} {}`);
+    return;
+  }
   lines.push(`${prefix}${formatKey(node.key)}`);
   emitBody(node.children, lines, depth + 1);
 }
@@ -212,35 +220,68 @@ function emitListArray(node: ListArrayNode, lines: string[], depth: number): voi
   }
 }
 
-/** Emit a list item: `- ` prefix on first child, rest indented under it. */
+/** Emit a list item: `- ` prefix on first child, rest indented under it.
+ *
+ * Empty children render as `- {}` to distinguish an empty-object item
+ * from the absence of an item. Non-trivial first children (inline /
+ * tabular / list arrays, nested objects with body) are emitted with the
+ * dash inline on the header line and their body rows indented below. */
 function emitListItem(item: ListItemNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
 
-  for (let i = 0; i < item.children.length; i++) {
-    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
-    const child = item.children[i]!;
-    if (i === 0) {
-      // First child gets the dash prefix
-      const line = formatBodyNodeInline(child);
-      lines.push(`${prefix}- ${line}`);
-    } else {
-      // Subsequent children indented under the dash (+2 for "- ")
-      emitNode(child, lines, depth + 1);
-    }
+  if (item.children.length === 0) {
+    lines.push(`${prefix}- {}`);
+    return;
+  }
+
+  // biome-ignore lint/style/noNonNullAssertion: length checked above
+  const first = item.children[0]!;
+  emitListItemFirstChild(first, lines, depth, prefix);
+
+  for (let i = 1; i < item.children.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: bounded by loop condition
+    emitNode(item.children[i]!, lines, depth + 1);
   }
 }
 
-/** Format a body node inline (for first child of a list item). */
-function formatBodyNodeInline(node: BodyNode): string {
+/** Emit the first child of a list item with the `- ` dash prefix,
+ * dispatching on node type so array / object children keep their bodies. */
+function emitListItemFirstChild(
+  node: BodyNode,
+  lines: string[],
+  depth: number,
+  prefix: string,
+): void {
   switch (node.type) {
     case 'keyValue':
-      return `${formatKey(node.key)}: ${formatScalar(node.value)}`;
+      lines.push(`${prefix}- ${formatKey(node.key)}: ${formatScalar(node.value)}`);
+      return;
     case 'comment':
-      return `% ${node.text}`;
+      lines.push(`${prefix}- % ${node.text}`);
+      return;
     case 'object':
-      return formatKey(node.key);
-    default:
-      return '';
+      if (node.children.length === 0) {
+        lines.push(`${prefix}- ${formatKey(node.key)} {}`);
+        return;
+      }
+      lines.push(`${prefix}- ${formatKey(node.key)}`);
+      emitBody(node.children, lines, depth + 2);
+      return;
+    case 'inlineArray': {
+      const values = node.values.map((v) => formatScalar(v)).join(',');
+      lines.push(`${prefix}- ${formatKey(node.key)} [${node.count}]: ${values}`);
+      return;
+    }
+    case 'tabularArray': {
+      const fieldList = node.fields.map(formatKey).join('|');
+      lines.push(`${prefix}- ${formatKey(node.key)} [${node.count}]{${fieldList}}:`);
+      for (const row of node.rows) emitTabularRow(row, lines, depth + 2);
+      return;
+    }
+    case 'listArray':
+      lines.push(`${prefix}- ${formatKey(node.key)} [${node.count}]:`);
+      for (const inner of node.items) emitListItem(inner, lines, depth + 2);
+      return;
   }
 }
 

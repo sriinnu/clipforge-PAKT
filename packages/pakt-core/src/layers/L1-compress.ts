@@ -44,8 +44,13 @@ const POS: SourcePosition = createPosition(0, 0, 0);
 /**
  * Characters / patterns that force a string value to be quoted so the
  * PAKT parser can round-trip it without loss.
+ *
+ * The trailing alternative `^[+-][1-9]\d*$` prevents collisions with the
+ * numeric-delta sentinel in L1-delta-numeric: a user-supplied string like
+ * `"+5"` or `"-12"` would otherwise be indistinguishable from a sentinel
+ * after serialization, so we force-quote it on the way in.
  */
-const NEEDS_QUOTE_RE = /[:\|]|^\$|^%|^~$|^\s|\s$/;
+const NEEDS_QUOTE_RE = /[:\|]|^\$|^%|^~$|^\s|\s$|^[+-][1-9]\d*$/;
 
 /**
  * Strings whose unquoted form would be misread as another scalar type.
@@ -201,6 +206,12 @@ function buildInlineArray(key: string, arr: unknown[]): InlineArrayNode {
   };
 }
 
+/* Sentinel key used to wrap a list-item whose value is not a plain object
+   (primitive, null, or nested array). Paired with the unwrap logic in
+   {@link decompressList} so that round-trips preserve the original shape
+   instead of coercing it into `[object Object]` strings. */
+const LIST_ITEM_VALUE_SENTINEL = '_value';
+
 function buildListArray(key: string, arr: unknown[]): ListArrayNode {
   const items: ListItemNode[] = arr.map((item) => {
     if (isPlainObject(item)) {
@@ -210,11 +221,21 @@ function buildListArray(key: string, arr: unknown[]): ListArrayNode {
         position: POS,
       };
     }
-    // Primitive wrapped in a synthetic key-value — shouldn't normally
-    // happen for a proper ListArray, but handle it for safety.
+    if (Array.isArray(item)) {
+      // Nested array: recurse via buildArrayNode so tabular/inline/list
+      // dispatch still works on the inner shape.
+      return {
+        type: 'listItem' as const,
+        children: [buildArrayNode(LIST_ITEM_VALUE_SENTINEL, item)],
+        position: POS,
+      };
+    }
+    // Primitive / null / boolean / number: wrap in a synthetic key-value
+    // whose key tells the decompressor to unwrap this back to the bare
+    // scalar rather than emit `{ _value: X }`.
     return {
       type: 'listItem' as const,
-      children: [buildKeyValue('value', item)],
+      children: [buildKeyValue(LIST_ITEM_VALUE_SENTINEL, item)],
       position: POS,
     };
   });
