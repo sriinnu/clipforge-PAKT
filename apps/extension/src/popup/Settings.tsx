@@ -90,18 +90,40 @@ interface SettingsProps {
   onBack: () => void;
 }
 
-/* Models shown in the Settings dropdown. Exact tokenizer families are
-   `o200k_base` (gpt-4o family) and `cl100k_base` (gpt-4 / gpt-3.5).
-   Claude and Llama fall back to `cl100k_base` with an approximation note. */
-const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: 'gpt-4o', label: 'gpt-4o (OpenAI, exact)' },
-  { id: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI, exact)' },
-  { id: 'gpt-4', label: 'gpt-4 / gpt-4-turbo (OpenAI, exact)' },
-  { id: 'claude-opus', label: 'claude-opus (Anthropic, approximate)' },
-  { id: 'claude-sonnet', label: 'claude-sonnet (Anthropic, approximate)' },
-  { id: 'claude-haiku', label: 'claude-haiku (Anthropic, approximate)' },
-  { id: 'llama-3', label: 'llama-3.x (Meta, approximate)' },
+/* Models shown in the Settings dropdown. Keep only minimal per-model metadata
+   here and derive the tokenizer accuracy wording from shared tokenizer-family
+   lookup logic so the UI is less likely to drift as mappings evolve. */
+type TargetModelOption = {
+  id: string;
+  displayName: string;
+  vendor: string;
+};
+
+const TARGET_MODEL_METADATA: ReadonlyArray<TargetModelOption> = [
+  { id: 'gpt-4o', displayName: 'gpt-4o', vendor: 'OpenAI' },
+  { id: 'gpt-4o-mini', displayName: 'gpt-4o-mini', vendor: 'OpenAI' },
+  { id: 'gpt-4', displayName: 'gpt-4 / gpt-4-turbo', vendor: 'OpenAI' },
+  { id: 'claude-opus', displayName: 'claude-opus', vendor: 'Anthropic' },
+  { id: 'claude-sonnet', displayName: 'claude-sonnet', vendor: 'Anthropic' },
+  { id: 'claude-haiku', displayName: 'claude-haiku', vendor: 'Anthropic' },
+  { id: 'llama-3', displayName: 'llama-3.x', vendor: 'Meta' },
 ];
+
+function buildTargetModelLabel({ id, displayName, vendor }: TargetModelOption) {
+  const tokenizerInfo = getTokenizerFamilyInfo(id);
+  const accuracy =
+    tokenizerInfo.family === 'o200k_base' || tokenizerInfo.family === 'cl100k_base'
+      ? 'exact'
+      : 'approximate';
+
+  return `${displayName} (${vendor}, ${accuracy})`;
+}
+
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> =
+  TARGET_MODEL_METADATA.map(({ id, ...rest }) => ({
+    id,
+    label: buildTargetModelLabel({ id, ...rest }),
+  }));
 
 export function Settings({ onBack: _onBack }: SettingsProps) {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
