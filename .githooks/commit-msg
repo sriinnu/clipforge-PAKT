@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Reject commits that contain a Co-authored-by trailer.
+# Enable this hook per-clone with:
+#   git config core.hooksPath .githooks
+
+msg_file="$1"
+
+if grep -qE '^Co-authored-by:' "$msg_file"; then
+  echo "ERROR: Commit message contains a 'Co-authored-by:' trailer." >&2
+  echo "Project policy (CLAUDE.md) disallows this. Remove it and commit again." >&2
+  exit 1
+fi
