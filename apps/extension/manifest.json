@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ClipForge",
-  "version": "0.6.2",
+  "version": "0.8.0",
   "author": "Sriinnu",
   "description": "Compress clipboard content for LLMs. Save 30-50% tokens with PAKT format.",
   "permissions": ["activeTab", "storage", "contextMenus", "clipboardRead", "clipboardWrite"],
