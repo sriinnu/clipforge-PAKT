@@ -89,7 +89,7 @@ jobs:
           path = pathlib.Path(os.environ['README_PATH'])
           src = path.read_text()
           pattern = re.compile(r'(<!-- SPONSOR-BADGES-START -->)(.*?)(<!-- SPONSOR-BADGES-END -->)', re.DOTALL)
-          replacement = r'\1\n' + badges + r'  \3'
+          replacement = r'\1\n' + badges + r'\3'
           new = pattern.sub(replacement, src, count=1)
           path.write_text(new)
           PY
