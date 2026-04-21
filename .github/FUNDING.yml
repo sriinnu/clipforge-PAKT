@@ -1,10 +1,19 @@
 # GitHub Sponsors for clipforge-PAKT
 # Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+#
+# Entries are intentionally commented out pre-0.8 launch so neither the
+# repo-header Sponsor button nor the sidebar "Sponsor this project" link
+# is rendered. `.github/workflows/sponsor-badge-watch.yml` re-enables
+# these at SPONSOR_BADGE_MIN_STARS stargazers, in the same PR that
+# re-inserts the README badges, so visibility flips on atomically.
+#
+# To turn sponsorship visibility back on manually, uncomment the two
+# active lines below (github + buy_me_a_coffee).
 
-github: [sriinnu]
-buy_me_a_coffee: sriinnu
+# github: [sriinnu]
+# buy_me_a_coffee: sriinnu
 
-# Uncomment and fill in any additional platforms you enable later:
+# Additional platforms to enable later if wanted:
 # ko_fi: sriinnu
 # open_collective: clipforge-pakt
 # patreon: sriinnu
