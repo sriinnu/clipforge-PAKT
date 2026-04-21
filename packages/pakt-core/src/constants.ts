@@ -38,6 +38,14 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
  * console.log(DEFAULT_OPTIONS.dictMinSavings); // 3
  * ```
  */
+/**
+ * Default hard cap on `compress()` input size in UTF-8 bytes.
+ * Inputs above this are passed through unchanged to protect direct
+ * library consumers from OOM. Override via `PaktOptions.maxInputBytes`.
+ * MCP and CLI entry points layer their own tighter caps on top.
+ */
+export const DEFAULT_MAX_INPUT_BYTES = 10_000_000;
+
 export const DEFAULT_OPTIONS: Required<PaktOptions> = {
   layers: {
     structural: true,
@@ -49,6 +57,7 @@ export const DEFAULT_OPTIONS: Required<PaktOptions> = {
   targetModel: 'gpt-4o',
   dictMinSavings: 3,
   semanticBudget: 0,
+  maxInputBytes: DEFAULT_MAX_INPUT_BYTES,
 };
 
 // ---------------------------------------------------------------------------

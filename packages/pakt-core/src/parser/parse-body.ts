@@ -111,6 +111,19 @@ function parseKeyedNode(s: ParserState, currentIndentLevel: number): BodyNode | 
     return parseArrayNode(s, key, startPos, currentIndentLevel);
   }
 
+  /* Empty-object sentinel: `key {}` round-trips `{key: {}}` unambiguously
+     (without this the bare-key fallback below would decompress to an
+     empty string). Matches the {} emission in {@link emitObject}. */
+  if (peek(s).type === 'BRACE_OPEN') {
+    advance(s);
+    if (peek(s).type === 'BRACE_CLOSE') {
+      advance(s);
+      return { type: 'object', key, children: [], position: startPos } as ObjectNode;
+    }
+    reportError(s, 'Expected {} after key', peek(s).line, peek(s).column);
+    return mkEmptyKV(key, startPos);
+  }
+
   // Colon -> key: value  OR  key:\n  children
   if (peek(s).type === 'COLON') {
     advance(s);
@@ -179,7 +192,15 @@ function parseArrayNode(
   if (peek(s).type === 'BRACE_OPEN') return parseTabularArray(s, key, count, startPos, indent);
 
   expect(s, 'COLON', 'array colon');
-  if (peek(s).type === 'VALUE') return parseInlineArray(s, key, count, startPos);
+  /* Inline arrays dispatch on any scalar-shaped follow token. When the
+     value starts with a quote (e.g. `arr [3]: "~",hello,"~"`) the
+     tokenizer splits it into QUOTED_STRING/COMMA/KEY/... rather than a
+     single VALUE token, so checking only VALUE here silently dropped
+     the array into the list-array branch and produced garbage keys. */
+  const after = peek(s).type;
+  if (after === 'VALUE' || after === 'QUOTED_STRING' || after === 'NUMBER') {
+    return parseInlineArray(s, key, count, startPos);
+  }
   return parseListArray(s, key, count, startPos, indent);
 }
 
@@ -281,9 +302,46 @@ function parseInlineArray(
   count: number,
   startPos: SourcePosition,
 ): InlineArrayNode {
-  const valTok = advance(s);
-  const parts = valTok.value.split(',').map((p) => p.trim());
-  const values: ScalarNode[] = parts.map((p) => inferScalar(p, posOf(valTok)));
+  const values: ScalarNode[] = [];
+  const firstType = peek(s).type;
+
+  if (firstType === 'VALUE') {
+    /* Fast path: tokenizer emitted the whole comma-separated payload as
+       a single VALUE token (standard case, no leading quote). */
+    const valTok = advance(s);
+    for (const part of valTok.value.split(',')) {
+      values.push(inferScalar(part.trim(), posOf(valTok)));
+    }
+  } else {
+    /* Split path: tokenizer carved up the payload on quotes, so we
+       consume alternating scalar tokens separated by COMMAs until the
+       line ends. Required to roundtrip `arr [N]: "~",hello,"~"`. */
+    while (true) {
+      const tk = peek(s);
+      if (tk.type === 'NEWLINE' || tk.type === 'EOF' || tk.type === 'COMMENT') break;
+      if (tk.type === 'COMMA') {
+        advance(s);
+        continue;
+      }
+      if (tk.type === 'QUOTED_STRING') {
+        values.push({
+          type: 'scalar',
+          scalarType: 'string',
+          value: advance(s).value,
+          quoted: true,
+          position: posOf(tk),
+        });
+        continue;
+      }
+      if (tk.type === 'VALUE' || tk.type === 'NUMBER' || tk.type === 'KEY') {
+        values.push(inferScalar(advance(s).value.trim(), posOf(tk)));
+        continue;
+      }
+      // Unknown token — bail rather than looping forever.
+      break;
+    }
+  }
+
   eatComment(s);
   return { type: 'inlineArray', key, count, values, position: startPos };
 }
@@ -326,7 +384,23 @@ function parseListArray(
     const dashTok = advance(s);
     const children: BodyNode[] = [];
 
-    if (peek(s).type === 'KEY') {
+    /* Empty-object item sentinel: `- {}` represents `{}` as a list
+       element. Without this, an empty `children` array would round-trip
+       to nothing and lose the item entirely. Matches the `{}` emission
+       in {@link emitListItem}. */
+    if (peek(s).type === 'BRACE_OPEN') {
+      const braceOpenTok = advance(s);
+      if (peek(s).type === 'BRACE_CLOSE') {
+        advance(s);
+      } else {
+        reportError(s, 'Expected `}` immediately after `{` in list empty-object sentinel', posOf(braceOpenTok));
+        while (peek(s).type !== 'NEWLINE' && peek(s).type !== 'EOF') advance(s);
+      }
+      items.push({ type: 'listItem', children, position: posOf(dashTok) });
+      continue;
+    }
+
+    if (peek(s).type === 'KEY' || peek(s).type === 'QUOTED_STRING') {
       const node = parseKeyedNode(s, itemIndent);
       if (node) children.push(node);
     }

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **L2 dictionary aliases now lex-ordered by expansion.** Greedy selection still picks winners by net-savings, but `$a`, `$b`, ... are assigned in lex order of the expansion afterwards. Two payloads that share the same high-frequency values now produce the same `@dict` block, preserving prompt-cache hits on Anthropic and OpenAI caching APIs across related calls. Round-trip is unchanged. Only affects callers relying on snapshot-style assertions over alias letters. Motivated by "Don't Break the Cache" (arXiv:2601.06007, Jan 2026).
+
 ## [0.7.0] - 2026-04-06
 
 ### Added

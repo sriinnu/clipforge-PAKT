@@ -91,6 +91,13 @@ export {
 export type { TokenCounter, TokenCounterFactory } from './tokens/index.js';
 
 // ---------------------------------------------------------------------------
+// Tokenizer family awareness
+// ---------------------------------------------------------------------------
+
+export { getTokenizerFamily, getTokenizerFamilyInfo } from './tokens/index.js';
+export type { TokenizerFamily, TokenizerFamilyInfo } from './tokens/index.js';
+
+// ---------------------------------------------------------------------------
 // Shared layer profiles
 // ---------------------------------------------------------------------------
 

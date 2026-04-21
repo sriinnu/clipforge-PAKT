@@ -27,10 +27,15 @@ import type {
 
 /**
  * Pattern matching values that must be quoted to avoid misinterpretation.
- * Specifically, bare `~` is the delta sentinel — expanded values that equal
- * `~` must be force-quoted to prevent false delta detection on re-encode.
+ *
+ * - Bare `~` is the exact-delta sentinel (L1-delta-exact).
+ * - Bare `+N` / `-N` (N >= 1) is the numeric-delta sentinel
+ *   (L1-delta-numeric).
+ *
+ * Expanded values that match either must be force-quoted to prevent false
+ * delta detection on re-encode.
  */
-const NEEDS_QUOTE_AFTER_EXPAND_RE = /^~$/;
+const NEEDS_QUOTE_AFTER_EXPAND_RE = /^~$|^[+-][1-9]\d*$/;
 
 // ---------------------------------------------------------------------------
 // Scalar collection

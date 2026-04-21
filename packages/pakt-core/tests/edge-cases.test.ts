@@ -160,16 +160,14 @@ describe('Edge cases: unicode', () => {
 
 describe('Edge cases: empty containers', () => {
   /**
-   * Known PAKT behavior: leaf-level empty objects `{}` are serialized
-   * as empty-string scalars (PAKT has no syntax for an empty object
-   * without children). Empty arrays `[]` are preserved correctly.
-   * Root-level empty objects/arrays are handled as special cases.
+   * Empty containers round-trip losslessly at every depth. Leaf-level
+   * empty objects are emitted as `key {}` (and `- {}` for list items),
+   * disambiguating them from empty-string scalars. Empty arrays remain
+   * `key [0]:` as before. Root-level empties are handled as special cases.
    */
-  it('deeply nested empty object serializes as empty string (known limitation)', () => {
+  it('deeply nested empty object roundtrips losslessly', () => {
     const emptyDeep = { a: { b: { c: {} } } };
-    const result = roundtrip(emptyDeep);
-    /* Leaf empty objects become "" in PAKT — verify structure is maintained */
-    expect(result).toEqual({ a: { b: { c: '' } } });
+    expect(roundtrip(emptyDeep)).toEqual(emptyDeep);
   });
 
   it('deeply nested empty array roundtrips', () => {
@@ -177,11 +175,9 @@ describe('Edge cases: empty containers', () => {
     expect(roundtrip(emptyArrayDeep)).toEqual(emptyArrayDeep);
   });
 
-  it('mixed empty containers — arrays preserved, empty objects become strings', () => {
+  it('mixed empty containers — arrays and objects both preserved', () => {
     const mixedEmpty = { a: {}, b: [], c: { d: {} } };
-    const result = roundtrip(mixedEmpty);
-    /* Empty arrays survive; empty objects become "" */
-    expect(result).toEqual({ a: '', b: [], c: { d: '' } });
+    expect(roundtrip(mixedEmpty)).toEqual(mixedEmpty);
   });
 
   it('empty root object roundtrips', () => {
@@ -381,5 +377,50 @@ describe('Edge cases: empty input', () => {
     expect(result.savings.totalPercent).toBe(0);
     expect(result.detectedFormat).toBe('text');
     expect(result.dictionary).toEqual([]);
+  });
+});
+
+// ============================ 8. Input size cap ============================
+
+describe('Edge cases: input size cap', () => {
+  it('passes through unchanged when input exceeds maxInputBytes', () => {
+    /* Build a JSON payload over a tiny explicit cap so the guard fires
+       without us having to allocate megabytes in tests. */
+    const rows = Array.from({ length: 50 }, (_, i) => ({ id: i, role: 'engineer' }));
+    const big = JSON.stringify(rows);
+    expect(big.length).toBeGreaterThan(500);
+    const result = compress(big, { fromFormat: 'json', maxInputBytes: 200 });
+    expect(result.compressed).toBe(big);
+    expect(result.savings.totalPercent).toBe(0);
+    expect(result.savings.totalTokens).toBe(0);
+    expect(result.reversible).toBe(true);
+  });
+
+  it('compresses normally when input is under the cap', () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: i, role: 'engineer' }));
+    const payload = JSON.stringify(rows);
+    const result = compress(payload, { fromFormat: 'json', maxInputBytes: 10_000 });
+    /* Should actually compress (not passthrough) */
+    expect(result.compressed.length).toBeLessThan(payload.length);
+    expect(result.savings.totalPercent).toBeGreaterThan(0);
+  });
+
+  it('treats maxInputBytes=0 as disabled (no cap)', () => {
+    /* Explicit opt-out: a consumer that knows their memory budget. */
+    const rows = Array.from({ length: 5 }, (_, i) => ({ id: i, role: 'engineer' }));
+    const payload = JSON.stringify(rows);
+    const result = compress(payload, { fromFormat: 'json', maxInputBytes: 0 });
+    expect(result.compressed.length).toBeLessThan(payload.length);
+    expect(result.savings.totalPercent).toBeGreaterThan(0);
+  });
+
+  it('measures UTF-8 bytes not char count (multi-byte input)', () => {
+    /* 4-byte UTF-8 emoji (U+1F680 = 🚀). 50 of them = 200 UTF-8 bytes
+       but only 100 UTF-16 code units. Cap at 150 bytes → must reject
+       based on real byte count, not string length. */
+    const big = JSON.stringify({ msg: '🚀'.repeat(50) });
+    const result = compress(big, { fromFormat: 'json', maxInputBytes: 150 });
+    expect(result.compressed).toBe(big);
+    expect(result.savings.totalPercent).toBe(0);
   });
 });
