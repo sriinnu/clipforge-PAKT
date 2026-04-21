@@ -389,8 +389,13 @@ function parseListArray(
        to nothing and lose the item entirely. Matches the `{}` emission
        in {@link emitListItem}. */
     if (peek(s).type === 'BRACE_OPEN') {
-      advance(s);
-      if (peek(s).type === 'BRACE_CLOSE') advance(s);
+      const braceOpenTok = advance(s);
+      if (peek(s).type === 'BRACE_CLOSE') {
+        advance(s);
+      } else {
+        reportError(s, 'Expected `}` immediately after `{` in list empty-object sentinel', posOf(braceOpenTok));
+        while (peek(s).type !== 'NEWLINE' && peek(s).type !== 'EOF') advance(s);
+      }
       items.push({ type: 'listItem', children, position: posOf(dashTok) });
       continue;
     }
