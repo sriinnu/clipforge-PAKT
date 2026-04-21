@@ -11,8 +11,13 @@ type WorkerMessage =
   | { type: 'preload' }
   | { type: 'analyzePreview'; input: string; liveCompress: boolean; config: CompressionConfig }
   | { type: 'compressSource'; input: string; config: CompressionConfig }
-  | { type: 'decompressSource'; input: string; format: PaktFormat }
-  | { type: 'computeComparison'; input: string; semanticBudget?: number }
+  | { type: 'decompressSource'; input: string; format: PaktFormat; targetModel?: string }
+  | {
+      type: 'computeComparison';
+      input: string;
+      semanticBudget?: number;
+      targetModel?: string;
+    }
   | { type: 'compressibility'; text: string };
 
 type WorkerResponse =
@@ -128,15 +133,27 @@ export async function compressSource(
 export async function decompressSource(
   input: string,
   format: PaktFormat,
+  targetModel?: string,
 ): Promise<DecompressionResult> {
-  return callWorker<DecompressionResult>({ type: 'decompressSource', input, format });
+  return callWorker<DecompressionResult>({
+    type: 'decompressSource',
+    input,
+    format,
+    targetModel,
+  });
 }
 
 export async function computeComparison(
   input: string,
   semanticBudget?: number,
+  targetModel?: string,
 ): Promise<ComparisonState> {
-  return callWorker<ComparisonState>({ type: 'computeComparison', input, semanticBudget });
+  return callWorker<ComparisonState>({
+    type: 'computeComparison',
+    input,
+    semanticBudget,
+    targetModel,
+  });
 }
 
 /**

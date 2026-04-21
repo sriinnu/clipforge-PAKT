@@ -3,6 +3,7 @@ import {
   PAKT_LAYER_PROFILES,
   type PaktLayerProfileId,
   getPaktLayerProfile,
+  getTokenizerFamilyInfo,
 } from '@sriinnu/pakt';
 import { useEffect, useState } from 'react';
 import {
@@ -89,6 +90,19 @@ interface SettingsProps {
   onBack: () => void;
 }
 
+/* Models shown in the Settings dropdown. Exact tokenizer families are
+   `o200k_base` (gpt-4o family) and `cl100k_base` (gpt-4 / gpt-3.5).
+   Claude and Llama fall back to `cl100k_base` with an approximation note. */
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'gpt-4o', label: 'gpt-4o (OpenAI, exact)' },
+  { id: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI, exact)' },
+  { id: 'gpt-4', label: 'gpt-4 / gpt-4-turbo (OpenAI, exact)' },
+  { id: 'claude-opus', label: 'claude-opus (Anthropic, approximate)' },
+  { id: 'claude-sonnet', label: 'claude-sonnet (Anthropic, approximate)' },
+  { id: 'claude-haiku', label: 'claude-haiku (Anthropic, approximate)' },
+  { id: 'llama-3', label: 'llama-3.x (Meta, approximate)' },
+];
+
 export function Settings({ onBack: _onBack }: SettingsProps) {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
 
@@ -103,6 +117,7 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
   };
 
   const profile = getPaktLayerProfile(settings.compressionProfileId);
+  const tokenizerInfo = getTokenizerFamilyInfo(settings.targetModel);
 
   return (
     <div style={containerStyle}>
@@ -160,6 +175,35 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
               formatting fidelity.
             </span>
           </label>
+        ) : null}
+      </div>
+
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Target Model</span>
+        <label style={selectLabelStyle}>
+          <span style={settingLabelStyle}>
+            Pick the model that will consume the compressed prompt
+          </span>
+          <select
+            value={settings.targetModel}
+            onChange={(event) => update({ targetModel: event.target.value })}
+            style={selectStyle}
+          >
+            {TARGET_MODELS.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span style={settingDescStyle}>
+          Tokenizer family: <strong>{tokenizerInfo.family}</strong>
+          {tokenizerInfo.exact ? ' (exact)' : ' (approximate)'}
+        </span>
+        {!tokenizerInfo.exact ? (
+          <span style={{ ...settingDescStyle, color: 'var(--cf-warn, #ffcb6b)' }}>
+            {tokenizerInfo.approximationNote}
+          </span>
         ) : null}
       </div>
 
@@ -228,8 +272,9 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
 
       <div style={infoStyle}>
         <span>
-          Models and providers are auto-detected from the active page context. The popup, inline
-          button, and context menu now use the same profile selection.
+          The popup, inline button, and context menu use the profile and target model selected
+          above. Token counts and L3's merge-savings gate follow the tokenizer family resolved
+          from the target model.
         </span>
       </div>
     </div>

@@ -60,6 +60,7 @@ function compressForDetectedFormat(
     ...(settings.compressionProfileId === 'semantic'
       ? { semanticBudget: settings.semanticBudget }
       : {}),
+    targetModel: settings.targetModel,
   });
 
   if (format === 'markdown' || format === 'text') {
@@ -172,7 +173,7 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     }
 
     case 'COUNT_TOKENS': {
-      return { tokens: countTokens(message.text) };
+      return { tokens: countTokens(message.text, settings.targetModel) };
     }
 
     case 'DECOMPRESS': {

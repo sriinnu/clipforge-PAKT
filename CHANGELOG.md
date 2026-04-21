@@ -5,11 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 2026-04-21
+
+### Added
+
+- **Numeric delta encoding for monotonic tabular columns.** Columns whose values form an integer arithmetic progression are now stored as `+N` / `-N` offsets against the previous row (a sibling of the existing `~` string-delta sentinel). Typical win on id / timestamp / counter columns is 15-25% on top of the existing L1 structural compression. Lossless; reverts cleanly on decompress.
+- **Tokenizer-family awareness at L3 and in public APIs.** New exports `getTokenizerFamily(model)`, `getTokenizerFamilyInfo(model)`, and `countTokens(text, model)` let callers align the L3 merge-savings gate and downstream token counts with the target model (OpenAI `o200k_base` / `cl100k_base`, with a documented `cl100k_base` fallback for Claude and Llama). The info object returns `{ family, exact, approximationNote }` so consumers can warn users when the count is approximate.
+- **Property-based fuzzers.** `tests/roundtrip-fuzz.test.ts` and `tests/L1-delta-sentinel-fuzz.test.ts` exhaustively probe L1 round-trips, including the `~` sentinel at every structurally-interesting position. The fuzzers surfaced the three lossless bugs fixed below.
+- **Playground + Extension model selector.** Both surfaces expose a target-model picker that flows into `countTokens(..., model)` and shows the resolved tokenizer family (with an "approximate" badge for Claude / Llama).
+
+### Fixed
+
+- **Lossless round-trip for empty objects at any depth.** PAKT previously had no syntax for `key: {}` and silently collapsed nested empty objects to empty strings. The serializer now emits `key {}` for nested empty `ObjectNode`s and `- {}` for empty list items; the parser consumes the sentinels. Eight previously-documented `.fails()` tests now run as regular `it()` cases.
+- **Lossless round-trip for primitive and nested-array list items.** `buildListArray` wrapped primitives as `{ value: <stringified> }`, which round-tripped to a `{value: "…"}` object instead of the original element. The builder now recurses into nested arrays and wraps primitives under a `_value` sentinel (matching the existing `_root` convention); `reverse/helpers.listItemToValue` unwraps the sentinel back to the original element type.
+- **Lossless round-trip for inline arrays starting with a quoted scalar.** Inputs like `[\"~\", \"a\"]` fell through `parseArrayNode`'s bare-VALUE check into the list-array branch, leaking subsequent scalars as top-level keys. Dispatch now covers `VALUE` / `QUOTED_STRING` / `NUMBER` follow-tokens and `parseInlineArray` consumes the split token stream.
 
 ### Changed
 
+- **10 MB input cap on `compress()`.** Inputs above the cap throw a typed error instead of being silently truncated. Implemented with an allocation-free byte counter so the cap check does not materialise the input.
 - **L2 dictionary aliases now lex-ordered by expansion.** Greedy selection still picks winners by net-savings, but `$a`, `$b`, ... are assigned in lex order of the expansion afterwards. Two payloads that share the same high-frequency values now produce the same `@dict` block, preserving prompt-cache hits on Anthropic and OpenAI caching APIs across related calls. Round-trip is unchanged. Only affects callers relying on snapshot-style assertions over alias letters. Motivated by "Don't Break the Cache" (arXiv:2601.06007, Jan 2026).
+- **README sharpened.** Explicit positioning against LLMLingua / LLMLingua-2 (neural, lossy, model-dependent), TOON (PAKT's L1 inspiration, extended with L2-L4), and byte-level compressors (gzip / brotli do not reduce tokens).
 
 ## [0.7.0] - 2026-04-06
 
