@@ -9,6 +9,7 @@
 
 import {
   applyDictionaryLayer,
+  applyPIIPostPass,
   applySemanticLayer,
   applyTokenizerLayer,
   buildCompressedResult,
@@ -151,16 +152,63 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
 
   // Graceful degradation: wrap the entire pipeline in try-catch so that
   // on ANY error we return the original input with 0% savings instead of crashing.
+  let result: PaktResult;
   try {
-    return compressPipeline(input, options, targetModel);
+    result = compressPipeline(input, options, targetModel);
   } catch {
     // Structural pipeline failed (e.g., misdetected format). Try text compression as fallback.
     const originalTokens = countTokens(input, targetModel);
-    const textFallback = tryTextCompression(input, options?.fromFormat ?? 'text', originalTokens);
-    if (textFallback) return textFallback;
-
-    return buildUnchangedResult(input, originalTokens, options?.fromFormat ?? 'text');
+    result =
+      tryTextCompression(input, options?.fromFormat ?? 'text', originalTokens) ??
+      buildUnchangedResult(input, originalTokens, options?.fromFormat ?? 'text');
   }
+  /* PII post-pass runs at the very end so every return path — structural,
+     text-fallback, pakt-passthrough, mixed — flows through the same
+     scanner. Running it inside `compressPipeline` would skip the early
+     pakt-passthrough branch and the text-compression fallback. */
+  return finalizePIIPostPass(result, options, targetModel);
+}
+
+/**
+ * Apply the PII post-pass to a finished {@link PaktResult}. The pass is
+ * a string-level scan that runs after all compression layers, so it
+ * operates uniformly regardless of whether the result came from the
+ * structural pipeline, the text fallback, or a pakt-passthrough branch.
+ *
+ * When the pass mutates the output (redact mode) the compressed-token
+ * count and `reversible` flag are updated accordingly; a `flag`-mode pass
+ * leaves the token count alone.
+ *
+ * @param result - Finished compression result
+ * @param options - PAKT options bag
+ * @param targetModel - Model id used for token re-count when mutated
+ * @returns Possibly annotated / redacted result
+ */
+function finalizePIIPostPass(
+  result: PaktResult,
+  options: Partial<PaktOptions> | undefined,
+  targetModel: string,
+): PaktResult {
+  if (!options?.piiMode || options.piiMode === 'off') return result;
+
+  const pii = applyPIIPostPass(result.compressed, options);
+  if (!pii.applied) return result;
+
+  const compressedTokens = countTokens(pii.compressed, targetModel);
+  const savedTokens = result.originalTokens - compressedTokens;
+  const totalPercent =
+    result.originalTokens > 0 ? Math.round((savedTokens / result.originalTokens) * 100) : 0;
+
+  const next: PaktResult = {
+    ...result,
+    compressed: pii.compressed,
+    compressedTokens,
+    savings: { ...result.savings, totalTokens: savedTokens, totalPercent },
+    reversible: result.reversible && !pii.lossy,
+    piiCounts: pii.counts,
+  };
+  if (pii.mapping) next.piiMapping = pii.mapping;
+  return next;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +292,14 @@ function compressPipeline(
     targetModel,
   );
 
-  const compressedTokens = countTokens(semanticLayer.compressed, targetModel);
+  /* L4 PII post-pass lives outside this function — see
+     {@link finalizePIIPostPass} in `compress()`. That placement ensures
+     every return path (structural, text fallback, pakt passthrough) is
+     scanned uniformly; wiring it here would skip the passthrough
+     branches below. */
+
+  const finalCompressed = semanticLayer.compressed;
+  const compressedTokens = countTokens(finalCompressed, targetModel);
 
   // If structural compression didn't help, try text compression as fallback
   if (compressedTokens >= setup.originalTokens) {
@@ -254,7 +309,7 @@ function compressPipeline(
 
   return buildCompressedResult(
     semanticLayer.doc,
-    semanticLayer.compressed,
+    finalCompressed,
     setup.originalTokens,
     compressedTokens,
     setup.detectedFormat,

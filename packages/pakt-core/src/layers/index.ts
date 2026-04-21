@@ -20,7 +20,19 @@ export {
   revertDeltaEncoding,
   computeDeltaRatio,
   isDeltaSentinel,
+  isNumericDeltaSentinel,
+  needsNumericDeltaQuote,
+  isTemporalDeltaSentinel,
+  needsTemporalDeltaQuote,
   DELTA_SENTINEL,
   MIN_DELTA_ROWS,
   MIN_DELTA_RATIO,
 } from './L1-delta.js';
+export {
+  temporalDeltaEncodeTabular,
+  temporalDeltaDecodeTabular,
+  TEMPORAL_DELTA_MIN_ROWS,
+  TEMPORAL_DELTA_MIN_SAVINGS_RATIO,
+} from './L1-delta-temporal.js';
+export { applyPIILayer } from './L4-pii.js';
+export type { L4PIIOptions, L4PIIResult, PIIMode } from './L4-pii.js';

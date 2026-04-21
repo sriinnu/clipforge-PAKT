@@ -4,6 +4,11 @@
  * This is the single source of truth — never duplicate type definitions.
  */
 
+import type { PIIKind, PIIMatch } from './pii/detector.js';
+import type { PIIMode } from './layers/L4-pii.js';
+
+export type { PIIKind, PIIMatch, PIIMode };
+
 // ---------------------------------------------------------------------------
 // Format types
 // ---------------------------------------------------------------------------
@@ -120,6 +125,27 @@ export interface PaktOptions {
    * own tighter caps. @default 10_000_000 (10 MB)
    */
   maxInputBytes?: number;
+  /**
+   * L4 PII strategy. Controls personally-identifiable information
+   * handling on the compressed output:
+   *
+   * - `'off'` (default) — no scanning.
+   * - `'flag'` — detect and emit an `@warning pii` header; lossless.
+   * - `'redact'` — detect AND substitute placeholders like `[EMAIL]`;
+   *   lossy. Forces `reversible: false` on the result.
+   */
+  piiMode?: PIIMode;
+  /**
+   * Optional whitelist of PII kinds to detect. Defaults to all kinds.
+   * Ignored when `piiMode === 'off'`.
+   */
+  piiKinds?: readonly PIIKind[];
+  /**
+   * When `piiMode === 'redact'`, also return the placeholder→original
+   * mapping on the result (stored in `PaktResult.piiMapping`). The
+   * PAKT output itself never carries the mapping. Default: `false`.
+   */
+  piiReversible?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +177,19 @@ export interface PaktResult {
   detectedFormat: PaktFormat;
   /** Dictionary entries created (empty if L2 not applied) */
   dictionary: DictEntry[];
+  /**
+   * Per-kind PII counts when {@link PaktOptions.piiMode} is `'flag'` or
+   * `'redact'`. Absent when `piiMode === 'off'` or no PII was found.
+   */
+  piiCounts?: Partial<Record<PIIKind, number>>;
+  /**
+   * Placeholder → original value map, populated only when
+   * `piiMode === 'redact'` AND `piiReversible === true`. Callers are
+   * expected to store this locally (e.g. to restore originals after an
+   * LLM round-trip). The compressed PAKT string itself never contains
+   * the mapping.
+   */
+  piiMapping?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------

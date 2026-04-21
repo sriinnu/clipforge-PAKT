@@ -11,6 +11,13 @@ import * as z from 'zod/v4';
 import { PAKT_FORMAT_VALUES } from '../formats.js';
 const AUTO_ACTION_VALUES = ['compressed', 'decompressed'] as const;
 const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is'] as const;
+const PII_MODE_VALUES = ['off', 'flag', 'redact'] as const;
+/* `piiKinds` is carried across the wire as a comma-separated string
+   (e.g. "email,ipv4") for schema simplicity — the handler layer
+   validates each kind before turning it into an array. The canonical
+   list lives in `src/pii/detector.ts` (`PIIKind`); we intentionally don't
+   re-export it here because a zod enum would force `string` → array
+   widening in the inferred result type. */
 
 type BaseFieldSpec = {
   description: string;
@@ -153,6 +160,7 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
     'Returns the compressed string and savings percentage.',
     'Use the optional `format` parameter to skip auto-detection.',
     'Use `semanticBudget` to opt into lossy L4 semantic compression.',
+    'Use `piiMode` to flag or redact sensitive strings in the output.',
   ].join(' '),
   inputFields: {
     text: {
@@ -173,6 +181,25 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
       integer: true,
       positive: true,
       positiveMessage: 'semanticBudget must be a positive integer',
+      required: false,
+    },
+    piiMode: {
+      type: 'string',
+      description:
+        'PII strategy: off (default), flag (inject @warning pii header), or redact (replace values with placeholders; marks result non-reversible).',
+      enum: PII_MODE_VALUES,
+      required: false,
+    },
+    piiKinds: {
+      type: 'string',
+      description:
+        'Optional comma-separated PII kinds to scan for. Valid: email,phone,ipv4,ipv6,jwt,aws-access-key,aws-secret-key,credit-card,ssn. Omit to scan all.',
+      required: false,
+    },
+    piiReversible: {
+      type: 'boolean',
+      description:
+        'When true and piiMode is redact, return a placeholder → original mapping in piiMapping.',
       required: false,
     },
   },
@@ -206,6 +233,18 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
       type: 'boolean',
       description: 'Whether the compressed representation preserves all information.',
     },
+    piiCounts: {
+      type: 'string',
+      description:
+        'JSON object string: per-kind match counts when PII was detected; omitted otherwise.',
+      required: false,
+    },
+    piiMapping: {
+      type: 'string',
+      description:
+        'JSON object string: placeholder → original mapping for reversible redact mode; omitted otherwise.',
+      required: false,
+    },
   },
 });
 
@@ -231,6 +270,25 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
       integer: true,
       positive: true,
       positiveMessage: 'semanticBudget must be a positive integer',
+      required: false,
+    },
+    piiMode: {
+      type: 'string',
+      description:
+        'PII strategy applied to compressed output: off (default), flag, or redact. Ignored when decompressing.',
+      enum: PII_MODE_VALUES,
+      required: false,
+    },
+    piiKinds: {
+      type: 'string',
+      description:
+        'Optional comma-separated PII kinds. Valid: email,phone,ipv4,ipv6,jwt,aws-access-key,aws-secret-key,credit-card,ssn.',
+      required: false,
+    },
+    piiReversible: {
+      type: 'boolean',
+      description:
+        'When true and piiMode is redact, return a placeholder → original mapping in piiMapping.',
       required: false,
     },
   },
@@ -295,6 +353,18 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
       type: 'boolean',
       description:
         'True when the input was below the minimum token threshold and returned unchanged.',
+      required: false,
+    },
+    piiCounts: {
+      type: 'string',
+      description:
+        'JSON object string: per-kind match counts when PII was detected; omitted otherwise.',
+      required: false,
+    },
+    piiMapping: {
+      type: 'string',
+      description:
+        'JSON object string: placeholder → original mapping for reversible redact mode; omitted otherwise.',
       required: false,
     },
   },
