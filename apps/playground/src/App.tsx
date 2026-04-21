@@ -66,16 +66,34 @@ type ViewMode = 'playground' | 'compare';
 
 /* Target models grouped by provider — exact means the tokenizer family
    matches the provider's own byte-pair vocab; approximate models fall
-   back to `cl100k_base` and may drift by a few tokens per prompt. */
-const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: 'gpt-4o', label: 'gpt-4o (OpenAI, exact)' },
-  { id: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI, exact)' },
-  { id: 'gpt-4', label: 'gpt-4 / gpt-4-turbo (OpenAI, exact)' },
-  { id: 'claude-opus', label: 'claude-opus (Anthropic, approximate)' },
-  { id: 'claude-sonnet', label: 'claude-sonnet (Anthropic, approximate)' },
-  { id: 'claude-haiku', label: 'claude-haiku (Anthropic, approximate)' },
-  { id: 'llama-3', label: 'llama-3.x (Meta, approximate)' },
+   back to `cl100k_base` and may drift by a few tokens per prompt.
+
+   Keep the catalog canonical here and derive UI labels from metadata so
+   future updates are less likely to drift before this is extracted to a
+   shared module used by both playground and extension settings. */
+type TargetModelCatalogEntry = {
+  id: string;
+  name: string;
+  provider: string;
+  tokenizerMatch: 'exact' | 'approximate';
+};
+
+const TARGET_MODEL_CATALOG: ReadonlyArray<TargetModelCatalogEntry> = [
+  { id: 'gpt-4o', name: 'gpt-4o', provider: 'OpenAI', tokenizerMatch: 'exact' },
+  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'OpenAI', tokenizerMatch: 'exact' },
+  { id: 'gpt-4', name: 'gpt-4 / gpt-4-turbo', provider: 'OpenAI', tokenizerMatch: 'exact' },
+  { id: 'claude-opus', name: 'claude-opus', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  { id: 'claude-sonnet', name: 'claude-sonnet', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  { id: 'claude-haiku', name: 'claude-haiku', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  { id: 'llama-3', name: 'llama-3.x', provider: 'Meta', tokenizerMatch: 'approximate' },
 ];
+
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = TARGET_MODEL_CATALOG.map(
+  ({ id, name, provider, tokenizerMatch }) => ({
+    id,
+    label: `${name} (${provider}, ${tokenizerMatch})`,
+  }),
+);
 
 function formatDelta(before: number, after: number): string {
   const delta = before - after;
