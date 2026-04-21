@@ -284,6 +284,9 @@ PAKT automatically compresses data on every MCP tool call to reduce conversation
 git clone https://github.com/sriinnu/clipforge-PAKT.git
 cd clipforge-PAKT
 pnpm install
+
+# Opt in to repo-managed git hooks (rejects Co-authored-by trailers, etc.)
+git config core.hooksPath .githooks
 ```
 
 ### Commands

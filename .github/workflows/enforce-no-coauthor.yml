@@ -1,0 +1,54 @@
+name: Enforce no Co-authored-by
+
+# Project policy: commit messages must not contain `Co-authored-by:` trailers.
+# Rationale is documented in CLAUDE.md. This workflow scans every commit in a
+# pull request (and every new commit pushed to main) and fails if any carry
+# the trailer — catches GitHub "Commit suggestion" buttons, Copilot Autofix,
+# and Dependabot merge commits before they land.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine commit range
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.event.after }}"
+          fi
+          # Handle the initial-push case where before is all-zeros.
+          if [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base="$(git rev-list --max-parents=0 HEAD | head -1)"
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Scan for Co-authored-by trailers
+        run: |
+          range="${{ steps.range.outputs.base }}..${{ steps.range.outputs.head }}"
+          offenders=$(git log --pretty=format:"%H" --grep="^Co-authored-by:" "$range")
+          if [ -n "$offenders" ]; then
+            echo "::error::The following commits contain Co-authored-by trailers, which are disallowed by project policy:"
+            for sha in $offenders; do
+              subject=$(git log -1 --pretty=format:"%s" "$sha")
+              echo "  - $sha $subject"
+            done
+            echo ""
+            echo "Remove the trailer from each commit message (rebase and force-push your branch)."
+            exit 1
+          fi
+          echo "No Co-authored-by trailers found in range $range."
