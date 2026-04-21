@@ -63,7 +63,28 @@ export {
   applyDeltaEncoding,
   revertDeltaEncoding,
   DELTA_SENTINEL,
+  isNumericDeltaSentinel,
+  needsNumericDeltaQuote,
+  isTemporalDeltaSentinel,
+  needsTemporalDeltaQuote,
+  temporalDeltaEncodeTabular,
+  temporalDeltaDecodeTabular,
 } from './layers/index.js';
+
+// ---------------------------------------------------------------------------
+// PII detection / redaction (L4 strategy)
+// ---------------------------------------------------------------------------
+
+export { applyPIILayer } from './layers/index.js';
+export type { L4PIIOptions, L4PIIResult, PIIMode } from './layers/index.js';
+export { detectPII, redactPII } from './pii/index.js';
+export type {
+  PIIKind,
+  PIIMatch,
+  PIIDetectionOptions,
+  RedactPIIOptions,
+  RedactPIIResult,
+} from './pii/index.js';
 
 // ---------------------------------------------------------------------------
 // Mixed-content compression

@@ -50,6 +50,12 @@ import {
   numericDeltaDecodeTabular,
   numericDeltaEncodeTabular,
 } from './L1-delta-numeric.js';
+import {
+  isTemporalDeltaSentinel,
+  needsTemporalDeltaQuote,
+  temporalDeltaDecodeTabular,
+  temporalDeltaEncodeTabular,
+} from './L1-delta-temporal.js';
 
 // ---------------------------------------------------------------------------
 // Re-exports — preserve the module's historical public surface
@@ -57,6 +63,7 @@ import {
 
 export { DELTA_SENTINEL, MIN_DELTA_RATIO, MIN_DELTA_ROWS, computeDeltaRatio, isDeltaSentinel };
 export { isNumericDeltaSentinel, needsNumericDeltaQuote };
+export { isTemporalDeltaSentinel, needsTemporalDeltaQuote };
 
 /**
  * Maximum recursion depth for delta encode/decode body traversal.
@@ -88,9 +95,13 @@ function deltaEncodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; appli
   let applied = false;
   const newBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
-      /* Numeric first so all-zero-delta columns fall through to the
-         cheaper `~` encoder. */
-      const numericEncoded = numericDeltaEncodeTabular(node);
+      /* Temporal first: `T+N`/`T-N` only replaces ISO-string cells, so
+         it never poaches integer columns the numeric encoder would
+         claim. Numeric next for integer columns. Exact `~` last so any
+         zero-deltas left behind by the two numeric passes are swept up
+         with the cheapest sentinel. */
+      const temporalEncoded = temporalDeltaEncodeTabular(node);
+      const numericEncoded = numericDeltaEncodeTabular(temporalEncoded);
       const fullyEncoded = deltaEncodeTabularExact(numericEncoded);
       if (fullyEncoded !== node) applied = true;
       return fullyEncoded;
@@ -166,11 +177,21 @@ function deltaDecodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; compl
   let complete = true;
   const decodedBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
-      const numeric = numericDeltaDecodeTabular(node);
-      if (!numeric.resolvedAllSentinels) complete = false;
-      const exact = deltaDecodeTabularExact(numeric.node);
+      /* Decode MUST reverse encode order. Encode was temporal → numeric
+         → exact, so decode is exact → numeric → temporal. The exact
+         encoder will happily claim a run of identical `T+60` sentinel
+         strings and replace row 2+ with `~`; if we decoded temporal
+         first those `~`s would still be there and collapse onto the
+         template, corrupting the round-trip. Resolving `~` first
+         restores the raw `T+60` strings so temporal sees a clean
+         per-row sentinel chain. */
+      const exact = deltaDecodeTabularExact(node);
       if (!exact.resolvedAllSentinels) complete = false;
-      return exact.node;
+      const numeric = numericDeltaDecodeTabular(exact.node);
+      if (!numeric.resolvedAllSentinels) complete = false;
+      const temporal = temporalDeltaDecodeTabular(numeric.node);
+      if (!temporal.resolvedAllSentinels) complete = false;
+      return temporal.node;
     }
     if (node.type === 'object') {
       const result = deltaDecodeBody(node.children, depth + 1);

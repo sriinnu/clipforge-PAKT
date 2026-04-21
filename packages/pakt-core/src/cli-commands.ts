@@ -19,7 +19,7 @@ import {
 } from './mcp/session-stats.js';
 import { compressMixed } from './mixed/index.js';
 import { compactSessions, getActiveSessions, readAllRecords, resetAll } from './stats/persister.js';
-import type { PaktFormat, PaktOptions } from './types.js';
+import type { PIIKind, PIIMode, PaktFormat, PaktOptions } from './types.js';
 import { validate } from './utils/validate.js';
 
 // ---------------------------------------------------------------------------
@@ -102,6 +102,56 @@ function parseSemanticBudget(value: string | undefined): number | undefined {
   return budget;
 }
 
+const VALID_PII_MODES: readonly PIIMode[] = ['off', 'flag', 'redact'];
+const VALID_PII_KINDS: readonly PIIKind[] = [
+  'email',
+  'phone',
+  'ipv4',
+  'ipv6',
+  'jwt',
+  'aws-access-key',
+  'aws-secret-key',
+  'credit-card',
+  'ssn',
+];
+
+/**
+ * Parse the optional `--pii-mode` flag. Accepts `off`, `flag`, or
+ * `redact`; throws on anything else so typos don't silently leak PII.
+ */
+function parsePIIMode(value: string | undefined): PIIMode | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!VALID_PII_MODES.includes(normalized as PIIMode)) {
+    throw new Error(
+      `Invalid --pii-mode value: "${value}". Valid modes: ${VALID_PII_MODES.join(', ')}.`,
+    );
+  }
+  return normalized as PIIMode;
+}
+
+/**
+ * Parse the optional `--pii-kinds` flag (comma-separated). Unknown kinds
+ * are rejected up front so the CLI never pretends to filter for a kind
+ * the detector doesn't know about.
+ */
+function parsePIIKinds(value: string | undefined): PIIKind[] | undefined {
+  if (value === undefined) return undefined;
+  const parts = value
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  if (parts.length === 0) return undefined;
+  for (const p of parts) {
+    if (!VALID_PII_KINDS.includes(p as PIIKind)) {
+      throw new Error(
+        `Invalid --pii-kinds value: "${p}". Valid kinds: ${VALID_PII_KINDS.join(', ')}.`,
+      );
+    }
+  }
+  return parts as PIIKind[];
+}
+
 function assertValidPaktInput(input: string): void {
   const validation = validate(input);
   if (!validation.valid) {
@@ -128,6 +178,8 @@ function buildCompressionOptions(
   const fromOpt = args.options.get('from');
   const layersOpt = args.options.get('layers');
   const semanticBudget = parseSemanticBudget(args.options.get('semantic-budget'));
+  const piiMode = parsePIIMode(args.options.get('pii-mode'));
+  const piiKinds = parsePIIKinds(args.options.get('pii-kinds'));
 
   const options: Partial<PaktOptions> = {};
 
@@ -152,6 +204,16 @@ function buildCompressionOptions(
 
   if (options.layers?.semantic && semanticBudget === undefined) {
     throw new Error('Layer 4 semantic compression requires --semantic-budget <positive integer>.');
+  }
+
+  if (piiMode !== undefined) {
+    options.piiMode = piiMode;
+  }
+  if (piiKinds !== undefined) {
+    options.piiKinds = piiKinds;
+  }
+  if (args.flags.has('pii-reversible')) {
+    options.piiReversible = true;
   }
 
   return options;

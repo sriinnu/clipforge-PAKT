@@ -29,7 +29,7 @@ import { PAKT_FORMAT_VALUES, isPaktFormat } from '../formats.js';
 import { compressMixed } from '../mixed/index.js';
 import { readAllRecords } from '../stats/persister.js';
 import { countTokens } from '../tokens/index.js';
-import type { PaktFormat, PaktOptions } from '../types.js';
+import type { PIIKind, PIIMode, PaktFormat, PaktOptions, PaktResult } from '../types.js';
 import { validate } from '../utils/validate.js';
 import { dedupCache } from './dedup-cache.js';
 import { SessionStats, type SessionStatsResult, getSessionStats } from './session-stats.js';
@@ -102,6 +102,58 @@ function validateSemanticBudget(value: unknown): number | undefined {
   return value;
 }
 
+const MCP_VALID_PII_MODES: readonly PIIMode[] = ['off', 'flag', 'redact'];
+const MCP_VALID_PII_KINDS: readonly PIIKind[] = [
+  'email',
+  'phone',
+  'ipv4',
+  'ipv6',
+  'jwt',
+  'aws-access-key',
+  'aws-secret-key',
+  'credit-card',
+  'ssn',
+];
+
+/**
+ * Validate the optional `piiMode` argument from an MCP tool call.
+ * Returns `undefined` when omitted; throws on unknown modes.
+ */
+function validatePIIMode(value: unknown): PIIMode | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string' || !MCP_VALID_PII_MODES.includes(value as PIIMode)) {
+    throw new PaktToolInputError(
+      `piiMode must be one of: ${MCP_VALID_PII_MODES.join(', ')}`,
+    );
+  }
+  return value as PIIMode;
+}
+
+/**
+ * Validate the optional `piiKinds` argument (comma-separated string) and
+ * turn it into an array of kinds. Throws if any entry is unknown so a
+ * typo doesn't silently widen the scan.
+ */
+function validatePIIKinds(value: unknown): PIIKind[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') {
+    throw new PaktToolInputError('piiKinds must be a comma-separated string');
+  }
+  const parts = value
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  if (parts.length === 0) return undefined;
+  for (const p of parts) {
+    if (!MCP_VALID_PII_KINDS.includes(p as PIIKind)) {
+      throw new PaktToolInputError(
+        `piiKinds entry "${p}" is invalid. Valid: ${MCP_VALID_PII_KINDS.join(', ')}`,
+      );
+    }
+  }
+  return parts as PIIKind[];
+}
+
 function summarizeValidationFailure(
   validation: ReturnType<typeof validate>,
   fallback = 'validation failed',
@@ -117,15 +169,24 @@ function summarizeValidationFailure(
   return fallback;
 }
 
+/** PII-related inputs already validated from an MCP tool call. */
+interface PIIInputs {
+  mode: PIIMode | undefined;
+  kinds: PIIKind[] | undefined;
+  reversible: boolean | undefined;
+}
+
 /**
  * Build shared compression options for MCP tool handlers.
  * @param format - Optional format hint
  * @param semanticBudget - Optional positive L4 budget
+ * @param pii - Optional PII inputs (already validated by the caller)
  * @returns Compression options passed into the core engine
  */
 function buildCompressionOptions(
   format: PaktFormat | undefined,
   semanticBudget: number | undefined,
+  pii?: PIIInputs,
 ): Partial<PaktOptions> {
   const options: Partial<PaktOptions> = {};
 
@@ -138,7 +199,30 @@ function buildCompressionOptions(
     options.layers = { semantic: true };
   }
 
+  if (pii?.mode !== undefined) options.piiMode = pii.mode;
+  if (pii?.kinds !== undefined) options.piiKinds = pii.kinds;
+  if (pii?.reversible === true) options.piiReversible = true;
+
   return options;
+}
+
+/**
+ * Extract PII metadata (`piiCounts`, `piiMapping`) from a completed
+ * {@link PaktResult} as contract-shaped JSON strings. Returns an empty
+ * object when the compress call didn't touch PII, so callers can spread
+ * the result into their response without conditional bookkeeping.
+ */
+function extractPIIFields(
+  result: PaktResult,
+): { piiCounts?: string; piiMapping?: string } {
+  const out: { piiCounts?: string; piiMapping?: string } = {};
+  if (result.piiCounts && Object.keys(result.piiCounts).length > 0) {
+    out.piiCounts = JSON.stringify(result.piiCounts);
+  }
+  if (result.piiMapping && Object.keys(result.piiMapping).length > 0) {
+    out.piiMapping = JSON.stringify(result.piiMapping);
+  }
+  return out;
 }
 
 function toCompressResult(
@@ -148,8 +232,9 @@ function toCompressResult(
   originalTokens: number,
   compressedTokens: number,
   reversible: boolean,
+  piiFields: { piiCounts?: string; piiMapping?: string } = {},
 ): PaktCompressResult {
-  return {
+  const base: PaktCompressResult = {
     compressed,
     savings,
     format,
@@ -158,6 +243,9 @@ function toCompressResult(
     savedTokens: originalTokens - compressedTokens,
     reversible,
   };
+  if (piiFields.piiCounts !== undefined) base.piiCounts = piiFields.piiCounts;
+  if (piiFields.piiMapping !== undefined) base.piiMapping = piiFields.piiMapping;
+  return base;
 }
 
 function inspectPassthroughPakt(
@@ -199,7 +287,12 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   }
   const format = validateFormat(args.format);
   const semanticBudget = validateSemanticBudget(args.semanticBudget);
-  const options = buildCompressionOptions(format, semanticBudget);
+  const piiInputs: PIIInputs = {
+    mode: validatePIIMode((args as { piiMode?: unknown }).piiMode),
+    kinds: validatePIIKinds((args as { piiKinds?: unknown }).piiKinds),
+    reversible: (args as { piiReversible?: unknown }).piiReversible === true,
+  };
+  const options = buildCompressionOptions(format, semanticBudget, piiInputs);
 
   if (format) {
     if (format === 'pakt') {
@@ -220,6 +313,7 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
       result.originalTokens,
       result.compressedTokens,
       result.reversible,
+      extractPIIFields(result),
     );
   }
 
@@ -247,9 +341,13 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
       result.originalTokens,
       result.compressedTokens,
       result.reversible,
+      extractPIIFields(result),
     );
   }
 
+  /* mixed-content path: compressMixed wraps compress() internally, so
+     PII options threaded through `options` reach the inner pipeline and
+     any counts/mapping show up on the mixed result. */
   const mixedResult = compressMixed(args.text, options);
   return toCompressResult(
     mixedResult.compressed,
@@ -258,6 +356,7 @@ function handleCompress(args: PaktCompressArgs): PaktCompressResult {
     mixedResult.originalTokens,
     mixedResult.compressedTokens,
     mixedResult.reversible,
+    extractPIIFields(mixedResult as unknown as PaktResult),
   );
 }
 
@@ -299,6 +398,11 @@ function trimMetadata(): void {
 function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   assertNonEmptyString(args.text, 'text');
   const semanticBudget = validateSemanticBudget(args.semanticBudget);
+  const piiInputs: PIIInputs = {
+    mode: validatePIIMode((args as { piiMode?: unknown }).piiMode),
+    kinds: validatePIIKinds((args as { piiKinds?: unknown }).piiKinds),
+    reversible: (args as { piiReversible?: unknown }).piiReversible === true,
+  };
 
   const detected = detect(args.text);
 
@@ -361,49 +465,63 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
     };
   }
 
-  // Dedup: return cached result if we've seen this exact input before
+  // Dedup: return cached result if we've seen this exact input before.
+  // Skip the cache entirely when PII options are active — cached results
+  // wouldn't carry the requested counts/mapping, so we always re-scan.
   const hash = createHash('sha256').update(args.text).digest('hex');
-  const cachedCompressed = dedupCache.get(hash);
-  const cachedMeta = dedupMetadata.get(hash);
-  if (cachedCompressed && cachedMeta) {
-    return {
-      result: cachedCompressed,
-      action: 'compressed',
-      savings: cachedMeta.savingsPercent,
-      detectedFormat: cachedMeta.format as PaktFormat,
-      inputTokens: cachedMeta.inputTokens,
-      outputTokens: cachedMeta.outputTokens,
-      savedTokens: cachedMeta.savedTokens,
-      reversible: cachedMeta.reversible,
-      dedupHit: true,
-    };
+  const piiActive = piiInputs.mode !== undefined && piiInputs.mode !== 'off';
+  if (!piiActive) {
+    const cachedCompressed = dedupCache.get(hash);
+    const cachedMeta = dedupMetadata.get(hash);
+    if (cachedCompressed && cachedMeta) {
+      return {
+        result: cachedCompressed,
+        action: 'compressed',
+        savings: cachedMeta.savingsPercent,
+        detectedFormat: cachedMeta.format as PaktFormat,
+        inputTokens: cachedMeta.inputTokens,
+        outputTokens: cachedMeta.outputTokens,
+        savedTokens: cachedMeta.savedTokens,
+        reversible: cachedMeta.reversible,
+        dedupHit: true,
+      };
+    }
   }
 
-  // Run the compression pipeline
-  const compressionOptions = buildCompressionOptions(undefined, semanticBudget);
+  // Run the compression pipeline.
+  // When PII is active on mixed content, route through compress() — it
+  // scans the full document via the post-pass, whereas compressMixed
+  // only compresses embedded structured blocks and would leave prose
+  // PII untouched.
+  const compressionOptions = buildCompressionOptions(undefined, semanticBudget, piiInputs);
+  const isStructured =
+    detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv';
   const compressResult =
-    detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv'
-      ? compress(args.text, {
-          ...compressionOptions,
-          fromFormat: detected.format,
-        })
+    isStructured || piiActive
+      ? compress(args.text, { ...compressionOptions, fromFormat: detected.format })
       : compressMixed(args.text, compressionOptions);
 
   const savedTokens = compressResult.originalTokens - compressResult.compressedTokens;
 
-  // Store in dedup cache + metadata for future hits
-  dedupCache.set(hash, compressResult.compressed);
-  dedupMetadata.set(hash, {
-    savedTokens,
-    inputTokens: compressResult.originalTokens,
-    outputTokens: compressResult.compressedTokens,
-    format: detected.format,
-    reversible: compressResult.reversible,
-    savingsPercent: compressResult.savings.totalPercent,
-  });
-  trimMetadata();
+  /* Dedup cache key is the input hash; when PII options differ across
+     calls for the same input the cached entry would be stale. Skip the
+     cache whenever PII is active so mode changes always re-scan. */
+  const skipDedup = piiInputs.mode !== undefined && piiInputs.mode !== 'off';
+  if (!skipDedup) {
+    dedupCache.set(hash, compressResult.compressed);
+    dedupMetadata.set(hash, {
+      savedTokens,
+      inputTokens: compressResult.originalTokens,
+      outputTokens: compressResult.compressedTokens,
+      format: detected.format,
+      reversible: compressResult.reversible,
+      savingsPercent: compressResult.savings.totalPercent,
+    });
+    trimMetadata();
+  }
 
-  return {
+  const piiFields = extractPIIFields(compressResult as unknown as PaktResult);
+  const autoResult: PaktAutoResult = {
     result: compressResult.compressed,
     action: 'compressed',
     savings: compressResult.savings.totalPercent,
@@ -413,6 +531,9 @@ function handleAuto(args: PaktAutoArgs): PaktAutoResult {
     savedTokens,
     reversible: compressResult.reversible,
   };
+  if (piiFields.piiCounts !== undefined) autoResult.piiCounts = piiFields.piiCounts;
+  if (piiFields.piiMapping !== undefined) autoResult.piiMapping = piiFields.piiMapping;
+  return autoResult;
 }
 
 /**

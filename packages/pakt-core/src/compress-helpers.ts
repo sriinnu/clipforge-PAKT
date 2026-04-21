@@ -4,6 +4,7 @@ import { compressText } from './layers/compress-text.js';
 import {
   applyL3Transforms,
   applyL4Transforms,
+  applyPIILayer,
   compressL2,
   compressL3,
   compressL4,
@@ -14,7 +15,13 @@ import { compressMixed } from './mixed/index.js';
 import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
-import type { PaktFormat, PaktLayers, PaktOptions, PaktResult } from './types.js';
+import type {
+  PaktFormat,
+  PaktLayers,
+  PaktOptions,
+  PaktResult,
+  PIIKind,
+} from './types.js';
 
 type PaktDocument = Parameters<typeof extractDictEntries>[0];
 
@@ -208,6 +215,58 @@ export function applySemanticLayer(
   }
 
   return { compressed: transformed, doc: l4Doc, reversible: false, saved };
+}
+
+/**
+ * Describes the outcome of the L4-PII post-pass so the caller can
+ * splice PII metadata (counts, mapping) into the final {@link PaktResult}
+ * without the pipeline having to track it itself.
+ */
+export interface PIIPostPassResult {
+  /** Possibly annotated / redacted PAKT string. */
+  compressed: string;
+  /** Whether any PII was found and the string was mutated (headers / redactions). */
+  applied: boolean;
+  /** True only when redact mode actually substituted values. */
+  lossy: boolean;
+  /** Per-kind counts; empty when nothing was detected. */
+  counts: Partial<Record<PIIKind, number>>;
+  /** Placeholder → original map (redact + reversible mode only). */
+  mapping?: Record<string, string>;
+}
+
+/**
+ * Run the L4-PII scan / redact post-pass on a fully-compressed PAKT
+ * string. This is a string-only pass that lives after structural /
+ * dictionary / tokenizer / semantic layers — it operates on the final
+ * output so it can catch PII embedded anywhere in the document,
+ * including inside dictionary expansions.
+ *
+ * @param compressed - Serialized PAKT after all earlier layers
+ * @param options    - PAKT options bag ({@link PaktOptions})
+ * @returns PII post-pass result including possibly annotated text
+ */
+export function applyPIIPostPass(
+  compressed: string,
+  options: Partial<PaktOptions> | undefined,
+): PIIPostPassResult {
+  const mode = options?.piiMode ?? 'off';
+  if (mode === 'off') {
+    return { compressed, applied: false, lossy: false, counts: {} };
+  }
+  const layerResult = applyPIILayer(compressed, {
+    mode,
+    kinds: options?.piiKinds,
+    reversible: options?.piiReversible === true,
+  });
+  const result: PIIPostPassResult = {
+    compressed: layerResult.text,
+    applied: layerResult.applied,
+    lossy: layerResult.lossy,
+    counts: layerResult.counts,
+  };
+  if (layerResult.mapping) result.mapping = layerResult.mapping;
+  return result;
 }
 
 export function buildCompressedResult(
