@@ -221,12 +221,15 @@ pakt serve --stdio                            # start MCP server
 ## Key Features
 
 - **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), and opt-in budgeted Semantic (L4)
-- **Delta encoding** -- Adjacent rows sharing values replaced with `~` sentinels, saving 20-40% on repetitive tabular data
+- **Delta encoding** -- Adjacent rows sharing values replaced with `~` sentinels, plus `+N` / `-N` numeric deltas for monotonic columns (ids, timestamps, counters), saving 20-40% on repetitive tabular data
+- **Cache-stable dictionary** -- `@dict` aliases are assigned in lex order of their expansions so related payloads produce the same block, preserving prompt-cache hits on Anthropic and OpenAI caching APIs
+- **Tokenizer-family aware** -- `getTokenizerFamily(model)` / `countTokens(text, model)` align the L3 merge-savings gate and downstream token counts with the target model (`o200k_base`, `cl100k_base`, fallback documented for Claude / Llama)
+- **10 MB input cap** -- `compress()` throws a typed error for oversize inputs with an allocation-free byte counter so the check does not materialise the input
 - **Auto context compression** -- Content-addressed dedup, text line dedup, word n-gram dictionary, whitespace normalization
 - **Compressibility scoring** -- `estimateCompressibility()` returns a 0-1 score and recommended profile before you compress
 - **Session stats** -- `pakt_stats` MCP tool and `pakt stats` CLI for real-time token savings tracking
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
-- **Lossless round-tripping** -- L1-L3 preserve data fidelity; L4 is explicitly lossy
+- **Lossless round-tripping** -- L1-L3 preserve data fidelity; L4 is explicitly lossy. Property-based fuzzers run on every build
 - **MCP server + embeddable tools** -- `pakt serve --stdio` or `registerPaktTools()` for agent workflows
 - **Small runtime** -- `gpt-tokenizer`, MCP SDK, and `zod`
 - **Full TypeScript support** -- All types exported, dual ESM/CJS builds
