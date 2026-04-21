@@ -44,14 +44,26 @@ function utf8ByteLength(s: string, stopAt: number): number {
   let len = 0;
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
-    if (c < 0x80) len += 1;
-    else if (c < 0x800) len += 2;
-    else if (c < 0xd800 || c >= 0xe000) len += 3;
-    else {
-      /* Surrogate pair (high + low) encodes one supplementary codepoint
-         as 4 UTF-8 bytes. Skip the low surrogate. */
-      len += 4;
-      i++;
+    if (c < 0x80) {
+      len += 1;
+    } else if (c < 0x800) {
+      len += 2;
+    } else if (c < 0xd800 || c >= 0xe000) {
+      len += 3;
+    } else if (c <= 0xdbff) {
+      const next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        /* Valid surrogate pair (high + low) encodes one supplementary
+           codepoint as 4 UTF-8 bytes. Skip the low surrogate. */
+        len += 4;
+        i++;
+      } else {
+        /* Unpaired high surrogate is encoded as U+FFFD by TextEncoder. */
+        len += 3;
+      }
+    } else {
+      /* Isolated low surrogate is encoded as U+FFFD by TextEncoder. */
+      len += 3;
     }
     if (len >= stopAt) return len;
   }
