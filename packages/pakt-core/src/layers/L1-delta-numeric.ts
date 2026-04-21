@@ -207,14 +207,25 @@ export function numericDeltaEncodeTabular(node: TabularArrayNode): TabularArrayN
     /* Build the replacement column: row 0 = absolute, rest = sentinels */
     const encoded: ScalarNode[] = [];
     for (let r = 0; r < ints.length; r++) {
+      const origRow = node.rows[r];
+      const origCell = origRow?.values[f];
+      if (!origCell) return node;
+
       if (r === 0) {
-        const origRow = node.rows[0];
-        const origCell = origRow?.values[f];
-        if (!origCell) return node;
         encoded.push(origCell);
       } else {
         const delta = (ints[r] as number) - (ints[r - 1] as number);
-        encoded.push(makeNumericSentinel(delta));
+        if (delta === 0) {
+          /*
+           * Preserve exact repeats as their original numeric cell instead of
+           * emitting a numeric sentinel. This avoids generating an invalid
+           * `-0` sentinel and lets the exact-delta (`~`) layer compress
+           * repeats if applicable.
+           */
+          encoded.push(origCell);
+        } else {
+          encoded.push(makeNumericSentinel(delta));
+        }
       }
     }
     encodedColumns.set(f, encoded);
