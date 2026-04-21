@@ -180,7 +180,7 @@ export function useCompression(
     } finally {
       setProcessing(false);
     }
-  }, [
+  }, [input, decompressFormat, processing, setOutput, setStats, setStatusMsg, setProcessing, settings?.targetModel]);
     input,
     decompressFormat,
     processing,
