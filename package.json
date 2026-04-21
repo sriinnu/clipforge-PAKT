@@ -1,7 +1,7 @@
 {
   "name": "@sriinnu/clipforge-pakt",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "author": "Srinivas Pendela <sriinnu@users.noreply.github.com>",
   "type": "module",
   "packageManager": "pnpm@10.33.0",

@@ -19,8 +19,20 @@ type WorkerRequest =
       config: CompressionConfig;
     }
   | { id: number; type: 'compressSource'; input: string; config: CompressionConfig }
-  | { id: number; type: 'decompressSource'; input: string; format: PaktFormat }
-  | { id: number; type: 'computeComparison'; input: string; semanticBudget?: number }
+  | {
+      id: number;
+      type: 'decompressSource';
+      input: string;
+      format: PaktFormat;
+      targetModel?: string;
+    }
+  | {
+      id: number;
+      type: 'computeComparison';
+      input: string;
+      semanticBudget?: number;
+      targetModel?: string;
+    }
   | { id: number; type: 'compressibility'; text: string };
 
 type WorkerResponse =
@@ -62,14 +74,18 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         respond({
           id: message.id,
           ok: true,
-          payload: await decompressSource(message.input, message.format),
+          payload: await decompressSource(message.input, message.format, message.targetModel),
         });
         return;
       case 'computeComparison':
         respond({
           id: message.id,
           ok: true,
-          payload: await computeComparison(message.input, message.semanticBudget),
+          payload: await computeComparison(
+            message.input,
+            message.semanticBudget,
+            message.targetModel,
+          ),
         });
         return;
       case 'compressibility':
