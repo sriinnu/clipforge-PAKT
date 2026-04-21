@@ -180,7 +180,16 @@ export function useCompression(
     } finally {
       setProcessing(false);
     }
-  }, [input, decompressFormat, processing, setOutput, setStats, setStatusMsg, setProcessing]);
+  }, [
+    input,
+    decompressFormat,
+    processing,
+    settings,
+    setOutput,
+    setStats,
+    setStatusMsg,
+    setProcessing,
+  ]);
 
   return { runCompress, handleDecompress };
 }
