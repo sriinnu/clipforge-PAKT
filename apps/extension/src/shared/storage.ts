@@ -29,6 +29,8 @@ export interface ExtensionSettings {
   theme: 'system' | 'dark' | 'light' | 'oled';
   /** Font preset: 'modern' | 'classic' | 'rounded' | 'system' */
   fontPreset: FontPreset;
+  /** Target model — feeds L3's merge-savings gate and `countTokens()`. */
+  targetModel: string;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -37,6 +39,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   autoCompress: false,
   theme: 'dark',
   fontPreset: 'modern',
+  targetModel: 'gpt-4o',
 };
 
 function isProfileId(value: unknown): value is PaktLayerProfileId {
@@ -69,6 +72,10 @@ function normalizeSettings(
       typeof raw.autoCompress === 'boolean' ? raw.autoCompress : DEFAULT_SETTINGS.autoCompress,
     theme: isTheme(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme,
     fontPreset: isFontPreset(raw.fontPreset) ? raw.fontPreset : DEFAULT_SETTINGS.fontPreset,
+    targetModel:
+      typeof raw.targetModel === 'string' && raw.targetModel.length > 0
+        ? raw.targetModel
+        : DEFAULT_SETTINGS.targetModel,
   };
 }
 
@@ -93,6 +100,10 @@ function normalizeSettingsChange(raw: Record<string, unknown>): Partial<Extensio
 
   if (isFontPreset(raw.fontPreset)) {
     updated.fontPreset = raw.fontPreset;
+  }
+
+  if (typeof raw.targetModel === 'string' && raw.targetModel.length > 0) {
+    updated.targetModel = raw.targetModel;
   }
 
   return updated;

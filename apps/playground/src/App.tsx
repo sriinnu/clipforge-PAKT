@@ -4,6 +4,7 @@ import {
   type PaktFormat,
   type PaktLayerProfileId,
   getPaktLayerProfile,
+  getTokenizerFamilyInfo,
 } from '@sriinnu/pakt';
 import type { CompressibilityResult } from '@sriinnu/pakt';
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
@@ -62,6 +63,37 @@ const WORKFLOW_SNIPPET_PREVIEW = {
 
 type Action = 'compress' | 'decompress' | null;
 type ViewMode = 'playground' | 'compare';
+
+/* Target models grouped by provider — exact means the tokenizer family
+   matches the provider's own byte-pair vocab; approximate models fall
+   back to `cl100k_base` and may drift by a few tokens per prompt.
+
+   Keep the catalog canonical here and derive UI labels from metadata so
+   future updates are less likely to drift before this is extracted to a
+   shared module used by both playground and extension settings. */
+type TargetModelCatalogEntry = {
+  id: string;
+  name: string;
+  provider: string;
+  tokenizerMatch: 'exact' | 'approximate';
+};
+
+const TARGET_MODEL_CATALOG: ReadonlyArray<TargetModelCatalogEntry> = [
+  { id: 'gpt-4o', name: 'gpt-4o', provider: 'OpenAI', tokenizerMatch: 'exact' },
+  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'OpenAI', tokenizerMatch: 'exact' },
+  { id: 'gpt-4', name: 'gpt-4 / gpt-4-turbo', provider: 'OpenAI', tokenizerMatch: 'exact' },
+  { id: 'claude-opus', name: 'claude-opus', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  { id: 'claude-sonnet', name: 'claude-sonnet', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  { id: 'claude-haiku', name: 'claude-haiku', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  { id: 'llama-3', name: 'llama-3.x', provider: 'Meta', tokenizerMatch: 'approximate' },
+];
+
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = TARGET_MODEL_CATALOG.map(
+  ({ id, name, provider, tokenizerMatch }) => ({
+    id,
+    label: `${name} (${provider}, ${tokenizerMatch})`,
+  }),
+);
 
 function formatDelta(before: number, after: number): string {
   const delta = before - after;
@@ -195,6 +227,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('playground');
   const [selectedSample, setSelectedSample] = useState(initialSample?.id ?? '');
   const [compressionProfileId, setCompressionProfileId] = useState<PaktLayerProfileId>('standard');
+  const [targetModel, setTargetModel] = useState<string>(TARGET_MODELS[0]?.id ?? 'gpt-4o');
   const [semanticBudgetInput, setSemanticBudgetInput] = useState(String(DEFAULT_SEMANTIC_BUDGET));
   const [input, setInput] = useState(initialSample?.text ?? '');
   const [detectedFormat, setDetectedFormat] = useState<PaktFormat>(initialSample?.format ?? 'json');
@@ -233,9 +266,15 @@ export default function App() {
     () => ({
       profileId: compressionProfileId,
       ...(semanticBudget !== undefined ? { semanticBudget } : {}),
+      targetModel,
     }),
-    [compressionProfileId, semanticBudget],
+    [compressionProfileId, semanticBudget, targetModel],
   );
+
+  /* Resolve the tokenizer family for the selected model so we can show the
+     family name and flag approximate counts (Claude / Llama fall back to
+     cl100k_base). */
+  const tokenizerInfo = useMemo(() => getTokenizerFamilyInfo(targetModel), [targetModel]);
 
   const statsTone = getStatsTone(output.length > 0, inputTokens, outputTokens);
   const actionSummary = getActionSummary(
@@ -422,7 +461,7 @@ export default function App() {
 
     const timeoutId = window.setTimeout(async () => {
       try {
-        const next = await computeComparison(deferredInput, semanticBudget);
+        const next = await computeComparison(deferredInput, semanticBudget, targetModel);
         if (cancelled) return;
 
         startTransition(() => {
@@ -446,7 +485,7 @@ export default function App() {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [compareModeActive, deferredInput, packedInputDetected, semanticBudget]);
+  }, [compareModeActive, deferredInput, packedInputDetected, semanticBudget, targetModel]);
 
   function loadSample(id: string): void {
     invalidatePendingAction();
@@ -521,7 +560,7 @@ export default function App() {
     setError(null);
 
     try {
-      const next = await decompressSource(input, decompressTo);
+      const next = await decompressSource(input, decompressTo, targetModel);
       if (manualRequestIdRef.current !== requestId) return;
 
       setDetectedFormat(next.detectedFormat);
@@ -686,6 +725,16 @@ export default function App() {
               ))}
             </select>
           </label>
+          <label>
+            Target model
+            <select value={targetModel} onChange={(event) => setTargetModel(event.target.value)}>
+              {TARGET_MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+          </label>
           {selectedProfile.requiresSemanticBudget ? (
             <label>
               Semantic budget
@@ -721,7 +770,16 @@ export default function App() {
           {selectedProfile.id === 'tokenizer' || selectedProfile.id === 'semantic' ? (
             <span className="meta-badge">Model-sensitive</span>
           ) : null}
+          <span className="meta-badge" title={`Token counts computed with ${tokenizerInfo.family}`}>
+            Tokenizer: {tokenizerInfo.family}
+            {tokenizerInfo.exact ? '' : ' (~)'}
+          </span>
         </div>
+        {!tokenizerInfo.exact ? (
+          <p className="sample-note" style={{ marginTop: '-6px', opacity: 0.85 }}>
+            {tokenizerInfo.approximationNote}
+          </p>
+        ) : null}
         {selectedProfile.requiresSemanticBudget ? (
           <p className="sample-note" style={{ marginTop: '-6px', color: 'var(--warning)' }}>
             Semantic profile is lossy. It needs a positive budget and is meant for aggressive prompt

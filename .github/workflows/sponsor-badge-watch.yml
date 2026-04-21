@@ -1,0 +1,112 @@
+name: Sponsor badge watch
+
+# Re-inserts the Sponsor / Buy-Me-a-Coffee badges into README.md once the
+# repo crosses `SPONSOR_BADGE_MIN_STARS` stargazers. Until then the badge
+# block stays empty so the README header stays focused on the product.
+# FUNDING.yml is untouched, so the GitHub sidebar "Sponsor this project"
+# button is already available to anyone who looks for it.
+
+on:
+  schedule:
+    # Every Monday 00:00 UTC — cheap check, no urgency.
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  SPONSOR_BADGE_MIN_STARS: '500'
+  README_PATH: README.md
+  BRANCH_NAME: chore/reinsert-sponsor-badges
+
+jobs:
+  check-and-reinsert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Count stargazers
+        id: stars
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh api "repos/${{ github.repository }}" --jq '.stargazers_count')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Current stargazers: $count (threshold: $SPONSOR_BADGE_MIN_STARS)"
+
+      - name: Check README marker state
+        id: marker
+        run: |
+          if ! grep -q 'SPONSOR-BADGES-START' "$README_PATH"; then
+            echo "state=missing-markers" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Extract whatever sits between the markers, strip HTML comments + whitespace.
+          body=$(awk '/SPONSOR-BADGES-START/{flag=1; next} /SPONSOR-BADGES-END/{flag=0} flag' "$README_PATH" \
+            | sed -E 's/<!--.*-->//g' \
+            | tr -d '[:space:]')
+          if [ -z "$body" ]; then
+            echo "state=empty" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=filled" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decide action
+        id: decide
+        run: |
+          if [ "${{ steps.marker.outputs.state }}" = "missing-markers" ]; then
+            echo "reason=README is missing the SPONSOR-BADGES markers; manual attention needed."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.marker.outputs.state }}" = "filled" ]; then
+            echo "Badges already present — nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.stars.outputs.count }}" -lt "$SPONSOR_BADGE_MIN_STARS" ]; then
+            echo "Under threshold (${{ steps.stars.outputs.count }} < $SPONSOR_BADGE_MIN_STARS) — keep badges hidden."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Re-insert badges
+        if: steps.decide.outputs.skip == 'false'
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, os
+          owner_repo = os.environ['GITHUB_REPOSITORY']
+          owner = owner_repo.split('/')[0]
+          badges = (
+            '  <a href="https://github.com/sponsors/' + owner + '">'
+            '<img src="https://img.shields.io/badge/Sponsor-ec4899?logo=githubsponsors&logoColor=white" alt="Sponsor on GitHub" /></a>\n'
+            '  <a href="https://buymeacoffee.com/' + owner + '">'
+            '<img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee" /></a>\n'
+          )
+          path = pathlib.Path(os.environ['README_PATH'])
+          src = path.read_text()
+          pattern = re.compile(r'(<!-- SPONSOR-BADGES-START -->)(.*?)(<!-- SPONSOR-BADGES-END -->)', re.DOTALL)
+          replacement = r'\1\n' + badges + r'\3'
+          new = pattern.sub(replacement, src, count=1)
+          path.write_text(new)
+          PY
+
+      - name: Open PR
+        if: steps.decide.outputs.skip == 'false'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: ${{ env.BRANCH_NAME }}
+          commit-message: 'chore: re-insert sponsor badges (stargazers crossed threshold)'
+          title: 'chore: re-insert sponsor badges (stargazers crossed threshold)'
+          body: |
+            Stargazer count is **${{ steps.stars.outputs.count }}**, which meets the
+            `SPONSOR_BADGE_MIN_STARS` threshold (**${{ env.SPONSOR_BADGE_MIN_STARS }}**).
+            Re-inserting the Sponsor and Buy-Me-a-Coffee badges into the README header.
+
+            - Triggered by `.github/workflows/sponsor-badge-watch.yml`.
+            - `FUNDING.yml` was already live; this only controls badge visibility in the README.
+          delete-branch: true

@@ -24,6 +24,8 @@ type ComparisonItemId =
 export interface CompressionConfig {
   profileId: PaktLayerProfileId;
   semanticBudget?: number;
+  /** Target model — flows into `countTokens` and L3's merge-savings gate. */
+  targetModel?: string;
 }
 
 export interface PreviewResult {
@@ -132,6 +134,7 @@ function buildCompressionOptions(format: PaktFormat, config: CompressionConfig) 
   return createProfiledPaktOptions(config.profileId, {
     fromFormat: format,
     ...(hasSemanticBudget(config) ? { semanticBudget: config.semanticBudget } : {}),
+    ...(config.targetModel ? { targetModel: config.targetModel } : {}),
   });
 }
 
@@ -197,7 +200,7 @@ export async function analyzePreview(
 
   const { countTokens, detect } = await loadPakt();
   const detected = detect(input);
-  const inputTokens = countTokens(input);
+  const inputTokens = countTokens(input, config.targetModel);
   const packedInputDetected = detected.format === 'pakt' || input.includes(MIXED_MARKER);
 
   if (!liveCompress || packedInputDetected) {
@@ -242,7 +245,7 @@ export async function compressSource(
 ): Promise<CompressionResult> {
   const { countTokens, detect } = await loadPakt();
   const detected = detect(input);
-  const inputTokens = countTokens(input);
+  const inputTokens = countTokens(input, config.targetModel);
   const packedInputDetected = detected.format === 'pakt' || input.includes(MIXED_MARKER);
 
   if (packedInputDetected) {
@@ -262,22 +265,24 @@ export async function compressSource(
 export async function decompressSource(
   input: string,
   format: PaktFormat,
+  targetModel?: string,
 ): Promise<DecompressionResult> {
   const { countTokens, detect } = await loadPakt();
   const detected = detect(input);
   const output = await decompressDocument(input, format);
   return {
     detectedFormat: detected.format,
-    inputTokens: countTokens(input),
+    inputTokens: countTokens(input, targetModel),
     packedInputDetected: detected.format === 'pakt' || input.includes(MIXED_MARKER),
     output,
-    outputTokens: countTokens(output),
+    outputTokens: countTokens(output, targetModel),
   };
 }
 
 export async function computeComparison(
   input: string,
   semanticBudget?: number,
+  targetModel?: string,
 ): Promise<ComparisonState> {
   if (!input.trim()) {
     return { status: 'idle', items: null, error: null, recommendation: null };
@@ -292,7 +297,7 @@ export async function computeComparison(
       return { status: 'ready', items: null, error: null, recommendation: null };
     }
 
-    const originalTokens = countTokens(input);
+    const originalTokens = countTokens(input, targetModel);
     const items: ComparisonItem[] = [
       {
         id: 'original',
@@ -312,6 +317,7 @@ export async function computeComparison(
       const result = await compressDocument(input, detected.format, {
         profileId: profile.id,
         ...(profile.requiresSemanticBudget ? { semanticBudget } : {}),
+        ...(targetModel ? { targetModel } : {}),
       });
 
       const item: ComparisonItem = {
@@ -337,6 +343,7 @@ export async function computeComparison(
       for (const variant of tablePlan.variants) {
         const result = await compressDocument(variant.text, variant.format, {
           profileId: 'standard',
+          ...(targetModel ? { targetModel } : {}),
         });
         const item: ComparisonItem = {
           id: variant.id,

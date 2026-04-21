@@ -3,6 +3,7 @@ import {
   PAKT_LAYER_PROFILES,
   type PaktLayerProfileId,
   getPaktLayerProfile,
+  getTokenizerFamilyInfo,
 } from '@sriinnu/pakt';
 import { useEffect, useState } from 'react';
 import {
@@ -89,6 +90,41 @@ interface SettingsProps {
   onBack: () => void;
 }
 
+/* Models shown in the Settings dropdown. Keep only minimal per-model metadata
+   here and derive the tokenizer accuracy wording from shared tokenizer-family
+   lookup logic so the UI is less likely to drift as mappings evolve. */
+type TargetModelOption = {
+  id: string;
+  displayName: string;
+  vendor: string;
+};
+
+const TARGET_MODEL_METADATA: ReadonlyArray<TargetModelOption> = [
+  { id: 'gpt-4o', displayName: 'gpt-4o', vendor: 'OpenAI' },
+  { id: 'gpt-4o-mini', displayName: 'gpt-4o-mini', vendor: 'OpenAI' },
+  { id: 'gpt-4', displayName: 'gpt-4 / gpt-4-turbo', vendor: 'OpenAI' },
+  { id: 'claude-opus', displayName: 'claude-opus', vendor: 'Anthropic' },
+  { id: 'claude-sonnet', displayName: 'claude-sonnet', vendor: 'Anthropic' },
+  { id: 'claude-haiku', displayName: 'claude-haiku', vendor: 'Anthropic' },
+  { id: 'llama-3', displayName: 'llama-3.x', vendor: 'Meta' },
+];
+
+function buildTargetModelLabel({ id, displayName, vendor }: TargetModelOption) {
+  const tokenizerInfo = getTokenizerFamilyInfo(id);
+  const accuracy =
+    tokenizerInfo.family === 'o200k_base' || tokenizerInfo.family === 'cl100k_base'
+      ? 'exact'
+      : 'approximate';
+
+  return `${displayName} (${vendor}, ${accuracy})`;
+}
+
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> =
+  TARGET_MODEL_METADATA.map(({ id, ...rest }) => ({
+    id,
+    label: buildTargetModelLabel({ id, ...rest }),
+  }));
+
 export function Settings({ onBack: _onBack }: SettingsProps) {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
 
@@ -103,6 +139,7 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
   };
 
   const profile = getPaktLayerProfile(settings.compressionProfileId);
+  const tokenizerInfo = getTokenizerFamilyInfo(settings.targetModel);
 
   return (
     <div style={containerStyle}>
@@ -160,6 +197,35 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
               formatting fidelity.
             </span>
           </label>
+        ) : null}
+      </div>
+
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Target Model</span>
+        <label style={selectLabelStyle}>
+          <span style={settingLabelStyle}>
+            Pick the model that will consume the compressed prompt
+          </span>
+          <select
+            value={settings.targetModel}
+            onChange={(event) => update({ targetModel: event.target.value })}
+            style={selectStyle}
+          >
+            {TARGET_MODELS.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span style={settingDescStyle}>
+          Tokenizer family: <strong>{tokenizerInfo.family}</strong>
+          {tokenizerInfo.exact ? ' (exact)' : ' (approximate)'}
+        </span>
+        {!tokenizerInfo.exact ? (
+          <span style={{ ...settingDescStyle, color: 'var(--cf-warn, #ffcb6b)' }}>
+            {tokenizerInfo.approximationNote}
+          </span>
         ) : null}
       </div>
 
@@ -228,8 +294,9 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
 
       <div style={infoStyle}>
         <span>
-          Models and providers are auto-detected from the active page context. The popup, inline
-          button, and context menu now use the same profile selection.
+          The popup, inline button, and context menu use the profile and target model selected
+          above. Token counts and L3's merge-savings gate follow the tokenizer family resolved
+          from the target model.
         </span>
       </div>
     </div>

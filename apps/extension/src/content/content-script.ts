@@ -133,6 +133,7 @@ async function handleCompressOrDecompress(): Promise<void> {
       ...(settings.compressionProfileId === 'semantic'
         ? { semanticBudget: settings.semanticBudget }
         : {}),
+      targetModel: settings.targetModel,
     });
 
     let compressed: string;

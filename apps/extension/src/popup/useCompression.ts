@@ -80,6 +80,7 @@ export function useCompression(
           ...(settings.compressionProfileId === 'semantic'
             ? { semanticBudget: settings.semanticBudget }
             : {}),
+          targetModel: settings.targetModel,
         });
 
         let compressed: string;
@@ -164,8 +165,8 @@ export function useCompression(
       }
 
       setOutput(outputText);
-      const beforeTokens = countTokens(input);
-      const afterTokens = countTokens(outputText);
+      const beforeTokens = countTokens(input, settings?.targetModel);
+      const afterTokens = countTokens(outputText, settings?.targetModel);
       const savingsPercent =
         afterTokens > 0 ? Math.round(((afterTokens - beforeTokens) / afterTokens) * 100) : 0;
       setStats({ before: beforeTokens, after: afterTokens, savings: savingsPercent });
@@ -179,7 +180,16 @@ export function useCompression(
     } finally {
       setProcessing(false);
     }
-  }, [input, decompressFormat, processing, setOutput, setStats, setStatusMsg, setProcessing]);
+  }, [
+    input,
+    decompressFormat,
+    processing,
+    settings?.targetModel,
+    setOutput,
+    setStats,
+    setStatusMsg,
+    setProcessing,
+  ]);
 
   return { runCompress, handleDecompress };
 }

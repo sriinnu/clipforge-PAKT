@@ -61,4 +61,9 @@ apps/desktop/src-tauri/gen/
 npm-debug.log*
 pnpm-debug.log*
 
-.npmrc.claude/worktrees/
+# NPM config may contain auth tokens — never commit
+.npmrc
+packages/*/.npmrc
+
+# Local agent worktrees and session data
+.claude/
