@@ -122,7 +122,10 @@ export function formatEpochToISO(epochSec: number, templateValue: string): strin
   }
 
   const sign = templateTz.charAt(0) === '-' ? -1 : 1;
-  const [offH, offM] = templateTz.slice(1).split(':').map((n) => Number.parseInt(n, 10));
+  const [offH, offM] = templateTz
+    .slice(1)
+    .split(':')
+    .map((n) => Number.parseInt(n, 10));
   const offsetMin = sign * ((offH ?? 0) * 60 + (offM ?? 0));
   const shifted = new Date((epochSec + offsetMin * 60) * 1000);
   const iso = shifted.toISOString().replace(/\.\d{3}Z$/, '');

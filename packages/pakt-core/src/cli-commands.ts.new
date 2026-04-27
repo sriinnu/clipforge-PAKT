@@ -11,6 +11,10 @@
  * here so existing `from './cli-commands.js'` imports keep working.
  */
 
+import { compareSavings, compress, countTokens, decompress, detect } from './index.js';
+import { handlePaktTool } from './mcp/index.js';
+import type { PaktInspectResult } from './mcp/index.js';
+import { compressMixed } from './mixed/index.js';
 import {
   type ParsedArgs,
   assertValidPaktInput,
@@ -18,10 +22,6 @@ import {
   parseFormat,
   parseSemanticBudget,
 } from './cli-commands-shared.js';
-import { compareSavings, compress, countTokens, decompress, detect } from './index.js';
-import { handlePaktTool } from './mcp/index.js';
-import type { PaktInspectResult } from './mcp/index.js';
-import { compressMixed } from './mixed/index.js';
 
 // Re-export the shared surface so `cli.ts` can import everything from here.
 export { type ParsedArgs, FORMAT_MAP, parseFormat } from './cli-commands-shared.js';

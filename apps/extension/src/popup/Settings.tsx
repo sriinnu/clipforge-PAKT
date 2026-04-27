@@ -119,11 +119,12 @@ function buildTargetModelLabel({ id, displayName, vendor }: TargetModelOption) {
   return `${displayName} (${vendor}, ${accuracy})`;
 }
 
-const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> =
-  TARGET_MODEL_METADATA.map(({ id, ...rest }) => ({
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = TARGET_MODEL_METADATA.map(
+  ({ id, ...rest }) => ({
     id,
     label: buildTargetModelLabel({ id, ...rest }),
-  }));
+  }),
+);
 
 export function Settings({ onBack: _onBack }: SettingsProps) {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
@@ -295,8 +296,8 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
       <div style={infoStyle}>
         <span>
           The popup, inline button, and context menu use the profile and target model selected
-          above. Token counts and L3's merge-savings gate follow the tokenizer family resolved
-          from the target model.
+          above. Token counts and L3's merge-savings gate follow the tokenizer family resolved from
+          the target model.
         </span>
       </div>
     </div>

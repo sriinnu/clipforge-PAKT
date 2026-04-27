@@ -5,152 +5,22 @@
  * This is the single source of truth for tool names, descriptions, field
  * metadata, and SDK validation schemas. Public JSON-style tool definitions,
  * TypeScript types, and SDK registration all derive from these contracts.
+ *
+ * The schema-construction primitives (FieldSpec, defineToolContract, etc.)
+ * live in `contract-builder.ts`. This file only owns the four PAKT tool
+ * definitions and the inferred type aliases.
  */
 
-import * as z from 'zod/v4';
+import type * as z from 'zod/v4';
 import { PAKT_FORMAT_VALUES } from '../formats.js';
-const AUTO_ACTION_VALUES = ['compressed', 'decompressed'] as const;
-const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is'] as const;
-const PII_MODE_VALUES = ['off', 'flag', 'redact'] as const;
-/* `piiKinds` is carried across the wire as a comma-separated string
-   (e.g. "email,ipv4") for schema simplicity — the handler layer
-   validates each kind before turning it into an array. The canonical
-   list lives in `src/pii/detector.ts` (`PIIKind`); we intentionally don't
-   re-export it here because a zod enum would force `string` → array
-   widening in the inferred result type. */
+import {
+  AUTO_ACTION_VALUES,
+  PII_MODE_VALUES,
+  RECOMMENDED_ACTION_VALUES,
+  defineToolContract,
+} from './contract-builder.js';
 
-type BaseFieldSpec = {
-  description: string;
-  required?: boolean;
-};
-
-type StringFieldSpec = BaseFieldSpec & {
-  type: 'string';
-  enum?: readonly string[];
-  minLength?: number;
-  minLengthMessage?: string;
-};
-
-type NumberFieldSpec = BaseFieldSpec & {
-  type: 'number';
-  integer?: boolean;
-  positive?: boolean;
-  positiveMessage?: string;
-};
-
-type BooleanFieldSpec = BaseFieldSpec & {
-  type: 'boolean';
-};
-
-type FieldSpec = StringFieldSpec | NumberFieldSpec | BooleanFieldSpec;
-type FieldMap = Record<string, FieldSpec>;
-
-type JsonSchemaProperty = {
-  type: string;
-  description: string;
-  enum?: readonly string[];
-};
-
-type JsonObjectSchema = {
-  type: 'object';
-  properties: Record<string, JsonSchemaProperty>;
-  required: string[];
-  additionalProperties: false;
-};
-
-export interface PaktMcpContract<Name extends string = string> {
-  name: Name;
-  description: string;
-  inputFields: FieldMap;
-  outputFields: FieldMap;
-  inputJsonSchema: JsonObjectSchema;
-  outputJsonSchema: JsonObjectSchema;
-  inputSchema: z.ZodObject<Record<string, z.ZodType>>;
-  outputSchema: z.ZodObject<Record<string, z.ZodType>>;
-}
-
-function enumValuesToTuple(values: readonly string[]): [string, ...string[]] {
-  if (values.length === 0) {
-    throw new Error('Enum field requires at least one value');
-  }
-  // biome-ignore lint/style/noNonNullAssertion: length > 0 guaranteed by the check above
-  return [values[0]!, ...values.slice(1)];
-}
-
-function buildFieldSchema(field: FieldSpec): z.ZodType {
-  switch (field.type) {
-    case 'string': {
-      let schema: z.ZodType = field.enum ? z.enum(enumValuesToTuple(field.enum)) : z.string();
-      if (field.minLength !== undefined) {
-        schema = (schema as z.ZodString).min(field.minLength, field.minLengthMessage);
-      }
-      schema = schema.describe(field.description);
-      return field.required === false ? schema.optional() : schema;
-    }
-    case 'number': {
-      let schema: z.ZodType = z.number();
-      if (field.integer) {
-        schema = (schema as z.ZodNumber).int();
-      }
-      if (field.positive) {
-        schema = (schema as z.ZodNumber).positive(field.positiveMessage);
-      }
-      schema = schema.describe(field.description);
-      return field.required === false ? schema.optional() : schema;
-    }
-    case 'boolean': {
-      const schema = z.boolean().describe(field.description);
-      return field.required === false ? schema.optional() : schema;
-    }
-  }
-}
-
-function buildObjectSchema(fields: FieldMap): z.ZodObject<Record<string, z.ZodType>> {
-  const shape: Record<string, z.ZodType> = {};
-  for (const [name, field] of Object.entries(fields)) {
-    shape[name] = buildFieldSchema(field);
-  }
-  return z.object(shape).strict();
-}
-
-function buildJsonObjectSchema(fields: FieldMap): JsonObjectSchema {
-  const properties: Record<string, JsonSchemaProperty> = {};
-  const required: string[] = [];
-
-  for (const [name, field] of Object.entries(fields)) {
-    properties[name] = {
-      type: field.type,
-      description: field.description,
-      ...(field.type === 'string' && field.enum ? { enum: field.enum } : {}),
-    };
-
-    if (field.required !== false) {
-      required.push(name);
-    }
-  }
-
-  return {
-    type: 'object',
-    properties,
-    required,
-    additionalProperties: false,
-  };
-}
-
-function defineToolContract<Name extends string>(config: {
-  name: Name;
-  description: string;
-  inputFields: FieldMap;
-  outputFields: FieldMap;
-}): PaktMcpContract<Name> {
-  return {
-    ...config,
-    inputJsonSchema: buildJsonObjectSchema(config.inputFields),
-    outputJsonSchema: buildJsonObjectSchema(config.outputFields),
-    inputSchema: buildObjectSchema(config.inputFields),
-    outputSchema: buildObjectSchema(config.outputFields),
-  };
-}
+export type { PaktMcpContract } from './contract-builder.js';
 
 export const PAKT_COMPRESS_CONTRACT = defineToolContract({
   name: 'pakt_compress',

@@ -17,6 +17,12 @@
 
 import { countTokens } from '../tokens/index.js';
 import {
+  type PreprocessResult,
+  type WhitespaceMetadata,
+  encodeWs,
+  preprocess,
+} from './compress-text-preprocess.js';
+import {
   type AliasEntry,
   applyAliases,
   buildCandidates,
@@ -26,12 +32,6 @@ import {
   findExistingAliases,
   tokenizeWords,
 } from './compress-text-phrases.js';
-import {
-  type PreprocessResult,
-  type WhitespaceMetadata,
-  encodeWs,
-  preprocess,
-} from './compress-text-preprocess.js';
 
 // ---------------------------------------------------------------------------
 // Constants

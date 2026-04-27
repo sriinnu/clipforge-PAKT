@@ -14,12 +14,12 @@ import { compress } from '../src/compress.js';
 import { decompress } from '../src/decompress.js';
 import { compressL1 } from '../src/layers/L1-compress.js';
 import { decompressL1 } from '../src/layers/L1-decompress.js';
-import { applyDeltaEncoding, revertDeltaEncoding } from '../src/layers/L1-delta.js';
 import {
   isTemporalDeltaSentinel,
   needsTemporalDeltaQuote,
   temporalDeltaEncodeTabular,
 } from '../src/layers/L1-delta-temporal.js';
+import { applyDeltaEncoding, revertDeltaEncoding } from '../src/layers/L1-delta.js';
 import type { DocumentNode, TabularArrayNode } from '../src/parser/ast.js';
 
 // ---------------------------------------------------------------------------
@@ -131,10 +131,7 @@ describe('L1-delta-temporal', () => {
     });
 
     it('skips below the minimum row threshold', () => {
-      const data = [
-        { at: '2026-04-21T15:00:00Z' },
-        { at: '2026-04-21T15:01:00Z' },
-      ];
+      const data = [{ at: '2026-04-21T15:00:00Z' }, { at: '2026-04-21T15:01:00Z' }];
       const encoded = applyDeltaEncoding(compressL1(data, 'json'));
       expect(countTemporalSentinels(encoded)).toBe(0);
     });
