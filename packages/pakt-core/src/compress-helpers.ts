@@ -15,13 +15,7 @@ import { compressMixed } from './mixed/index.js';
 import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
-import type {
-  PaktFormat,
-  PaktLayers,
-  PaktOptions,
-  PaktResult,
-  PIIKind,
-} from './types.js';
+import type { PIIKind, PaktFormat, PaktLayers, PaktOptions, PaktResult } from './types.js';
 
 type PaktDocument = Parameters<typeof extractDictEntries>[0];
 

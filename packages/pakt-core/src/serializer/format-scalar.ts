@@ -67,6 +67,10 @@ function needsQuoting(value: string): boolean {
   if (value.includes('|')) return true;
   if (value.startsWith('$')) return true;
   if (value.startsWith('%')) return true;
+  // Inline comment marker: " %" (space then percent) outside of quotes is parsed
+  // as the start of a trailing comment by the tokenizer (see findInlineComment),
+  // so any unquoted scalar containing it would be silently truncated on read.
+  if (value.includes(' %')) return true;
   if (value !== value.trim()) return true;
   if (value.includes('\n')) return true;
   if (value.includes('\t')) return true;

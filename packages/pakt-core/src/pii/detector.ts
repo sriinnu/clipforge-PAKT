@@ -23,6 +23,15 @@
  * precision over recall — so a false positive on a payload that looks
  * PII-shaped is unlikely, at the cost of missing unusual formats.
  *
+ * ### Credit-card trade-off
+ * `credit-card` candidates are Luhn-validated before being emitted as
+ * matches. This slashes false positives (random 16-digit sequences like
+ * `1234 5678 9012 3456` fail Luhn) but also accepts the **valid-Luhn
+ * test PANs** published by Stripe / Visa / etc. (e.g.
+ * `4000 0000 0000 0002`). Those test PANs are harmless in production
+ * contexts but will be flagged / redacted. Do not infer "redacted →
+ * real cardholder data"; always cross-check before escalating.
+ *
  * Use {@link detectPII} as the single entry point. It returns
  * non-overlapping, sorted matches so callers can redact in-place
  * without offset bookkeeping.
@@ -84,8 +93,7 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}/g;
 /* Phones: international E.164-ish and common US formats. Accepts
    optional `+` country code, parens around area code, and separators
    `-`, `.`, or space. Requires at least 10 digits in total. */
-const PHONE_RE =
-  /(?<![\w+])\+?\d{1,3}[-. ]?\(?\d{2,4}\)?[-. ]?\d{3,4}[-. ]?\d{3,4}(?![\w])/g;
+const PHONE_RE = /(?<![\w+])\+?\d{1,3}[-. ]?\(?\d{2,4}\)?[-. ]?\d{3,4}[-. ]?\d{3,4}(?![\w])/g;
 
 /* IPv4: four octets 0-255. Uses a non-capturing group + negative
    lookarounds to avoid matching inside version-like substrings. The
@@ -222,6 +230,48 @@ const DETECTORS: readonly {
  * // ]
  * ```
  */
+/**
+ * Compute the absolute `[start, end)` slice of one regex hit, accounting
+ * for the optional capture-group offset that some detectors use to point
+ * at a sub-slice of the broader match (e.g. JWT payload only).
+ *
+ * @param m - The raw `RegExpExecArray` from {@link RegExp.exec}
+ * @param value - The captured value text whose offset we need
+ * @param captureGroup - Defined when the detector targets a sub-group
+ */
+function locateMatch(
+  m: RegExpExecArray,
+  value: string,
+  captureGroup: number | undefined,
+): { start: number; end: number } {
+  const matchStart = m.index ?? 0;
+  if (captureGroup === undefined) {
+    return { start: matchStart, end: matchStart + value.length };
+  }
+  /* Group offset = absolute match start + offset of group inside the match text. */
+  const start = matchStart + (m[0]?.indexOf(value) ?? 0);
+  return { start, end: start + value.length };
+}
+
+/**
+ * Run a single detector across `text` and append its accepted hits to `raw`.
+ * Mutates `raw` in place to avoid an intermediate allocation per detector.
+ */
+function runDetector(detector: (typeof DETECTORS)[number], text: string, raw: PIIMatch[]): void {
+  /* Reset per-scan: shared `g`-flag regexes keep `lastIndex` state */
+  detector.re.lastIndex = 0;
+  let m: RegExpExecArray | null = detector.re.exec(text);
+  while (m !== null) {
+    const groupIdx = detector.captureGroup ?? 0;
+    const value = m[groupIdx] ?? m[0];
+    if (value !== undefined && (!detector.accept || detector.accept(value))) {
+      const { start, end } = locateMatch(m, value, detector.captureGroup);
+      raw.push({ kind: detector.kind, value, start, end });
+    }
+    m = detector.re.exec(text);
+  }
+}
+
 export function detectPII(text: string, options?: PIIDetectionOptions): PIIMatch[] {
   if (!text) return [];
   /* ReDoS safety net: the IPv6 / phone patterns can backtrack on
@@ -231,8 +281,7 @@ export function detectPII(text: string, options?: PIIDetectionOptions): PIIMatch
      blocking the event loop. */
   if (text.length > PII_INPUT_MAX_CHARS) return [];
 
-  const allowedKinds =
-    options?.kinds && options.kinds.length > 0 ? new Set(options.kinds) : null;
+  const allowedKinds = options?.kinds && options.kinds.length > 0 ? new Set(options.kinds) : null;
   const raw: PIIMatch[] = [];
 
   /* IPv6's alternation is expensive; skip it unless the text at least
@@ -244,29 +293,7 @@ export function detectPII(text: string, options?: PIIDetectionOptions): PIIMatch
   for (const detector of DETECTORS) {
     if (allowedKinds && !allowedKinds.has(detector.kind)) continue;
     if (detector.kind === 'ipv6' && !ipv6Possible) continue;
-
-    /* Reset per-scan: shared `g`-flag regexes keep `lastIndex` state */
-    detector.re.lastIndex = 0;
-    let m: RegExpExecArray | null = detector.re.exec(text);
-    while (m !== null) {
-      const groupIdx = detector.captureGroup ?? 0;
-      const value = m[groupIdx] ?? m[0];
-      if (value === undefined) {
-        m = detector.re.exec(text);
-        continue;
-      }
-      const start =
-        detector.captureGroup !== undefined
-          ? /* Group offset = absolute match start + offset of group
-               inside the match text. */
-            (m.index ?? 0) + (m[0]?.indexOf(value) ?? 0)
-          : m.index ?? 0;
-      const end = start + value.length;
-      if (!detector.accept || detector.accept(value)) {
-        raw.push({ kind: detector.kind, value, start, end });
-      }
-      m = detector.re.exec(text);
-    }
+    runDetector(detector, text, raw);
   }
 
   return dedupeOverlapping(raw);

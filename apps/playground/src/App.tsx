@@ -83,8 +83,18 @@ const TARGET_MODEL_CATALOG: ReadonlyArray<TargetModelCatalogEntry> = [
   { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'OpenAI', tokenizerMatch: 'exact' },
   { id: 'gpt-4', name: 'gpt-4 / gpt-4-turbo', provider: 'OpenAI', tokenizerMatch: 'exact' },
   { id: 'claude-opus', name: 'claude-opus', provider: 'Anthropic', tokenizerMatch: 'approximate' },
-  { id: 'claude-sonnet', name: 'claude-sonnet', provider: 'Anthropic', tokenizerMatch: 'approximate' },
-  { id: 'claude-haiku', name: 'claude-haiku', provider: 'Anthropic', tokenizerMatch: 'approximate' },
+  {
+    id: 'claude-sonnet',
+    name: 'claude-sonnet',
+    provider: 'Anthropic',
+    tokenizerMatch: 'approximate',
+  },
+  {
+    id: 'claude-haiku',
+    name: 'claude-haiku',
+    provider: 'Anthropic',
+    tokenizerMatch: 'approximate',
+  },
   { id: 'llama-3', name: 'llama-3.x', provider: 'Meta', tokenizerMatch: 'approximate' },
 ];
 

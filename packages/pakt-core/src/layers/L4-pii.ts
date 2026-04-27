@@ -109,14 +109,19 @@ function formatPIIWarningValue(counts: Partial<Record<PIIKind, number>>): string
  * @returns PAKT with the header inserted or replaced
  */
 function injectWarningHeader(pakt: string, headerLine: string): string {
-  const lines = pakt.split('\n');
+  /* Preserve CRLF inputs: split on either line ending so `\r` never
+     leaks into a line body, then rejoin with whichever ending the
+     document already uses. Mixed-ending inputs normalise to CRLF so
+     the inserted header doesn't become the odd one out. */
+  const eol = pakt.includes('\r\n') ? '\r\n' : '\n';
+  const lines = pakt.split(/\r?\n/);
   /* Find any existing `@warning pii` line and replace it in place. */
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line === undefined) continue;
     if (/^@warning\s+pii(\s|$)/.test(line)) {
       lines[i] = headerLine;
-      return lines.join('\n');
+      return lines.join(eol);
     }
   }
 
@@ -129,7 +134,7 @@ function injectWarningHeader(pakt: string, headerLine: string): string {
     else if (line !== undefined && line.trim().length > 0) break;
   }
   lines.splice(insertAt, 0, headerLine);
-  return lines.join('\n');
+  return lines.join(eol);
 }
 
 // ---------------------------------------------------------------------------

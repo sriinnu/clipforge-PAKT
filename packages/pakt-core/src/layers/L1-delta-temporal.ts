@@ -299,8 +299,7 @@ export function temporalDeltaDecodeTabular(node: TabularArrayNode): {
     /* Row 0 must be a parseable ISO string for any temporal sentinel in
        this column to resolve. If not, we leave sentinels as-is and
        signal incomplete resolution. */
-    let templateValue: string | null =
-      refCell.scalarType === 'string' ? refCell.value : null;
+    let templateValue: string | null = refCell.scalarType === 'string' ? refCell.value : null;
     const parsedRef = templateValue ? parseISO(templateValue) : null;
     let runningEpoch: number | null = parsedRef?.epochSec ?? null;
 

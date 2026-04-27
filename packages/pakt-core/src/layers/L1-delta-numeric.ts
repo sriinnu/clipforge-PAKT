@@ -71,6 +71,11 @@ const POS: SourcePosition = createPosition(0, 0, 0);
  * user string values that happen to look the same must be force-quoted
  * (see {@link needsNumericDeltaQuote}).
  *
+ * Unlike the temporal variant this IS a type predicate — safe here
+ * because the decoder's else-branch discriminates on
+ * `scalarType === 'number'`, so narrowing away `StringScalar` in the
+ * negative path doesn't conflict with any downstream reasoning.
+ *
  * @param node - Scalar node to inspect
  * @returns True if this is an unquoted `+N` / `-N` sentinel string
  */

@@ -130,20 +130,58 @@ function defaultPlaceholder(kind: PIIKind): string {
  * // mapping = { '[JWT_1]': 'eyJhbGciOi...sig' }
  * ```
  */
+/**
+ * Per-pass placeholder bookkeeping. Centralised so {@link redactPII}
+ * stays a flat slice/join loop without nested branching.
+ */
+interface PlaceholderState {
+  /** Stable map: identical PII values always reuse the same placeholder. */
+  valueToPlaceholder: Map<string, string>;
+  /** Per-kind occurrence counter used to build sequential placeholders. */
+  occurrenceByKind: Map<PIIKind, number>;
+  /** Reverse mapping populated when `options.reversible === true`. */
+  mapping: Record<string, string>;
+  /** Optional caller-supplied placeholder formatter. */
+  placeholderFor: RedactPIIOptions['placeholderFor'];
+  /** Whether to record reversal mapping entries. */
+  wantMapping: boolean;
+}
+
+/**
+ * Resolve the placeholder for one match, allocating a new one if this
+ * exact value has not been seen yet during the current pass.
+ *
+ * @param state - Mutable per-pass placeholder state
+ * @param match - The current PII match being replaced
+ * @returns The placeholder string to splice into the output
+ */
+function placeholderFor(state: PlaceholderState, match: PIIMatch): string {
+  const cached = state.valueToPlaceholder.get(match.value);
+  if (cached !== undefined) return cached;
+
+  const next = (state.occurrenceByKind.get(match.kind) ?? 0) + 1;
+  state.occurrenceByKind.set(match.kind, next);
+  const placeholder = state.placeholderFor
+    ? state.placeholderFor(match.kind, next)
+    : defaultPlaceholder(match.kind);
+  state.valueToPlaceholder.set(match.value, placeholder);
+  if (state.wantMapping) state.mapping[placeholder] = match.value;
+  return placeholder;
+}
+
 export function redactPII(text: string, options?: RedactPIIOptions): RedactPIIResult {
   const matches = detectPII(text, { kinds: options?.kinds });
   if (matches.length === 0) {
     return { text, redactions: [], counts: {} };
   }
 
-  const placeholderFor = options?.placeholderFor;
-  const wantMapping = options?.reversible === true;
-
-  /* Stable per-value placeholder: same input slice always maps to the
-     same placeholder within a single redact pass. */
-  const valueToPlaceholder = new Map<string, string>();
-  const occurrenceByKind = new Map<PIIKind, number>();
-  const mapping: Record<string, string> = {};
+  const state: PlaceholderState = {
+    valueToPlaceholder: new Map(),
+    occurrenceByKind: new Map(),
+    mapping: {},
+    placeholderFor: options?.placeholderFor,
+    wantMapping: options?.reversible === true,
+  };
   const counts: Partial<Record<PIIKind, number>> = {};
 
   const pieces: string[] = [];
@@ -151,17 +189,7 @@ export function redactPII(text: string, options?: RedactPIIOptions): RedactPIIRe
 
   for (const m of matches) {
     if (m.start > cursor) pieces.push(text.slice(cursor, m.start));
-
-    let placeholder = valueToPlaceholder.get(m.value);
-    if (placeholder === undefined) {
-      const next = (occurrenceByKind.get(m.kind) ?? 0) + 1;
-      occurrenceByKind.set(m.kind, next);
-      placeholder = placeholderFor ? placeholderFor(m.kind, next) : defaultPlaceholder(m.kind);
-      valueToPlaceholder.set(m.value, placeholder);
-      if (wantMapping) mapping[placeholder] = m.value;
-    }
-
-    pieces.push(placeholder);
+    pieces.push(placeholderFor(state, m));
     counts[m.kind] = (counts[m.kind] ?? 0) + 1;
     cursor = m.end;
   }
@@ -173,6 +201,6 @@ export function redactPII(text: string, options?: RedactPIIOptions): RedactPIIRe
     redactions: matches,
     counts,
   };
-  if (wantMapping) result.mapping = mapping;
+  if (state.wantMapping) result.mapping = state.mapping;
   return result;
 }

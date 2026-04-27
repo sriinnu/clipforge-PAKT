@@ -39,8 +39,7 @@ describe('applyPIILayer', () => {
     });
 
     it('formats counts sorted by kind name', () => {
-      const input =
-        'ip 10.0.0.1, mail alice@example.com, another bob@example.com';
+      const input = 'ip 10.0.0.1, mail alice@example.com, another bob@example.com';
       const result = applyPIILayer(input, { mode: 'flag' });
       expect(result.text).toContain('@warning pii email=2,ipv4=1');
     });
@@ -58,6 +57,25 @@ describe('applyPIILayer', () => {
       const occurrences = (result.text.match(/@warning pii/g) ?? []).length;
       expect(occurrences).toBe(1);
       expect(result.text).toContain('@warning pii email=1');
+    });
+
+    it('preserves CRLF line endings when injecting the header', () => {
+      /* Regression: a prior version split on `\n` only, leaving `\r` as
+         the last character of neighbouring lines. The rejoin used `\n`
+         too, producing inconsistent line endings around the inserted
+         header on CRLF inputs. */
+      const input = '@version 1\r\n@from json\r\nuser: alice@example.com\r\n';
+      const result = applyPIILayer(input, { mode: 'flag' });
+      expect(result.applied).toBe(true);
+      expect(result.text).not.toMatch(/[^\r]\n/);
+      expect(result.text).toContain('\r\n@warning pii email=1\r\n');
+    });
+
+    it('preserves CRLF when replacing an existing pii header', () => {
+      const input = '@from json\r\n@warning pii email=99\r\nuser: alice@example.com\r\n';
+      const result = applyPIILayer(input, { mode: 'flag' });
+      expect(result.text).not.toMatch(/[^\r]\n/);
+      expect(result.text).toContain('\r\n@warning pii email=1\r\n');
     });
   });
 

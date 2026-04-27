@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { GptTokenCounter } from '../src/tokens/gpt-counter.js';
-import {
-  getTokenizerFamily,
-  getTokenizerFamilyInfo,
-} from '../src/tokens/tokenizer-family.js';
 import { countTokens } from '../src/tokens/counter.js';
+import { GptTokenCounter } from '../src/tokens/gpt-counter.js';
+import { getTokenizerFamily, getTokenizerFamilyInfo } from '../src/tokens/tokenizer-family.js';
 
 // ===========================================================================
 // 1. getTokenizerFamily — o200k_base path (GPT-4o family)

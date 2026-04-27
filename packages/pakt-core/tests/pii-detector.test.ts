@@ -43,9 +43,7 @@ describe('detectPII', () => {
   });
 
   it('detects an AWS secret key with the usual label', () => {
-    const matches = detectPII(
-      'aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    );
+    const matches = detectPII('aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY');
     expect(matches.some((m) => m.kind === 'aws-secret-key')).toBe(true);
   });
 
@@ -73,7 +71,7 @@ describe('detectPII', () => {
     for (let i = 1; i < matches.length; i++) {
       const prev = matches[i - 1];
       const curr = matches[i];
-      expect(prev && curr && prev.end).toBeLessThanOrEqual(curr?.start ?? Infinity);
+      expect(prev && curr && prev.end).toBeLessThanOrEqual(curr?.start ?? Number.POSITIVE_INFINITY);
     }
   });
 
@@ -97,7 +95,7 @@ describe('detectPII', () => {
   it('returns empty for inputs exceeding the length cap', () => {
     /* Library-level guard: detectPII refuses to scan adversarially large
        inputs rather than risk ReDoS in the IPv6 / phone patterns. */
-    const huge = `email alice@example.com `.repeat(50_000); // ~1.2 MB
+    const huge = 'email alice@example.com '.repeat(50_000); // ~1.2 MB
     expect(detectPII(huge)).toEqual([]);
   });
 
@@ -118,9 +116,7 @@ describe('redactPII', () => {
   });
 
   it('uses the same placeholder for repeated occurrences of one value', () => {
-    const { text, counts } = redactPII(
-      'a alice@example.com b alice@example.com c',
-    );
+    const { text, counts } = redactPII('a alice@example.com b alice@example.com c');
     expect(text).toBe('a [EMAIL] b [EMAIL] c');
     expect(counts.email).toBe(2);
   });
