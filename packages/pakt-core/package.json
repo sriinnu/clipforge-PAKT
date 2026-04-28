@@ -1,6 +1,6 @@
 {
   "name": "@sriinnu/pakt",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "PAKT compression engine — lossless-first L1-L3 compression with opt-in L4 semantic packing for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -27,7 +27,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsup && node ../../scripts/release/strip-build-artifacts.mjs dist && node ../../scripts/release/verify-no-sourcemaps.mjs dist",
+    "build": "tsup && node ../../scripts/release/strip-build-artifacts.mjs dist && node ../../scripts/release/verify-no-sourcemaps.mjs dist && node ../../scripts/release/verify-pakt-dist.mjs",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "bench": "vitest bench",

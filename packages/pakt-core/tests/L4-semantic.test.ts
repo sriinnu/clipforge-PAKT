@@ -191,4 +191,17 @@ describe('L4 pipeline integration', () => {
     const result = compress(data, { layers: LAYERS_L4 });
     expect(result.savings.byLayer.semantic).toBe(0);
   });
+
+  it('treats zero semantic budget as a reversible no-op', () => {
+    const data = { name: 'Alice', role: 'developer' };
+    const input = JSON.stringify(data);
+    const result = compress(input, {
+      layers: LAYERS_L4,
+      semanticBudget: 0,
+    });
+
+    expect(result.reversible).toBe(true);
+    expect(result.savings.byLayer.semantic).toBe(0);
+    expect(JSON.parse(decompress(result.compressed, 'json').text)).toEqual(data);
+  });
 });

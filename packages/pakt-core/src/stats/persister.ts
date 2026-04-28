@@ -5,6 +5,12 @@
  * Each MCP server instance writes to its own JSONL file in `~/.pakt/stats/`.
  * This eliminates write contention across 10+ concurrent agents.
  * Reads aggregate across all session files for cross-agent reporting.
+ *
+ * @internal Node.js only — imports `node:fs`, `node:os`, `node:path`,
+ * and `node:crypto`. Browser bundlers (Vite, Rollup, Webpack) will
+ * either warn loudly or fail at import time. Public consumers should
+ * never reach this module; it is wired up by the MCP server entry
+ * point and re-exported only for the desktop / CLI surface.
  */
 
 import { randomBytes } from 'node:crypto';
