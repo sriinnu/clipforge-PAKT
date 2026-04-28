@@ -50,6 +50,12 @@ import {
   numericDeltaDecodeTabular,
   numericDeltaEncodeTabular,
 } from './L1-delta-numeric.js';
+import {
+  isTemporalDeltaSentinel,
+  needsTemporalDeltaQuote,
+  temporalDeltaDecodeTabular,
+  temporalDeltaEncodeTabular,
+} from './L1-delta-temporal.js';
 
 // ---------------------------------------------------------------------------
 // Re-exports — preserve the module's historical public surface
@@ -57,6 +63,7 @@ import {
 
 export { DELTA_SENTINEL, MIN_DELTA_RATIO, MIN_DELTA_ROWS, computeDeltaRatio, isDeltaSentinel };
 export { isNumericDeltaSentinel, needsNumericDeltaQuote };
+export { isTemporalDeltaSentinel, needsTemporalDeltaQuote };
 
 /**
  * Maximum recursion depth for delta encode/decode body traversal.
@@ -88,9 +95,13 @@ function deltaEncodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; appli
   let applied = false;
   const newBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
-      /* Numeric first so all-zero-delta columns fall through to the
-         cheaper `~` encoder. */
-      const numericEncoded = numericDeltaEncodeTabular(node);
+      /* Temporal first: `T+N`/`T-N` only replaces ISO-string cells, so
+         it never poaches integer columns the numeric encoder would
+         claim. Numeric next for integer columns. Exact `~` last so any
+         zero-deltas left behind by the two numeric passes are swept up
+         with the cheapest sentinel. */
+      const temporalEncoded = temporalDeltaEncodeTabular(node);
+      const numericEncoded = numericDeltaEncodeTabular(temporalEncoded);
       const fullyEncoded = deltaEncodeTabularExact(numericEncoded);
       if (fullyEncoded !== node) applied = true;
       return fullyEncoded;
@@ -160,28 +171,65 @@ export function applyDeltaEncoding(doc: DocumentNode): DocumentNode {
  * @param body - Document body nodes (potentially delta-encoded)
  * @returns Body with all delta sentinels resolved
  */
+/**
+ * Decode a single tabular-array node by reversing the encode order
+ * (exact → numeric → temporal). See inline comment for the rationale.
+ *
+ * @returns The fully decoded node and a `complete` flag that is `false`
+ *   if any pass left unresolved sentinels (signals the `@compress delta`
+ *   header must be retained).
+ */
+function decodeTabularNode(node: BodyNode & { type: 'tabularArray' }): {
+  node: BodyNode;
+  complete: boolean;
+} {
+  /* Decode MUST reverse encode order. Encode was temporal → numeric →
+     exact, so decode is exact → numeric → temporal. The exact encoder
+     will happily claim a run of identical `T+60` sentinel strings and
+     replace row 2+ with `~`; if we decoded temporal first those `~`s
+     would still be there and collapse onto the template, corrupting the
+     round-trip. Resolving `~` first restores the raw `T+60` strings so
+     temporal sees a clean per-row sentinel chain. */
+  const exact = deltaDecodeTabularExact(node);
+  const numeric = numericDeltaDecodeTabular(exact.node);
+  const temporal = temporalDeltaDecodeTabular(numeric.node);
+  const complete =
+    exact.resolvedAllSentinels && numeric.resolvedAllSentinels && temporal.resolvedAllSentinels;
+  return { node: temporal.node, complete };
+}
+
+/**
+ * Recurse into nested children of an object or list-item node.
+ * Thin wrapper that propagates the `complete` flag from the deeper walk.
+ */
+function decodeNestedChildren(
+  children: BodyNode[],
+  depth: number,
+): { children: BodyNode[]; complete: boolean } {
+  const result = deltaDecodeBody(children, depth + 1);
+  return { children: result.body, complete: result.complete };
+}
+
 function deltaDecodeBody(body: BodyNode[], depth = 0): { body: BodyNode[]; complete: boolean } {
   if (depth > MAX_DELTA_DEPTH) return { body, complete: false };
 
   let complete = true;
   const decodedBody = body.map((node): BodyNode => {
     if (node.type === 'tabularArray') {
-      const numeric = numericDeltaDecodeTabular(node);
-      if (!numeric.resolvedAllSentinels) complete = false;
-      const exact = deltaDecodeTabularExact(numeric.node);
-      if (!exact.resolvedAllSentinels) complete = false;
-      return exact.node;
+      const { node: decoded, complete: ok } = decodeTabularNode(node);
+      if (!ok) complete = false;
+      return decoded;
     }
     if (node.type === 'object') {
-      const result = deltaDecodeBody(node.children, depth + 1);
-      if (!result.complete) complete = false;
-      return { ...node, children: result.body };
+      const { children, complete: ok } = decodeNestedChildren(node.children, depth);
+      if (!ok) complete = false;
+      return { ...node, children };
     }
     if (node.type === 'listArray') {
       const newItems = node.items.map((item) => {
-        const result = deltaDecodeBody(item.children, depth + 1);
-        if (!result.complete) complete = false;
-        return { ...item, children: result.body };
+        const { children, complete: ok } = decodeNestedChildren(item.children, depth);
+        if (!ok) complete = false;
+        return { ...item, children };
       });
       return { ...node, items: newItems };
     }

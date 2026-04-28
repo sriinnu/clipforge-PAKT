@@ -14,7 +14,7 @@ import {
   detect,
 } from '@sriinnu/pakt';
 import { getSupportedSite } from '../shared/site-support';
-import { getSettings } from '../shared/storage';
+import { type ExtensionSettings, getSettings, onSettingsChange } from '../shared/storage';
 import {
   flashSuccess,
   getActiveInput,
@@ -26,6 +26,29 @@ import {
 } from './button';
 
 setButtonClickHandler(handleCompressOrDecompress);
+
+// Cached settings snapshot — the paste handler runs synchronously and cannot
+// `await getSettings()` without losing the chance to call preventDefault().
+let cachedSettings: ExtensionSettings | null = null;
+void getSettings().then((s) => {
+  cachedSettings = s;
+});
+onSettingsChange((partial) => {
+  if (cachedSettings) cachedSettings = { ...cachedSettings, ...partial };
+});
+
+/**
+ * Decide whether the content script should act on the current hostname.
+ *
+ * Returns false when the user has narrowed the manifest matches via
+ * `settings.siteWhitelist`. An empty whitelist means “all manifest matches”.
+ */
+function isHostAllowed(): boolean {
+  const whitelist = cachedSettings?.siteWhitelist ?? [];
+  if (whitelist.length === 0) return true;
+  const host = window.location.hostname.toLowerCase();
+  return whitelist.some((entry) => entry.toLowerCase() === host);
+}
 
 function getInputText(el: HTMLElement): string {
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
@@ -133,6 +156,7 @@ async function handleCompressOrDecompress(): Promise<void> {
       ...(settings.compressionProfileId === 'semantic'
         ? { semanticBudget: settings.semanticBudget }
         : {}),
+      ...(settings.piiMode !== 'off' ? { piiMode: settings.piiMode } : {}),
       targetModel: settings.targetModel,
     });
 
@@ -176,6 +200,7 @@ async function handleDecompressInput(el: HTMLElement, text: string): Promise<voi
 }
 
 function findInputs(): HTMLElement[] {
+  if (!isHostAllowed()) return [];
   const supportedSite = getSupportedSite(window.location.hostname);
   const selectors = supportedSite?.selectors;
   if (!selectors) return [];
@@ -208,6 +233,65 @@ function attachToInput(input: HTMLElement): void {
     showButton(input);
     scheduleHide();
   });
+
+  // Paste interception. Always attached — the handler itself bails out when
+  // the user has not enabled `autoCompressOnPaste`, which lets users flip
+  // the toggle without reloading the page.
+  input.addEventListener('paste', (event) => {
+    void handlePasteIntercept(input, event);
+  });
+}
+
+/**
+ * Replace pasted plain text with its PAKT-compressed form.
+ *
+ * Bails out (and lets the browser do its normal paste) when:
+ *   - the user has not enabled auto-compress on paste,
+ *   - the current hostname is not in the user’s allowlist,
+ *   - the clipboard payload is empty / non-text / already PAKT,
+ *   - or the compressor would not save any tokens.
+ */
+async function handlePasteIntercept(input: HTMLElement, event: ClipboardEvent): Promise<void> {
+  const settings = cachedSettings ?? (await getSettings());
+  cachedSettings = settings;
+  if (!settings.autoCompressOnPaste) return;
+  if (!isHostAllowed()) return;
+
+  const clipboard = event.clipboardData;
+  if (!clipboard) return;
+  const text = clipboard.getData('text/plain');
+  if (!text || !text.trim()) return;
+
+  // Already compressed — let it paste through untouched.
+  try {
+    if (detect(text).format === 'pakt') return;
+  } catch {
+    return;
+  }
+
+  try {
+    const options = createProfiledPaktOptions(settings.compressionProfileId, {
+      ...(settings.compressionProfileId === 'semantic'
+        ? { semanticBudget: settings.semanticBudget }
+        : {}),
+      ...(settings.piiMode !== 'off' ? { piiMode: settings.piiMode } : {}),
+      targetModel: settings.targetModel,
+    });
+    const detection = detect(text);
+    const result =
+      detection.format === 'markdown' || detection.format === 'text'
+        ? compressMixed(text, options)
+        : compress(text, options);
+
+    if (result.savings.totalPercent <= 0) return;
+
+    event.preventDefault();
+    setActiveInput(input);
+    setInputText(input, result.compressed);
+    flashSuccess(result.savings.totalPercent);
+  } catch (err) {
+    console.error('[ClipForge] Paste interception failed:', err);
+  }
 }
 
 function scanAndAttach(): void {

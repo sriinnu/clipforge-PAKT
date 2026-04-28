@@ -31,11 +31,13 @@ import type {
  * - Bare `~` is the exact-delta sentinel (L1-delta-exact).
  * - Bare `+N` / `-N` (N >= 1) is the numeric-delta sentinel
  *   (L1-delta-numeric).
+ * - Bare `T+N` / `T-N` (N >= 0) is the temporal-delta sentinel
+ *   (L1-delta-temporal).
  *
- * Expanded values that match either must be force-quoted to prevent false
+ * Expanded values that match any must be force-quoted to prevent false
  * delta detection on re-encode.
  */
-const NEEDS_QUOTE_AFTER_EXPAND_RE = /^~$|^[+-][1-9]\d*$/;
+const NEEDS_QUOTE_AFTER_EXPAND_RE = /^~$|^[+-][1-9]\d*$|^T[+-](?:0|[1-9]\d*)$/;
 
 // ---------------------------------------------------------------------------
 // Scalar collection

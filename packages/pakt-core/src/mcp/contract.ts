@@ -5,145 +5,22 @@
  * This is the single source of truth for tool names, descriptions, field
  * metadata, and SDK validation schemas. Public JSON-style tool definitions,
  * TypeScript types, and SDK registration all derive from these contracts.
+ *
+ * The schema-construction primitives (FieldSpec, defineToolContract, etc.)
+ * live in `contract-builder.ts`. This file only owns the four PAKT tool
+ * definitions and the inferred type aliases.
  */
 
-import * as z from 'zod/v4';
+import type * as z from 'zod/v4';
 import { PAKT_FORMAT_VALUES } from '../formats.js';
-const AUTO_ACTION_VALUES = ['compressed', 'decompressed'] as const;
-const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is'] as const;
+import {
+  AUTO_ACTION_VALUES,
+  PII_MODE_VALUES,
+  RECOMMENDED_ACTION_VALUES,
+  defineToolContract,
+} from './contract-builder.js';
 
-type BaseFieldSpec = {
-  description: string;
-  required?: boolean;
-};
-
-type StringFieldSpec = BaseFieldSpec & {
-  type: 'string';
-  enum?: readonly string[];
-  minLength?: number;
-  minLengthMessage?: string;
-};
-
-type NumberFieldSpec = BaseFieldSpec & {
-  type: 'number';
-  integer?: boolean;
-  positive?: boolean;
-  positiveMessage?: string;
-};
-
-type BooleanFieldSpec = BaseFieldSpec & {
-  type: 'boolean';
-};
-
-type FieldSpec = StringFieldSpec | NumberFieldSpec | BooleanFieldSpec;
-type FieldMap = Record<string, FieldSpec>;
-
-type JsonSchemaProperty = {
-  type: string;
-  description: string;
-  enum?: readonly string[];
-};
-
-type JsonObjectSchema = {
-  type: 'object';
-  properties: Record<string, JsonSchemaProperty>;
-  required: string[];
-  additionalProperties: false;
-};
-
-export interface PaktMcpContract<Name extends string = string> {
-  name: Name;
-  description: string;
-  inputFields: FieldMap;
-  outputFields: FieldMap;
-  inputJsonSchema: JsonObjectSchema;
-  outputJsonSchema: JsonObjectSchema;
-  inputSchema: z.ZodObject<Record<string, z.ZodType>>;
-  outputSchema: z.ZodObject<Record<string, z.ZodType>>;
-}
-
-function enumValuesToTuple(values: readonly string[]): [string, ...string[]] {
-  if (values.length === 0) {
-    throw new Error('Enum field requires at least one value');
-  }
-  // biome-ignore lint/style/noNonNullAssertion: length > 0 guaranteed by the check above
-  return [values[0]!, ...values.slice(1)];
-}
-
-function buildFieldSchema(field: FieldSpec): z.ZodType {
-  switch (field.type) {
-    case 'string': {
-      let schema: z.ZodType = field.enum ? z.enum(enumValuesToTuple(field.enum)) : z.string();
-      if (field.minLength !== undefined) {
-        schema = (schema as z.ZodString).min(field.minLength, field.minLengthMessage);
-      }
-      schema = schema.describe(field.description);
-      return field.required === false ? schema.optional() : schema;
-    }
-    case 'number': {
-      let schema: z.ZodType = z.number();
-      if (field.integer) {
-        schema = (schema as z.ZodNumber).int();
-      }
-      if (field.positive) {
-        schema = (schema as z.ZodNumber).positive(field.positiveMessage);
-      }
-      schema = schema.describe(field.description);
-      return field.required === false ? schema.optional() : schema;
-    }
-    case 'boolean': {
-      const schema = z.boolean().describe(field.description);
-      return field.required === false ? schema.optional() : schema;
-    }
-  }
-}
-
-function buildObjectSchema(fields: FieldMap): z.ZodObject<Record<string, z.ZodType>> {
-  const shape: Record<string, z.ZodType> = {};
-  for (const [name, field] of Object.entries(fields)) {
-    shape[name] = buildFieldSchema(field);
-  }
-  return z.object(shape).strict();
-}
-
-function buildJsonObjectSchema(fields: FieldMap): JsonObjectSchema {
-  const properties: Record<string, JsonSchemaProperty> = {};
-  const required: string[] = [];
-
-  for (const [name, field] of Object.entries(fields)) {
-    properties[name] = {
-      type: field.type,
-      description: field.description,
-      ...(field.type === 'string' && field.enum ? { enum: field.enum } : {}),
-    };
-
-    if (field.required !== false) {
-      required.push(name);
-    }
-  }
-
-  return {
-    type: 'object',
-    properties,
-    required,
-    additionalProperties: false,
-  };
-}
-
-function defineToolContract<Name extends string>(config: {
-  name: Name;
-  description: string;
-  inputFields: FieldMap;
-  outputFields: FieldMap;
-}): PaktMcpContract<Name> {
-  return {
-    ...config,
-    inputJsonSchema: buildJsonObjectSchema(config.inputFields),
-    outputJsonSchema: buildJsonObjectSchema(config.outputFields),
-    inputSchema: buildObjectSchema(config.inputFields),
-    outputSchema: buildObjectSchema(config.outputFields),
-  };
-}
+export type { PaktMcpContract } from './contract-builder.js';
 
 export const PAKT_COMPRESS_CONTRACT = defineToolContract({
   name: 'pakt_compress',
@@ -153,6 +30,7 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
     'Returns the compressed string and savings percentage.',
     'Use the optional `format` parameter to skip auto-detection.',
     'Use `semanticBudget` to opt into lossy L4 semantic compression.',
+    'Use `piiMode` to flag or redact sensitive strings in the output.',
   ].join(' '),
   inputFields: {
     text: {
@@ -173,6 +51,25 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
       integer: true,
       positive: true,
       positiveMessage: 'semanticBudget must be a positive integer',
+      required: false,
+    },
+    piiMode: {
+      type: 'string',
+      description:
+        'PII strategy: off (default), flag (inject @warning pii header), or redact (replace values with placeholders; marks result non-reversible).',
+      enum: PII_MODE_VALUES,
+      required: false,
+    },
+    piiKinds: {
+      type: 'string',
+      description:
+        'Optional comma-separated PII kinds to scan for. Valid: email,phone,ipv4,ipv6,jwt,aws-access-key,aws-secret-key,credit-card,ssn. Omit to scan all.',
+      required: false,
+    },
+    piiReversible: {
+      type: 'boolean',
+      description:
+        'When true and piiMode is redact, return a placeholder → original mapping in piiMapping.',
       required: false,
     },
   },
@@ -206,6 +103,18 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
       type: 'boolean',
       description: 'Whether the compressed representation preserves all information.',
     },
+    piiCounts: {
+      type: 'string',
+      description:
+        'JSON object string: per-kind match counts when PII was detected; omitted otherwise.',
+      required: false,
+    },
+    piiMapping: {
+      type: 'string',
+      description:
+        'JSON object string: placeholder → original mapping for reversible redact mode; omitted otherwise.',
+      required: false,
+    },
   },
 });
 
@@ -231,6 +140,25 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
       integer: true,
       positive: true,
       positiveMessage: 'semanticBudget must be a positive integer',
+      required: false,
+    },
+    piiMode: {
+      type: 'string',
+      description:
+        'PII strategy applied to compressed output: off (default), flag, or redact. Ignored when decompressing.',
+      enum: PII_MODE_VALUES,
+      required: false,
+    },
+    piiKinds: {
+      type: 'string',
+      description:
+        'Optional comma-separated PII kinds. Valid: email,phone,ipv4,ipv6,jwt,aws-access-key,aws-secret-key,credit-card,ssn.',
+      required: false,
+    },
+    piiReversible: {
+      type: 'boolean',
+      description:
+        'When true and piiMode is redact, return a placeholder → original mapping in piiMapping.',
       required: false,
     },
   },
@@ -295,6 +223,18 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
       type: 'boolean',
       description:
         'True when the input was below the minimum token threshold and returned unchanged.',
+      required: false,
+    },
+    piiCounts: {
+      type: 'string',
+      description:
+        'JSON object string: per-kind match counts when PII was detected; omitted otherwise.',
+      required: false,
+    },
+    piiMapping: {
+      type: 'string',
+      description:
+        'JSON object string: placeholder → original mapping for reversible redact mode; omitted otherwise.',
       required: false,
     },
   },

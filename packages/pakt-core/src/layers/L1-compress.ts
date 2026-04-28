@@ -45,12 +45,15 @@ const POS: SourcePosition = createPosition(0, 0, 0);
  * Characters / patterns that force a string value to be quoted so the
  * PAKT parser can round-trip it without loss.
  *
- * The trailing alternative `^[+-][1-9]\d*$` prevents collisions with the
- * numeric-delta sentinel in L1-delta-numeric: a user-supplied string like
- * `"+5"` or `"-12"` would otherwise be indistinguishable from a sentinel
- * after serialization, so we force-quote it on the way in.
+ * The numeric-delta alternative `^[+-][1-9]\d*$` prevents collisions with
+ * the numeric-delta sentinel (L1-delta-numeric): a user-supplied string
+ * like `"+5"` / `"-12"` would otherwise be indistinguishable from a
+ * sentinel after serialization.
+ *
+ * The temporal-delta alternative `^T[+-](?:0|[1-9]\d*)$` does the same
+ * for L1-delta-temporal's `T+N` / `T-N` sentinels.
  */
-const NEEDS_QUOTE_RE = /[:\|]|^\$|^%|^~$|^\s|\s$|^[+-][1-9]\d*$/;
+const NEEDS_QUOTE_RE = /[:\|]|^\$|^%|^~$|^\s|\s$|^[+-][1-9]\d*$|^T[+-](?:0|[1-9]\d*)$/;
 
 /**
  * Strings whose unquoted form would be misread as another scalar type.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ClipForge",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "author": "Sriinnu",
   "description": "Compress clipboard content for LLMs. Save 30-50% tokens with PAKT format.",
   "permissions": ["activeTab", "storage", "contextMenus", "clipboardRead", "clipboardWrite"],
@@ -13,6 +13,10 @@
       "128": "icons/icon-128.png"
     }
   },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -22,7 +26,9 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://app.slack.com/*",
+        "https://mail.google.com/*"
       ],
       "js": ["content.js"]
     }

@@ -15,12 +15,23 @@ export { compressL4, decompressL4, applyL4Transforms } from './L4-semantic.js';
 export { compressText } from './compress-text.js';
 export type { TextCompressResult } from './compress-text.js';
 export { decompressText } from './decompress-text.js';
+/* Delta barrel: surface only what downstream consumers (src/index.ts,
+   compress.ts, decompress.ts) actually pull through the barrel. Test
+   suites and internal modules import from the delta sub-modules
+   directly. Keeps the public surface scoped to what's advertised in
+   the package root. */
 export {
   applyDeltaEncoding,
   revertDeltaEncoding,
-  computeDeltaRatio,
-  isDeltaSentinel,
+  isNumericDeltaSentinel,
+  needsNumericDeltaQuote,
+  isTemporalDeltaSentinel,
+  needsTemporalDeltaQuote,
   DELTA_SENTINEL,
-  MIN_DELTA_ROWS,
-  MIN_DELTA_RATIO,
 } from './L1-delta.js';
+export {
+  temporalDeltaEncodeTabular,
+  temporalDeltaDecodeTabular,
+} from './L1-delta-temporal.js';
+export { applyPIILayer } from './L4-pii.js';
+export type { L4PIIOptions, L4PIIResult, PIIMode } from './L4-pii.js';

@@ -78,6 +78,10 @@ Options:
   --layers <list>    Compression layers to enable (comma-separated: 1,2,3,4)
   --semantic-budget <tokens>
                      Enable L4 semantic compression with a positive token budget
+  --pii-mode <mode>  PII strategy: off (default) | flag (headers only) | redact (mutates)
+  --pii-kinds <list> Restrict scan to comma-separated kinds (email,phone,ipv4,ipv6,jwt,
+                     aws-access-key,aws-secret-key,credit-card,ssn)
+  --pii-reversible   Emit a placeholder→value mapping when --pii-mode redact
   --model <model>    Model for token counting (gpt-4o|claude-sonnet|claude-opus|claude-haiku|gpt-4o-mini)
   --agent-name <name>
                      Name this agent session (used with serve)

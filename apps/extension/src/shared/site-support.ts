@@ -29,6 +29,18 @@ const SUPPORTED_SITES: readonly SupportedSiteDescriptor[] = [
       'rich-textarea textarea',
     ],
   },
+  {
+    host: 'app.slack.com',
+    label: 'Slack',
+    // Slack uses a Quill-like contenteditable editor for the message composer.
+    selectors: ['div.ql-editor[contenteditable="true"]', 'div[contenteditable="true"]'],
+  },
+  {
+    host: 'mail.google.com',
+    label: 'Gmail',
+    // Gmail compose body + reply boxes are role="textbox" contenteditables.
+    selectors: ['div[role="textbox"][contenteditable="true"]', 'div[contenteditable="true"]'],
+  },
 ] as const;
 
 export const SITE_SELECTORS: Readonly<Record<string, string[]>> = Object.fromEntries(

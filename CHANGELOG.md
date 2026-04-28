@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-29
+
+### Added
+
+- **L2 corpus-aware substring window sizing.** `findSubstringCandidates()` now drives its window ladder from a new `computeAdaptiveWindowSizes(values)` helper instead of the hard-coded `[32, 24, 20, 16, 12, 10, 8, 6]` list. The ladder is capped by the longest value in the corpus, extended to 40 / 48 / 64 when the corpus contains long URLs / paths / opaque tokens, and gains a 5-char window when more than half of the values are short. Lossless; only changes which substrings the L2 dictionary considers. 7 new tests in `tests/L2-adaptive-windows.test.ts`.
+- **Browser extension Options page.** A dedicated full-tab settings surface (`apps/extension/src/options/`) is now registered via `manifest.options_ui` and reuses the popup `<Settings>` component. Two new persisted settings: `autoCompressOnPaste` (boolean) and `siteWhitelist` (string[]).
+- **Auto-compress on paste in the browser extension.** When enabled, the content script intercepts `paste` events on supported LLM input boxes, runs `compress()` synchronously on the clipboard payload, and substitutes the PAKT-compressed text in place via `event.preventDefault()`. PAKT-already-compressed pastes and zero-savings pastes pass through untouched. Off by default.
+- **Slack web + Gmail support in the browser extension.** `manifest.content_scripts.matches` and `shared/site-support.ts` extended with `app.slack.com` (Quill composer) and `mail.google.com` (`role="textbox"` composer) selectors. Adds two of the highest-traffic prompt-paste destinations to the existing ChatGPT / Claude / Gemini coverage.
+
+### Changed
+
+- **Desktop frontend bundle hand-split into seven chunks.** `apps/desktop/vite.config.ts` now declares `manualChunks` for `react-vendor`, `pakt-core` (isolates the gpt-tokenizer payload), `tauri-api`, and a generic `vendor` bucket; the SettingsPanel and HistoryPanel overlays are loaded via `React.lazy()` + `Suspense` from `MenuBarPanel.tsx`. The single 3,387 kB chunk shipped in 0.8.0 is replaced with an isolated 127 kB app chunk plus stable vendor chunks that cache independently across releases.
+- **Component split for desktop and playground shells.** `MenuBarPanel.tsx` (696 → 378 LOC) and `apps/playground/src/App.tsx` (1099 → 430 LOC) refactored into focused sub-components and helper modules. No behavior change; brings every source file under the 450-LOC cap.
+- **Repo-wide lint cleanup.** `pnpm lint` now reports 0 errors / 0 warnings across 256 files. The `noExcessiveCognitiveComplexity` flags in `compress.ts`, `L1-delta.ts`, `parse-body.ts`, `pii/redact.ts`, and `pii/detector.ts` were resolved by extracting helpers, not by suppression.
+
+### Fixed
+
+- **`needsQuoting()` covers ` %` substrings in scalar serialization** (`packages/pakt-core/src/serializer/format-scalar.ts`). Values containing a percent sign preceded by a space now serialize quoted, matching the round-trip contract for arbitrary strings.
+
 ## [0.8.0] - 2026-04-21
 
 ### Added

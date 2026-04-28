@@ -16,7 +16,7 @@ import {
   MIN_PREFIX_OCCURRENCES,
   MIN_SUFFIX_LENGTH,
   MIN_SUFFIX_OCCURRENCES,
-  SUBSTRING_WINDOW_SIZES,
+  computeAdaptiveWindowSizes,
   estimateTokens,
 } from './L2-scoring.js';
 
@@ -224,9 +224,12 @@ export function findSuffixCandidates(
 /**
  * Find frequent substrings across string values using sliding-window mining.
  *
- * For each window size in SUBSTRING_WINDOW_SIZES, extracts all substrings
- * and counts how many distinct values contain them. Uses a dynamic threshold
- * derived from information theory:
+ * Window sizes are picked adaptively per call via
+ * {@link computeAdaptiveWindowSizes}: capped by the longest value, extended
+ * upward (40/48/64) for long-string corpora, and extended downward (5)
+ * when most values are short. For each window size we extract substrings
+ * and count how many distinct values contain them. The dynamic threshold
+ * derives from information theory:
  *
  *   minOccurrences = ceil((tokens + 3) / (tokens - 1))
  *
@@ -251,6 +254,12 @@ export function findSubstringCandidates(
   const uniqueValues = [...new Set(values)];
   if (uniqueValues.length < 2) return [];
 
+  // Pick a window ladder tuned to this corpus once, up-front. An empty
+  // ladder means the longest value is below the smallest viable window —
+  // skip mining entirely.
+  const windowSizes = computeAdaptiveWindowSizes(uniqueValues);
+  if (windowSizes.length === 0) return [];
+
   // Count how many distinct values contain each substring.
   // "Value-level" frequency is the correct metric: it tells us how many
   // alias replacements we'll make (one per value per substring occurrence).
@@ -258,7 +267,7 @@ export function findSubstringCandidates(
 
   for (const value of uniqueValues) {
     const seen = new Set<string>();
-    for (const winSize of SUBSTRING_WINDOW_SIZES) {
+    for (const winSize of windowSizes) {
       if (value.length < winSize) continue;
       for (let i = 0; i <= value.length - winSize; i++) {
         const sub = value.slice(i, i + winSize);
