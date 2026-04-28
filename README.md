@@ -14,7 +14,6 @@
   <a href="https://www.npmjs.com/package/@sriinnu/pakt"><img src="https://img.shields.io/npm/v/@sriinnu/pakt?color=6366f1&label=npm" alt="npm version" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-8b5cf6" alt="license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/version-0.8.0-6366f1" alt="version" />
   <a href="https://github.com/sriinnu/clipforge-PAKT/actions"><img src="https://img.shields.io/github/actions/workflow/status/sriinnu/clipforge-PAKT/ci.yml?label=CI&color=22c55e" alt="CI" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/stargazers"><img src="https://img.shields.io/github/stars/sriinnu/clipforge-PAKT?color=f59e0b&style=flat" alt="GitHub stars" /></a>
   <a href="https://github.com/sriinnu/clipforge-PAKT/pulls"><img src="https://img.shields.io/badge/PRs-welcome-a855f7" alt="PRs welcome" /></a>
@@ -54,8 +53,8 @@ ClipForge is the product suite built around PAKT. In this repository, that means
 
 - **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. This is the stable release surface for Node.js and TypeScript projects, plus agent hosts that need stdio tools for compress, auto, and inspect.
 - **[ClipForge Playground](./apps/playground/)** -- A lightweight local web UI for trying JSON, YAML, CSV, and mixed markdown compression before wiring PAKT into a real workflow. It is a browser lab, not a release integration. Hosted playground: [pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/).
-- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri desktop shell for clipboard compression workflows. The current release validation is macOS menu bar first; Windows and Linux tray targets exist in source but are not part of the validated release path yet.
-- **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, context-menu actions, and input helpers for supported web LLM UIs such as ChatGPT, Claude, and Gemini. Site coverage is intentionally limited today.
+- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri desktop shell for clipboard compression workflows. The current release validation is macOS menu bar first; Windows and Linux tray targets exist in source but are not part of the validated release path yet. The 0.9 frontend is hand-split into vendor / pakt-core / tauri-api / app chunks plus lazy-loaded Settings and History overlays so vendor code caches independently across releases.
+- **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, a dedicated full-tab Options page, context-menu actions, and input helpers for supported web LLM UIs: ChatGPT, Claude, Gemini, Slack web, and Gmail. Includes opt-in auto-compress-on-paste with a per-host allowlist.
 
 The goal is simple: every token you send to an LLM should carry meaning, not syntax.
 

@@ -38,6 +38,15 @@ interface SemanticApplication extends LayerApplication {
   reversible: boolean;
 }
 
+/**
+ * Merge a partial {@link PaktLayers} bag with the library defaults.
+ *
+ * Each missing key falls back to {@link DEFAULT_LAYERS} so callers can
+ * pass `{ semantic: true }` and still get the L1–L3 defaults filled in.
+ *
+ * @param partial - User-supplied layer toggles (any subset)
+ * @returns Fully-populated {@link PaktLayers} record
+ */
 export function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
   if (!partial) return { ...DEFAULT_LAYERS };
   return {
@@ -48,6 +57,18 @@ export function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
   };
 }
 
+/**
+ * Resolve everything the {@link compress} pipeline needs before it
+ * starts touching the AST: which body to feed in (after stripping any
+ * envelope preamble), the detected format, the merged layer toggles,
+ * the dictionary minimum-savings threshold, and the original token
+ * count for downstream savings math.
+ *
+ * @param input       - Raw user input
+ * @param options     - Caller-supplied {@link PaktOptions} subset
+ * @param targetModel - Tokenizer-family hint for `originalTokens`
+ * @returns Pipeline setup descriptor
+ */
 export function buildPipelineSetup(
   input: string,
   options: Partial<PaktOptions> | undefined,
@@ -64,6 +85,23 @@ export function buildPipelineSetup(
   };
 }
 
+/**
+ * Fast path for inputs the structural compressor can’t profitably
+ * touch. Handles three cases:
+ *   - already-compressed PAKT (returned as-is),
+ *   - text/markdown with embedded structured blocks (compressed via
+ *     {@link compressMixed}),
+ *   - text/markdown that benefits from L2 phrase aliasing only.
+ *
+ * Returns `null` when the format is something the main pipeline
+ * (JSON / YAML / CSV) should handle.
+ *
+ * @param input          - Raw user input
+ * @param options        - Caller options (forwarded to mixed compressor)
+ * @param targetModel    - Tokenizer-family hint
+ * @param detectedFormat - Pre-resolved format from `buildPipelineSetup`
+ * @returns A {@link PaktResult} for special formats, or `null`
+ */
 export function tryCompressSpecialFormats(
   input: string,
   options: Partial<PaktOptions> | undefined,
@@ -124,6 +162,17 @@ export function tryCompressSpecialFormats(
   return buildUnchangedResult(input, countTokens(input, targetModel), detectedFormat);
 }
 
+/**
+ * Re-attach the original envelope preamble (e.g. HTTP request line
+ * + headers) at the top of the document as comment nodes so the
+ * decompressor can faithfully reconstruct the wrapper.
+ *
+ * No-op when the input had no envelope.
+ *
+ * @param doc              - Compressed PAKT document
+ * @param envelopePreamble - Lines captured by `detect()` before the body
+ * @returns A new document with envelope comments prepended
+ */
 export function injectEnvelopePreamble(
   doc: PaktDocument,
   envelopePreamble: string[] | undefined,
@@ -145,6 +194,20 @@ export function injectEnvelopePreamble(
   return { ...doc, body: [...envelopeComments, ...doc.body] };
 }
 
+/**
+ * Apply the L2 dictionary layer if it is enabled and pays off.
+ *
+ * Falls back to the original document (zero savings) when the
+ * dictionary either makes the output longer or does not clear the
+ * `dictMinSavings` token threshold.
+ *
+ * @param doc            - L1 document
+ * @param enabled        - Whether the dictionary layer is on
+ * @param dictMinSavings - Minimum tokens saved to keep the dictionary
+ * @param l1Tokens       - Token count after L1 (for delta math)
+ * @param targetModel    - Tokenizer-family hint
+ * @returns Layer application with possibly-mutated doc + saved tokens
+ */
 export function applyDictionaryLayer(
   doc: PaktDocument,
   enabled: boolean,
@@ -166,6 +229,17 @@ export function applyDictionaryLayer(
   return { compressed: afterL2, doc: l2Doc, saved };
 }
 
+/**
+ * Apply the L3 tokenizer-aware layer if it is enabled and pays off.
+ *
+ * Reverts to the input doc when the L3 transforms increase token
+ * count under the active tokenizer family.
+ *
+ * @param doc         - Document after L2 (or L1 if L2 was off)
+ * @param enabled     - Whether the tokenizer layer is on
+ * @param targetModel - Tokenizer-family hint
+ * @returns Layer application with possibly-mutated doc + saved tokens
+ */
 export function applyTokenizerLayer(
   doc: PaktDocument,
   enabled: boolean,
@@ -188,6 +262,20 @@ export function applyTokenizerLayer(
   return { compressed: transformed, doc: l3Doc, saved };
 }
 
+/**
+ * Apply the lossy L4 semantic layer if it is enabled and there is a
+ * positive token budget.
+ *
+ * Sets `reversible = false` only when the layer actually mutates
+ * output — a no-op call leaves the result reversible.
+ *
+ * @param doc            - Document after L3
+ * @param compressed     - Serialized output after L3
+ * @param enabled        - Whether the semantic layer is on
+ * @param semanticBudget - Token budget for L4 (must be > 0 to apply)
+ * @param targetModel    - Tokenizer-family hint
+ * @returns Semantic application carrying a `reversible` flag
+ */
 export function applySemanticLayer(
   doc: PaktDocument,
   compressed: string,
@@ -263,6 +351,22 @@ export function applyPIIPostPass(
   return result;
 }
 
+/**
+ * Assemble the final {@link PaktResult} from the pipeline’s outputs.
+ *
+ * Computes the headline savings percent, normalises the per-layer
+ * savings to non-negative integers, and pulls the dictionary entries
+ * off the final document so consumers can inspect them.
+ *
+ * @param doc              - Final compressed document
+ * @param compressed       - Serialized PAKT string
+ * @param originalTokens   - Token count of the original input
+ * @param compressedTokens - Token count of the serialized output
+ * @param detectedFormat   - Format the input was detected as
+ * @param layerSavings     - Per-layer token savings tally
+ * @param reversible       - Whether the pipeline was lossless end-to-end
+ * @returns A populated {@link PaktResult}
+ */
 export function buildCompressedResult(
   doc: PaktDocument,
   compressed: string,
@@ -290,6 +394,16 @@ export function buildCompressedResult(
   };
 }
 
+/**
+ * Build the no-op {@link PaktResult} returned when the pipeline
+ * decides not to touch the input (already-compressed PAKT, opted-out
+ * formats, or zero-savings outcomes).
+ *
+ * @param input          - The original input to echo back
+ * @param tokens         - Token count of the input
+ * @param detectedFormat - Detected format for the result
+ * @returns A {@link PaktResult} with `savings = 0` and `reversible = true`
+ */
 export function buildUnchangedResult(
   input: string,
   tokens: number,

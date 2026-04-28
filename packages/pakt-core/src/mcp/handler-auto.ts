@@ -7,6 +7,10 @@
  * dedup-cached compress / fresh compress. Manages a per-process metadata
  * cache that mirrors the dedup cache so cache hits can return savings
  * info without recomputing tokens.
+ *
+ * @internal Node.js only — imports `node:crypto` for content-addressed
+ * cache keys. Browser bundles should use the public compression APIs
+ * from `@sriinnu/pakt` and must not deep-import MCP internals.
  */
 
 import { createHash } from 'node:crypto';

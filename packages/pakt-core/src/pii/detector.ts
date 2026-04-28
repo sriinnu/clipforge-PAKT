@@ -145,6 +145,14 @@ const SSN_RE = /(?<![\d-])\d{3}-\d{2}-\d{4}(?![\d-])/g;
  * Validate a candidate string as a Luhn-checksum-valid card number.
  * Strips separators first. Returns `false` for anything that isn't
  * 13-19 digits or fails the checksum.
+ *
+ * **Caveat — false negatives on test cards.** Luhn rejects most
+ * incidental matches (timestamps, IDs, phone numbers without a +CC),
+ * but vendor-published test PANs (e.g. Stripe `4242 4242 4242 4242`)
+ * are intentionally Luhn-valid — those *will* be flagged. Conversely,
+ * fabricated digit strings that don’t satisfy the checksum (some Adyen
+ * `4000000000000002`-style internal cards) will be missed. Treat the
+ * detector as best-effort, not a compliance control.
  */
 function passesLuhn(candidate: string): boolean {
   const digits = candidate.replace(/[ -]/g, '');
