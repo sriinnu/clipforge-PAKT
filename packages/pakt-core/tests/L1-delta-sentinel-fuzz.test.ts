@@ -235,8 +235,7 @@ describe('sentinel fuzz: quoted-looking ~ values', () => {
      `{ arr: [], '~': '', hello: '' }`. Fixed by dispatching inline-array
      parsing on any scalar-shaped follow-token in `parseArrayNode`. */
   it('roundtrips JSON array with quoted ~ values', () =>
-    roundtrip({ arr: ['~', 'hello', '~'] }, 'JSON array'),
-  );
+    roundtrip({ arr: ['~', 'hello', '~'] }, 'JSON array'));
 });
 
 // ===========================================================================
@@ -288,9 +287,7 @@ describe('sentinel fuzz: large tabular with scattered ~', () => {
  * the inline-array branch on VALUE / QUOTED_STRING / NUMBER follow-tokens
  * and extends `parseInlineArray` to consume the split token stream. */
 describe('sentinel fuzz: ~ in inline arrays (regression)', () => {
-  it('inline array with ~ values', () =>
-    roundtrip({ tags: ['~', 'a', '~', 'b'] }, 'inline-~'),
-  );
+  it('inline array with ~ values', () => roundtrip({ tags: ['~', 'a', '~', 'b'] }, 'inline-~'));
   it('inline array of just ~', () => roundtrip({ tags: ['~'] }, 'inline-single-~'));
   it('inline array of all ~', () => roundtrip({ tags: ['~', '~', '~'] }, 'inline-all-~'));
 });

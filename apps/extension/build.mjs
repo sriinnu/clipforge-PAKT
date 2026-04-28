@@ -22,7 +22,6 @@ import { stripBuildArtifacts } from '../../scripts/release/strip-build-artifacts
 import { verifyNoSourcemaps } from '../../scripts/release/verify-no-sourcemaps.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const isDev = process.env.NODE_ENV === 'development';
 const packageJson = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'));
 const APP_VERSION = packageJson.version;
 
@@ -33,11 +32,13 @@ const sharedAlias = {
 const sharedDefine = { __CLIPFORGE_VERSION__: JSON.stringify(APP_VERSION) };
 const sharedBuild = {
   target: 'chrome120',
-  sourcemap: isDev,
+  minify: 'esbuild',
+  cssMinify: 'esbuild',
+  sourcemap: false,
 };
 
 // ---------------------------------------------------------------------------
-// 1. Popup — ES module, React, may produce shared chunks
+// 1. Popup + Options page — ES modules, React, may produce shared chunks
 // ---------------------------------------------------------------------------
 await build({
   plugins: [
@@ -66,6 +67,25 @@ await build({
 </html>`,
         );
 
+        // Full-tab Options page. Mirrors the popup shell but lets the body
+        // size to the viewport so the wider Settings card has room to breathe.
+        writeFileSync(
+          resolve(dist, 'options.html'),
+          `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipForge Settings</title>
+  <style>html,body{margin:0;padding:0;background:#0f0d1a;color:#e8e6f0;min-height:100vh}</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="./options.js"></script>
+</body>
+</html>`,
+        );
+
         const iconsDir = resolve(dist, 'icons');
         if (!existsSync(iconsDir)) mkdirSync(iconsDir, { recursive: true });
         for (const size of ['16', '48', '128']) {
@@ -83,7 +103,10 @@ await build({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: { popup: resolve(__dirname, 'src/popup/index.tsx') },
+      input: {
+        popup: resolve(__dirname, 'src/popup/index.tsx'),
+        options: resolve(__dirname, 'src/options/index.tsx'),
+      },
       output: {
         entryFileNames: '[name].js',
         chunkFileNames: 'chunks/[name]-[hash].js',
@@ -133,8 +156,6 @@ await build({
   },
 });
 
-if (!isDev) {
-  const distDir = resolve(__dirname, 'dist');
-  stripBuildArtifacts(distDir);
-  verifyNoSourcemaps([distDir]);
-}
+const distDir = resolve(__dirname, 'dist');
+stripBuildArtifacts(distDir);
+verifyNoSourcemaps([distDir]);

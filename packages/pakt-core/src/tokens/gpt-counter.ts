@@ -26,7 +26,7 @@
 import { encode as encodeCl100k } from 'gpt-tokenizer/encoding/cl100k_base';
 import { encode as encodeO200k } from 'gpt-tokenizer/encoding/o200k_base';
 
-import { getTokenizerFamily, type TokenizerFamily } from './tokenizer-family.js';
+import { type TokenizerFamily, getTokenizerFamily } from './tokenizer-family.js';
 import type { TokenCounter } from './types.js';
 
 // ---------------------------------------------------------------------------

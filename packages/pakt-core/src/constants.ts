@@ -58,6 +58,9 @@ export const DEFAULT_OPTIONS: Required<PaktOptions> = {
   dictMinSavings: 3,
   semanticBudget: 0,
   maxInputBytes: DEFAULT_MAX_INPUT_BYTES,
+  piiMode: 'off',
+  piiKinds: [],
+  piiReversible: false,
 };
 
 // ---------------------------------------------------------------------------

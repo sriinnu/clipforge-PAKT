@@ -9,6 +9,7 @@
 
 import {
   applyDictionaryLayer,
+  applyPIIPostPass,
   applySemanticLayer,
   applyTokenizerLayer,
   buildCompressedResult,
@@ -40,29 +41,47 @@ import type { PaktOptions, PaktResult } from './types.js';
  *   value. Pass `Infinity` to count the entire string.
  * @returns Number of UTF-8 bytes, capped at `stopAt`.
  */
+/**
+ * UTF-8 byte size of a single BMP code unit (non-surrogate).
+ * @param c - UTF-16 code unit value (must NOT be in the surrogate range D800-DFFF)
+ * @returns 1, 2, or 3 bytes per the standard UTF-8 encoding rules.
+ */
+function bmpByteSize(c: number): number {
+  if (c < 0x80) return 1;
+  if (c < 0x800) return 2;
+  return 3;
+}
+
+/**
+ * UTF-8 byte size starting at a high-surrogate position.
+ *
+ * Returns `{ size, paired }` where `paired` is `true` iff the next code unit
+ * is a valid low surrogate (DC00-DFFF). A valid pair encodes one supplementary
+ * codepoint as 4 bytes; an unpaired high surrogate is replaced by U+FFFD (3 bytes)
+ * by `TextEncoder`, matching what the runtime would do for the same input.
+ *
+ * @param next - The next UTF-16 code unit (0 if past end of string)
+ */
+function highSurrogateByteSize(next: number): { size: number; paired: boolean } {
+  if (next >= 0xdc00 && next <= 0xdfff) return { size: 4, paired: true };
+  return { size: 3, paired: false };
+}
+
 function utf8ByteLength(s: string, stopAt: number): number {
   let len = 0;
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
-    if (c < 0x80) {
-      len += 1;
-    } else if (c < 0x800) {
-      len += 2;
-    } else if (c < 0xd800 || c >= 0xe000) {
-      len += 3;
+    if (c < 0xd800 || c >= 0xe000) {
+      // Non-surrogate: BMP code point, simple per-range size.
+      len += bmpByteSize(c);
     } else if (c <= 0xdbff) {
+      // High surrogate: peek at the next unit to decide pair vs unpaired.
       const next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        /* Valid surrogate pair (high + low) encodes one supplementary
-           codepoint as 4 UTF-8 bytes. Skip the low surrogate. */
-        len += 4;
-        i++;
-      } else {
-        /* Unpaired high surrogate is encoded as U+FFFD by TextEncoder. */
-        len += 3;
-      }
+      const { size, paired } = highSurrogateByteSize(next);
+      len += size;
+      if (paired) i++; // consume the low surrogate as part of the pair
     } else {
-      /* Isolated low surrogate is encoded as U+FFFD by TextEncoder. */
+      // Isolated low surrogate -> U+FFFD (3 bytes) by TextEncoder semantics.
       len += 3;
     }
     if (len >= stopAt) return len;
@@ -151,16 +170,63 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
 
   // Graceful degradation: wrap the entire pipeline in try-catch so that
   // on ANY error we return the original input with 0% savings instead of crashing.
+  let result: PaktResult;
   try {
-    return compressPipeline(input, options, targetModel);
+    result = compressPipeline(input, options, targetModel);
   } catch {
     // Structural pipeline failed (e.g., misdetected format). Try text compression as fallback.
     const originalTokens = countTokens(input, targetModel);
-    const textFallback = tryTextCompression(input, options?.fromFormat ?? 'text', originalTokens);
-    if (textFallback) return textFallback;
-
-    return buildUnchangedResult(input, originalTokens, options?.fromFormat ?? 'text');
+    result =
+      tryTextCompression(input, options?.fromFormat ?? 'text', originalTokens) ??
+      buildUnchangedResult(input, originalTokens, options?.fromFormat ?? 'text');
   }
+  /* PII post-pass runs at the very end so every return path — structural,
+     text-fallback, pakt-passthrough, mixed — flows through the same
+     scanner. Running it inside `compressPipeline` would skip the early
+     pakt-passthrough branch and the text-compression fallback. */
+  return finalizePIIPostPass(result, options, targetModel);
+}
+
+/**
+ * Apply the PII post-pass to a finished {@link PaktResult}. The pass is
+ * a string-level scan that runs after all compression layers, so it
+ * operates uniformly regardless of whether the result came from the
+ * structural pipeline, the text fallback, or a pakt-passthrough branch.
+ *
+ * When the pass mutates the output (redact mode) the compressed-token
+ * count and `reversible` flag are updated accordingly; a `flag`-mode pass
+ * leaves the token count alone.
+ *
+ * @param result - Finished compression result
+ * @param options - PAKT options bag
+ * @param targetModel - Model id used for token re-count when mutated
+ * @returns Possibly annotated / redacted result
+ */
+function finalizePIIPostPass(
+  result: PaktResult,
+  options: Partial<PaktOptions> | undefined,
+  targetModel: string,
+): PaktResult {
+  if (!options?.piiMode || options.piiMode === 'off') return result;
+
+  const pii = applyPIIPostPass(result.compressed, options);
+  if (!pii.applied) return result;
+
+  const compressedTokens = countTokens(pii.compressed, targetModel);
+  const savedTokens = result.originalTokens - compressedTokens;
+  const totalPercent =
+    result.originalTokens > 0 ? Math.round((savedTokens / result.originalTokens) * 100) : 0;
+
+  const next: PaktResult = {
+    ...result,
+    compressed: pii.compressed,
+    compressedTokens,
+    savings: { ...result.savings, totalTokens: savedTokens, totalPercent },
+    reversible: result.reversible && !pii.lossy,
+    piiCounts: pii.counts,
+  };
+  if (pii.mapping) next.piiMapping = pii.mapping;
+  return next;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +310,14 @@ function compressPipeline(
     targetModel,
   );
 
-  const compressedTokens = countTokens(semanticLayer.compressed, targetModel);
+  /* L4 PII post-pass lives outside this function — see
+     {@link finalizePIIPostPass} in `compress()`. That placement ensures
+     every return path (structural, text fallback, pakt passthrough) is
+     scanned uniformly; wiring it here would skip the passthrough
+     branches below. */
+
+  const finalCompressed = semanticLayer.compressed;
+  const compressedTokens = countTokens(finalCompressed, targetModel);
 
   // If structural compression didn't help, try text compression as fallback
   if (compressedTokens >= setup.originalTokens) {
@@ -254,7 +327,7 @@ function compressPipeline(
 
   return buildCompressedResult(
     semanticLayer.doc,
-    semanticLayer.compressed,
+    finalCompressed,
     setup.originalTokens,
     compressedTokens,
     setup.detectedFormat,

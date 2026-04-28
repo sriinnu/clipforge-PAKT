@@ -3,7 +3,7 @@
  * Uses chrome.storage.sync so settings persist across devices.
  */
 
-import { DEFAULT_SEMANTIC_BUDGET, type PaktLayerProfileId } from '@sriinnu/pakt';
+import { DEFAULT_SEMANTIC_BUDGET, type PIIMode, type PaktLayerProfileId } from '@sriinnu/pakt';
 import { type FontPreset, isFontPreset } from '../popup/fonts';
 
 const PROFILE_IDS: readonly PaktLayerProfileId[] = [
@@ -12,6 +12,8 @@ const PROFILE_IDS: readonly PaktLayerProfileId[] = [
   'tokenizer',
   'semantic',
 ];
+
+const PII_MODES: readonly PIIMode[] = ['off', 'flag', 'redact'];
 
 interface LegacyExtensionSettings {
   layerStructural?: boolean;
@@ -23,8 +25,35 @@ export interface ExtensionSettings {
   compressionProfileId: PaktLayerProfileId;
   /** Positive budget required when the semantic profile is selected */
   semanticBudget: number;
-  /** Auto-compress pasted content */
+  /** Auto-compress the active tab’s text the moment the popup opens */
   autoCompress: boolean;
+  /**
+   * Auto-compress text the user pastes into a supported LLM input box.
+   *
+   * Disabled by default — paste interception is a noticeable behaviour change
+   * and we do not want to surprise users with an automatically rewritten
+   * prompt the first time they install the extension.
+   */
+  autoCompressOnPaste: boolean;
+  /**
+   * Hostnames the content script is allowed to act on.
+   *
+   * The content script is already gated by `manifest.content_scripts.matches`
+   * — this list lets the user opt out of individual sites without editing the
+   * manifest. Empty array means “all sites that the manifest matches”.
+   */
+  siteWhitelist: string[];
+  /**
+   * Personally-identifiable information strategy.
+   *
+   * - `'off'`    — no scanning (default; keeps the popup behavior backwards-compatible)
+   * - `'flag'`   — lossless scan that adds a `@warning pii` header so the LLM
+   *                knows the prompt contains sensitive data
+   * - `'redact'` — substitutes detected PII with placeholders before the
+   *                compressed text leaves the browser. Keeps a reversible
+   *                mapping in memory only.
+   */
+  piiMode: PIIMode;
   /** Theme: 'system' | 'dark' | 'light' | 'oled' */
   theme: 'system' | 'dark' | 'light' | 'oled';
   /** Font preset: 'modern' | 'classic' | 'rounded' | 'system' */
@@ -37,6 +66,9 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   compressionProfileId: 'standard',
   semanticBudget: DEFAULT_SEMANTIC_BUDGET,
   autoCompress: false,
+  autoCompressOnPaste: false,
+  siteWhitelist: [],
+  piiMode: 'off',
   theme: 'dark',
   fontPreset: 'modern',
   targetModel: 'gpt-4o',
@@ -44,6 +76,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
 function isProfileId(value: unknown): value is PaktLayerProfileId {
   return typeof value === 'string' && PROFILE_IDS.includes(value as PaktLayerProfileId);
+}
+
+function isPIIMode(value: unknown): value is PIIMode {
+  return typeof value === 'string' && PII_MODES.includes(value as PIIMode);
 }
 
 function isTheme(value: unknown): value is ExtensionSettings['theme'] {
@@ -70,6 +106,14 @@ function normalizeSettings(
     semanticBudget,
     autoCompress:
       typeof raw.autoCompress === 'boolean' ? raw.autoCompress : DEFAULT_SETTINGS.autoCompress,
+    autoCompressOnPaste:
+      typeof raw.autoCompressOnPaste === 'boolean'
+        ? raw.autoCompressOnPaste
+        : DEFAULT_SETTINGS.autoCompressOnPaste,
+    siteWhitelist: Array.isArray(raw.siteWhitelist)
+      ? raw.siteWhitelist.filter((entry): entry is string => typeof entry === 'string')
+      : DEFAULT_SETTINGS.siteWhitelist,
+    piiMode: isPIIMode(raw.piiMode) ? raw.piiMode : DEFAULT_SETTINGS.piiMode,
     theme: isTheme(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme,
     fontPreset: isFontPreset(raw.fontPreset) ? raw.fontPreset : DEFAULT_SETTINGS.fontPreset,
     targetModel:
@@ -92,6 +136,20 @@ function normalizeSettingsChange(raw: Record<string, unknown>): Partial<Extensio
 
   if (typeof raw.autoCompress === 'boolean') {
     updated.autoCompress = raw.autoCompress;
+  }
+
+  if (typeof raw.autoCompressOnPaste === 'boolean') {
+    updated.autoCompressOnPaste = raw.autoCompressOnPaste;
+  }
+
+  if (Array.isArray(raw.siteWhitelist)) {
+    updated.siteWhitelist = raw.siteWhitelist.filter(
+      (entry): entry is string => typeof entry === 'string',
+    );
+  }
+
+  if (isPIIMode(raw.piiMode)) {
+    updated.piiMode = raw.piiMode;
   }
 
   if (isTheme(raw.theme)) {

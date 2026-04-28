@@ -119,11 +119,12 @@ function buildTargetModelLabel({ id, displayName, vendor }: TargetModelOption) {
   return `${displayName} (${vendor}, ${accuracy})`;
 }
 
-const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> =
-  TARGET_MODEL_METADATA.map(({ id, ...rest }) => ({
+const TARGET_MODELS: ReadonlyArray<{ id: string; label: string }> = TARGET_MODEL_METADATA.map(
+  ({ id, ...rest }) => ({
     id,
     label: buildTargetModelLabel({ id, ...rest }),
-  }));
+  }),
+);
 
 export function Settings({ onBack: _onBack }: SettingsProps) {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
@@ -147,11 +148,72 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
         <span style={sectionTitleStyle}>Behavior</span>
         <div style={settingRowStyle}>
           <div style={settingTextStyle}>
-            <span style={settingLabelStyle}>Auto-compress on paste</span>
-            <span style={settingDescStyle}>Automatically compress when pasting content</span>
+            <span style={settingLabelStyle}>Auto-compress on popup open</span>
+            <span style={settingDescStyle}>
+              Compress the active tab&rsquo;s clipboard text the moment the popup opens
+            </span>
           </div>
           <Toggle value={settings.autoCompress} onChange={(v) => update({ autoCompress: v })} />
         </div>
+        <div style={settingRowStyle}>
+          <div style={settingTextStyle}>
+            <span style={settingLabelStyle}>Auto-compress on paste</span>
+            <span style={settingDescStyle}>
+              Intercept paste in supported sites (ChatGPT, Claude, Gemini, Slack, Gmail) and replace
+              with PAKT-compressed text. Off by default.
+            </span>
+          </div>
+          <Toggle
+            value={settings.autoCompressOnPaste}
+            onChange={(v) => update({ autoCompressOnPaste: v })}
+          />
+        </div>
+      </div>
+
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Site allowlist</span>
+        <label style={selectLabelStyle}>
+          <span style={settingLabelStyle}>
+            One hostname per line. Leave empty to act on every site the manifest matches.
+          </span>
+          <textarea
+            value={settings.siteWhitelist.join('\n')}
+            onChange={(event) =>
+              update({
+                siteWhitelist: event.target.value
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .filter((line) => line.length > 0),
+              })
+            }
+            placeholder={'chatgpt.com\nclaude.ai\nmail.google.com'}
+            rows={4}
+            style={{ ...selectStyle, fontFamily: 'var(--cf-font-mono)' }}
+          />
+        </label>
+        <span style={settingDescStyle}>
+          Paste interception and the floating compress button only run on sites in this list.
+        </span>
+      </div>
+
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>PII handling</span>
+        <SegmentedControl
+          options={[
+            { label: 'Off', value: 'off' as const },
+            { label: 'Flag', value: 'flag' as const },
+            { label: 'Redact', value: 'redact' as const },
+          ]}
+          value={settings.piiMode}
+          onChange={(v) => update({ piiMode: v })}
+        />
+        <span style={settingDescStyle}>
+          <strong>Off</strong> &mdash; no scanning. <strong>Flag</strong> &mdash; lossless scan that
+          adds a <code>@warning pii</code> header so the LLM is told the prompt contains sensitive
+          data. <strong>Redact</strong> &mdash; substitutes detected PII (emails, phone numbers,
+          credit cards, SSNs, IPs, JWTs) with placeholders before the compressed text leaves the
+          browser.
+        </span>
       </div>
 
       <div style={sectionStyle}>
@@ -295,8 +357,8 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
       <div style={infoStyle}>
         <span>
           The popup, inline button, and context menu use the profile and target model selected
-          above. Token counts and L3's merge-savings gate follow the tokenizer family resolved
-          from the target model.
+          above. Token counts and L3's merge-savings gate follow the tokenizer family resolved from
+          the target model.
         </span>
       </div>
     </div>

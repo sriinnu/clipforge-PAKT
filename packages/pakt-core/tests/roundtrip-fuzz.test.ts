@@ -55,9 +55,7 @@ function asciiPrintable(): string[] {
 const jsonSafeString = (): fc.Arbitrary<string> =>
   fc
     .string({
-      unit: fc.constantFrom(
-        ...asciiPrintable().filter((c) => !/[",|:[\]{}~$@#\\]/.test(c)),
-      ),
+      unit: fc.constantFrom(...asciiPrintable().filter((c) => !/[",|:[\]{}~$@#\\]/.test(c))),
       minLength: 1,
       maxLength: 10,
     })
@@ -73,9 +71,7 @@ const jsonSafeString = (): fc.Arbitrary<string> =>
 const jsonSafeKey = (): fc.Arbitrary<string> =>
   fc
     .string({
-      unit: fc.constantFrom(
-        ...asciiPrintable().filter((c) => /[A-Za-z0-9_-]/.test(c)),
-      ),
+      unit: fc.constantFrom(...asciiPrintable().filter((c) => /[A-Za-z0-9_-]/.test(c))),
       minLength: 1,
       maxLength: 8,
     })
@@ -91,7 +87,9 @@ const jsonValue = (): fc.Arbitrary<unknown> =>
       fc.constant(null),
       fc.boolean(),
       /* -0 round-trips to +0 via JSON.stringify — filter it out */
-      fc.double({ noNaN: true, noDefaultInfinity: true }).filter((n) => !Object.is(n, -0)),
+      fc
+        .double({ noNaN: true, noDefaultInfinity: true })
+        .filter((n) => !Object.is(n, -0)),
       fc.integer().filter((n) => !Object.is(n, -0)),
       jsonSafeString(),
     ),
@@ -180,9 +178,7 @@ const yamlDoc = (): fc.Arbitrary<YamlBuildResult> =>
         fc.integer({ min: -1_000_000, max: 1_000_000 }),
         fc
           .string({
-            unit: fc.constantFrom(
-              ...asciiPrintable().filter((c) => /[A-Za-z0-9 _-]/.test(c)),
-            ),
+            unit: fc.constantFrom(...asciiPrintable().filter((c) => /[A-Za-z0-9 _-]/.test(c))),
             minLength: 1,
             maxLength: 10,
           })
@@ -190,9 +186,7 @@ const yamlDoc = (): fc.Arbitrary<YamlBuildResult> =>
             (s) =>
               s.trim().length > 0 &&
               s === s.trim() &&
-              !['true', 'false', 'null', '~', 'yes', 'no', 'on', 'off'].includes(
-                s.toLowerCase(),
-              ) &&
+              !['true', 'false', 'null', '~', 'yes', 'no', 'on', 'off'].includes(s.toLowerCase()) &&
               !/^[-+]?[0-9]/.test(s),
           ),
       ),

@@ -4,6 +4,15 @@
  * This is the single source of truth — never duplicate type definitions.
  */
 
+import type { PIIMode } from './layers/L4-pii.js';
+import type { PIIKind, PIIMatch } from './pii/detector.js';
+
+// ---------------------------------------------------------------------------
+// PII re-exports
+// ---------------------------------------------------------------------------
+
+export type { PIIKind, PIIMatch, PIIMode };
+
 // ---------------------------------------------------------------------------
 // Format types
 // ---------------------------------------------------------------------------
@@ -120,6 +129,27 @@ export interface PaktOptions {
    * own tighter caps. @default 10_000_000 (10 MB)
    */
   maxInputBytes?: number;
+  /**
+   * L4 PII strategy. Controls personally-identifiable information
+   * handling on the compressed output:
+   *
+   * - `'off'` (default) — no scanning.
+   * - `'flag'` — detect and emit an `@warning pii` header; lossless.
+   * - `'redact'` — detect AND substitute placeholders like `[EMAIL]`;
+   *   lossy. Forces `reversible: false` on the result.
+   */
+  piiMode?: PIIMode;
+  /**
+   * Optional whitelist of PII kinds to detect. Defaults to all kinds.
+   * Ignored when `piiMode === 'off'`.
+   */
+  piiKinds?: readonly PIIKind[];
+  /**
+   * When `piiMode === 'redact'`, also return the placeholder→original
+   * mapping on the result (stored in `PaktResult.piiMapping`). The
+   * PAKT output itself never carries the mapping. Default: `false`.
+   */
+  piiReversible?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +181,19 @@ export interface PaktResult {
   detectedFormat: PaktFormat;
   /** Dictionary entries created (empty if L2 not applied) */
   dictionary: DictEntry[];
+  /**
+   * Per-kind PII counts when {@link PaktOptions.piiMode} is `'flag'` or
+   * `'redact'`. Absent when `piiMode === 'off'` or no PII was found.
+   */
+  piiCounts?: Partial<Record<PIIKind, number>>;
+  /**
+   * Placeholder → original value map, populated only when
+   * `piiMode === 'redact'` AND `piiReversible === true`. Callers are
+   * expected to store this locally (e.g. to restore originals after an
+   * LLM round-trip). The compressed PAKT string itself never contains
+   * the mapping.
+   */
+  piiMapping?: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -278,141 +321,30 @@ export interface DetectionResult {
 }
 
 // ---------------------------------------------------------------------------
-// Savings report
+// Savings report — see `./types-savings.ts`
 // ---------------------------------------------------------------------------
 
-/**
- * Token count and savings report for cost estimation.
- * @example
- * ```ts
- * const report: SavingsReport = {
- *   originalTokens: 500, compressedTokens: 280,
- *   savedTokens: 220, savedPercent: 44, model: 'gpt-4o',
- *   costSaved: { input: 0.00055, output: 0.0022, currency: 'USD' },
- * };
- * ```
- */
-export interface SavingsReport {
-  originalTokens: number;
-  compressedTokens: number;
-  savedTokens: number;
-  /** Savings as percentage (0-100) */
-  savedPercent: number;
-  /** Model used for token counting */
-  model: string;
-  /** Estimated cost savings (present when model pricing is known) */
-  costSaved?: { input: number; output: number; currency: string };
-}
+export type { ModelPricing, SavingsReport } from './types-savings.js';
 
 // ---------------------------------------------------------------------------
-// Validation
+// Validation — see `./types-validation.ts`
 // ---------------------------------------------------------------------------
 
-/**
- * Validation result from validate().
- * @example
- * ```ts
- * const r: ValidationResult = {
- *   valid: true, errors: [],
- *   warnings: [{ line: 3, column: 1, message: 'Unused alias $c', code: 'W001' }],
- * };
- * ```
- */
-export interface ValidationResult {
-  valid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationWarning[];
-}
-
-/**
- * A validation error with source location.
- * @example
- * ```ts
- * const err: ValidationError = { line: 5, column: 12, message: 'Undefined alias $z', code: 'E001' };
- * ```
- */
-export interface ValidationError {
-  line: number;
-  column: number;
-  message: string;
-  /** Machine-readable code (e.g., "E001") */
-  code: string;
-}
-
-/**
- * A non-fatal validation warning with source location.
- * @example
- * ```ts
- * const w: ValidationWarning = { line: 2, column: 1, message: 'Missing @from header', code: 'W002' };
- * ```
- */
-export interface ValidationWarning {
-  line: number;
-  column: number;
-  message: string;
-  code: string;
-}
+export type {
+  ValidationError,
+  ValidationResult,
+  ValidationWarning,
+} from './types-validation.js';
 
 // ---------------------------------------------------------------------------
-// Model output interpretation
+// Model output interpretation — see `./types-model-output.ts`
 // ---------------------------------------------------------------------------
 
-/**
- * Final action taken when interpreting an LLM response.
- */
-export type ModelOutputAction =
-  | 'passthrough'
-  | 'invalid-pakt'
-  | 'decompressed'
-  | 'repaired-decompressed';
-
-/**
- * Options for `interpretModelOutput()`.
- *
- * Use this helper when an LLM may respond with raw prose, JSON, or valid PAKT.
- * It auto-detects PAKT responses, optionally repairs minor syntax issues, and
- * decompresses them back to structured output.
- */
-export interface ModelOutputOptions {
-  /** Requested output format when decompression succeeds. Defaults to the `@from` header format. */
-  outputFormat?: PaktFormat;
-  /** Attempt best-effort repair before giving up on malformed PAKT. @default true */
-  attemptRepair?: boolean;
-  /** Search fenced code blocks for embedded PAKT. @default true */
-  extractFenced?: boolean;
-}
-
-/**
- * Result from `interpretModelOutput()`.
- *
- * `text` is always the safest value to feed downstream:
- * - raw model response for passthrough / invalid PAKT
- * - decompressed output for valid PAKT
- */
-export interface ModelOutputResult {
-  /** Action taken by the interpreter. */
-  action: ModelOutputAction;
-  /** Final text for downstream consumers. */
-  text: string;
-  /** Structured data when decompression succeeds; otherwise the raw response text. */
-  data: unknown;
-  /** Original raw model response before any extraction or decompression. */
-  originalText: string;
-  /** Extracted PAKT candidate when one was found. */
-  candidateText?: string;
-  /** Format detected for the original model response. */
-  responseFormat: PaktFormat;
-  /** Original structured format declared inside PAKT, when decompressed. */
-  originalFormat?: PaktFormat;
-  /** True when the decompressed PAKT had `@warning lossy`. */
-  wasLossy: boolean;
-  /** True when best-effort repair was required before decompression. */
-  repaired: boolean;
-  /** True when the PAKT candidate came from a fenced code block instead of the full response. */
-  extractedFromFence: boolean;
-  /** Validation report for the chosen PAKT candidate, when applicable. */
-  validation?: ValidationResult;
-}
+export type {
+  ModelOutputAction,
+  ModelOutputOptions,
+  ModelOutputResult,
+} from './types-model-output.js';
 
 // ---------------------------------------------------------------------------
 // Parser mode
@@ -439,22 +371,3 @@ export type ParserMode = 'strict' | 'lenient';
  * ```
  */
 export type HeaderType = 'from' | 'target' | 'dict' | 'compress' | 'warning' | 'version';
-
-// ---------------------------------------------------------------------------
-// Model pricing
-// ---------------------------------------------------------------------------
-
-/**
- * Model pricing for cost estimates.
- * @example
- * ```ts
- * const p: ModelPricing = { model: 'gpt-4o', inputPerMTok: 2.5, outputPerMTok: 10 };
- * ```
- */
-export interface ModelPricing {
-  model: string;
-  /** Cost per million input tokens in USD */
-  inputPerMTok: number;
-  /** Cost per million output tokens in USD */
-  outputPerMTok: number;
-}

@@ -1,10 +1,12 @@
 name: Sponsor badge watch
 
-# Re-inserts the Sponsor / Buy-Me-a-Coffee badges into README.md once the
-# repo crosses `SPONSOR_BADGE_MIN_STARS` stargazers. Until then the badge
-# block stays empty so the README header stays focused on the product.
-# FUNDING.yml is untouched, so the GitHub sidebar "Sponsor this project"
-# button is already available to anyone who looks for it.
+# Re-enables sponsorship surfaces once the repo crosses
+# `SPONSOR_BADGE_MIN_STARS` stargazers:
+#   - README.md badges (between SPONSOR-BADGES markers)
+#   - .github/FUNDING.yml entries (github + buy_me_a_coffee)
+# Until the threshold is hit, both stay empty/commented so the README
+# header and the GitHub-rendered Sponsor button stay hidden. At the
+# threshold, a single PR flips both on atomically.
 
 on:
   schedule:
@@ -19,6 +21,7 @@ permissions:
 env:
   SPONSOR_BADGE_MIN_STARS: '500'
   README_PATH: README.md
+  FUNDING_PATH: .github/FUNDING.yml
   BRANCH_NAME: chore/reinsert-sponsor-badges
 
 jobs:
@@ -53,28 +56,48 @@ jobs:
             echo "state=filled" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check FUNDING.yml state
+        id: funding
+        run: |
+          if [ ! -f "$FUNDING_PATH" ]; then
+            echo "state=missing-file" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # An "active" entry is a non-comment line with a key:value form.
+          if grep -qE '^[[:space:]]*[a-z_]+:' "$FUNDING_PATH"; then
+            echo "state=filled" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=empty" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Decide action
         id: decide
         run: |
           if [ "${{ steps.marker.outputs.state }}" = "missing-markers" ]; then
-            echo "reason=README is missing the SPONSOR-BADGES markers; manual attention needed."
+            echo "README is missing the SPONSOR-BADGES markers; manual attention needed."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ "${{ steps.marker.outputs.state }}" = "filled" ]; then
-            echo "Badges already present — nothing to do."
+          if [ "${{ steps.funding.outputs.state }}" = "missing-file" ]; then
+            echo "FUNDING.yml is missing; manual attention needed."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.marker.outputs.state }}" = "filled" ] \
+             && [ "${{ steps.funding.outputs.state }}" = "filled" ]; then
+            echo "README badges and FUNDING.yml already live — nothing to do."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ "${{ steps.stars.outputs.count }}" -lt "$SPONSOR_BADGE_MIN_STARS" ]; then
-            echo "Under threshold (${{ steps.stars.outputs.count }} < $SPONSOR_BADGE_MIN_STARS) — keep badges hidden."
+            echo "Under threshold (${{ steps.stars.outputs.count }} < $SPONSOR_BADGE_MIN_STARS) — keep sponsorship hidden."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      - name: Re-insert badges
-        if: steps.decide.outputs.skip == 'false'
+      - name: Re-insert README badges
+        if: steps.decide.outputs.skip == 'false' && steps.marker.outputs.state == 'empty'
         run: |
           python3 - <<'PY'
           import pathlib, re, os
@@ -94,19 +117,42 @@ jobs:
           path.write_text(new)
           PY
 
+      - name: Restore FUNDING.yml entries
+        if: steps.decide.outputs.skip == 'false' && steps.funding.outputs.state == 'empty'
+        run: |
+          python3 - <<'PY'
+          import pathlib, os
+          owner_repo = os.environ['GITHUB_REPOSITORY']
+          owner = owner_repo.split('/')[0]
+          path = pathlib.Path(os.environ['FUNDING_PATH'])
+          src = path.read_text()
+          # Uncomment the two canonical lines. Leaves all other `# ko_fi:` etc. commented.
+          replacements = {
+            '# github: [' + owner + ']': 'github: [' + owner + ']',
+            '# buy_me_a_coffee: ' + owner: 'buy_me_a_coffee: ' + owner,
+          }
+          for old, new in replacements.items():
+            src = src.replace(old, new)
+          path.write_text(src)
+          PY
+
       - name: Open PR
         if: steps.decide.outputs.skip == 'false'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
           branch: ${{ env.BRANCH_NAME }}
-          commit-message: 'chore: re-insert sponsor badges (stargazers crossed threshold)'
-          title: 'chore: re-insert sponsor badges (stargazers crossed threshold)'
+          commit-message: 'chore: re-enable sponsorship surfaces (stargazers crossed threshold)'
+          title: 'chore: re-enable sponsorship surfaces (stargazers crossed threshold)'
           body: |
             Stargazer count is **${{ steps.stars.outputs.count }}**, which meets the
             `SPONSOR_BADGE_MIN_STARS` threshold (**${{ env.SPONSOR_BADGE_MIN_STARS }}**).
-            Re-inserting the Sponsor and Buy-Me-a-Coffee badges into the README header.
 
-            - Triggered by `.github/workflows/sponsor-badge-watch.yml`.
-            - `FUNDING.yml` was already live; this only controls badge visibility in the README.
+            This PR re-enables both sponsorship surfaces that were held back pre-launch:
+
+            - **README.md** — Sponsor + Buy-Me-a-Coffee badges between the `SPONSOR-BADGES` markers.
+            - **.github/FUNDING.yml** — `github` and `buy_me_a_coffee` entries, which drive the
+              GitHub-rendered sidebar "Sponsor this project" button and the repo-header Sponsor button.
+
+            Triggered by `.github/workflows/sponsor-badge-watch.yml`.
           delete-branch: true

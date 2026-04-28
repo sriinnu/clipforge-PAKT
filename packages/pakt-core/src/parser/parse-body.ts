@@ -296,50 +296,64 @@ function parseTabularArray(
  * @param startPos - Source position of the key token
  * @returns Parsed inline array node
  */
+/**
+ * Parse the comma-separated payload that the tokenizer carved into
+ * alternating `QUOTED_STRING` / `VALUE` / `NUMBER` / `KEY` tokens
+ * separated by `COMMA` tokens. Required to roundtrip lines such as
+ * `arr [N]: "~",hello,"~"` where bare quotes split the run.
+ *
+ * Stops at the first `NEWLINE`, `EOF`, `COMMENT`, or any unrecognized
+ * token (defensive guard against infinite loops).
+ *
+ * @param s - Current parser state (advanced as tokens are consumed)
+ * @returns The collected scalar values, in source order.
+ */
+function parseSplitInlineArray(s: ParserState): ScalarNode[] {
+  const values: ScalarNode[] = [];
+  while (true) {
+    const tk = peek(s);
+    if (tk.type === 'NEWLINE' || tk.type === 'EOF' || tk.type === 'COMMENT') break;
+    if (tk.type === 'COMMA') {
+      advance(s);
+      continue;
+    }
+    if (tk.type === 'QUOTED_STRING') {
+      values.push({
+        type: 'scalar',
+        scalarType: 'string',
+        value: advance(s).value,
+        quoted: true,
+        position: posOf(tk),
+      });
+      continue;
+    }
+    if (tk.type === 'VALUE' || tk.type === 'NUMBER' || tk.type === 'KEY') {
+      values.push(inferScalar(advance(s).value.trim(), posOf(tk)));
+      continue;
+    }
+    // Unknown token — bail rather than looping forever.
+    break;
+  }
+  return values;
+}
+
 function parseInlineArray(
   s: ParserState,
   key: string,
   count: number,
   startPos: SourcePosition,
 ): InlineArrayNode {
-  const values: ScalarNode[] = [];
   const firstType = peek(s).type;
+  let values: ScalarNode[];
 
   if (firstType === 'VALUE') {
     /* Fast path: tokenizer emitted the whole comma-separated payload as
        a single VALUE token (standard case, no leading quote). */
     const valTok = advance(s);
-    for (const part of valTok.value.split(',')) {
-      values.push(inferScalar(part.trim(), posOf(valTok)));
-    }
+    values = valTok.value.split(',').map((part) => inferScalar(part.trim(), posOf(valTok)));
   } else {
-    /* Split path: tokenizer carved up the payload on quotes, so we
-       consume alternating scalar tokens separated by COMMAs until the
-       line ends. Required to roundtrip `arr [N]: "~",hello,"~"`. */
-    while (true) {
-      const tk = peek(s);
-      if (tk.type === 'NEWLINE' || tk.type === 'EOF' || tk.type === 'COMMENT') break;
-      if (tk.type === 'COMMA') {
-        advance(s);
-        continue;
-      }
-      if (tk.type === 'QUOTED_STRING') {
-        values.push({
-          type: 'scalar',
-          scalarType: 'string',
-          value: advance(s).value,
-          quoted: true,
-          position: posOf(tk),
-        });
-        continue;
-      }
-      if (tk.type === 'VALUE' || tk.type === 'NUMBER' || tk.type === 'KEY') {
-        values.push(inferScalar(advance(s).value.trim(), posOf(tk)));
-        continue;
-      }
-      // Unknown token — bail rather than looping forever.
-      break;
-    }
+    /* Split path: tokenizer carved up the payload on quotes. */
+    values = parseSplitInlineArray(s);
   }
 
   eatComment(s);
@@ -393,7 +407,11 @@ function parseListArray(
       if (peek(s).type === 'BRACE_CLOSE') {
         advance(s);
       } else {
-        reportError(s, 'Expected `}` immediately after `{` in list empty-object sentinel', posOf(braceOpenTok));
+        reportError(
+          s,
+          'Expected `}` immediately after `{` in list empty-object sentinel',
+          posOf(braceOpenTok),
+        );
         while (peek(s).type !== 'NEWLINE' && peek(s).type !== 'EOF') advance(s);
       }
       items.push({ type: 'listItem', children, position: posOf(dashTok) });
