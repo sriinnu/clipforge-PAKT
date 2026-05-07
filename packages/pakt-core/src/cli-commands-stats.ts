@@ -53,10 +53,12 @@ function cmdStatsSingleShot(
   resetSessionStats();
 
   const detected = detect(input);
+  const startedAt = Date.now();
   const result =
     detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv'
       ? compress(input, { fromFormat: detected.format })
       : compressMixed(input);
+  const durationMs = Date.now() - startedAt;
 
   const inputTokens = result.originalTokens;
   const outputTokens = result.compressedTokens;
@@ -71,6 +73,7 @@ function cmdStatsSingleShot(
     savingsPercent: inputTokens > 0 ? Math.round((savedTokens / inputTokens) * 100) : 0,
     reversible: result.reversible,
     timestamp: Date.now(),
+    durationMs,
   });
 
   const stats = getSessionStats(model);

@@ -31,6 +31,7 @@ import {
   summarizeValidationFailure,
   validateSemanticBudget,
 } from './handler-validation.js';
+import { rollingDict } from './rolling-dict.js';
 import type { PaktAutoArgs, PaktAutoResult } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -222,10 +223,30 @@ export function handleAuto(args: PaktAutoArgs): PaktAutoResult {
   const compressionOptions = buildCompressionOptions(undefined, semanticBudget, piiInputs);
   const isStructured =
     detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv';
+
+  /* Cross-turn alias reuse: seed L2 with expansions discovered in prior
+     turns, then merge new ones back. Skipped on the mixed-content path
+     (compressMixed has a narrower options type) and when PII is active
+     (placeholder values shouldn't pollute the rolling dictionary).
+     Seed ordering is deterministic by discovery turn (see
+     RollingDictionary.seed) so the resulting `@dict` prefix stays
+     stable across turns — a precondition for hitting provider prompt
+     caches (Anthropic cache_control, OpenAI prefix cache). */
+  const useRolling = isStructured && !piiActive;
+  const seededExpansions = useRolling ? rollingDict.seed() : undefined;
+
   const compressResult =
     isStructured || piiActive
-      ? compress(args.text, { ...compressionOptions, fromFormat: detected.format })
+      ? compress(args.text, {
+          ...compressionOptions,
+          fromFormat: detected.format,
+          ...(seededExpansions ? { seedAliases: seededExpansions } : {}),
+        })
       : compressMixed(args.text, compressionOptions);
+
+  if (useRolling && seededExpansions && 'dictionary' in compressResult) {
+    rollingDict.update(compressResult.dictionary, seededExpansions);
+  }
 
   const savedTokens = compressResult.originalTokens - compressResult.compressedTokens;
 

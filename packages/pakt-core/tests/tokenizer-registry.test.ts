@@ -22,10 +22,17 @@ afterEach(() => {
 // ===========================================================================
 
 describe('default counter (GPT BPE fallback)', () => {
-  it('returns a GptTokenCounter when no custom factory is registered', () => {
+  it('returns O200kTokenCounter for gpt-4o (built-in profile)', () => {
     const counter = getTokenCounter('gpt-4o');
-    expect(counter).toBeInstanceOf(GptTokenCounter);
+    // gpt-4o now correctly uses o200k_base via the built-in model profile
     expect(counter.model).toBe('gpt-4o');
+    expect(counter.count('Hello, world!')).toBeGreaterThan(0);
+  });
+
+  it('returns a GptTokenCounter for unknown models', () => {
+    const counter = getTokenCounter('some-unknown-model');
+    expect(counter).toBeInstanceOf(GptTokenCounter);
+    expect(counter.model).toBe('some-unknown-model');
   });
 
   it('counts tokens correctly with the default counter', () => {
@@ -80,8 +87,12 @@ describe('registerTokenCounter', () => {
     // Factory handles this model
     expect(getTokenCounter('only-this-one').count('x')).toBe(99);
 
-    // Factory returns null for other models -> GPT fallback
-    const fallback = getTokenCounter('gpt-4o');
+    // Factory returns null for gpt-4o -> built-in o200k profile handles it
+    const o200k = getTokenCounter('gpt-4o');
+    expect(o200k.model).toBe('gpt-4o');
+
+    // Truly unknown model falls back to GptTokenCounter
+    const fallback = getTokenCounter('unknown-model');
     expect(fallback).toBeInstanceOf(GptTokenCounter);
   });
 });
@@ -139,8 +150,12 @@ describe('custom counter priority', () => {
     // Narrow factory returns null for 'claude-sonnet', broad factory matches
     expect(getTokenCounter('claude-sonnet').count('x')).toBe(300);
 
-    // Neither factory matches, falls back to GPT
-    const fallback = getTokenCounter('gpt-4o');
+    // Neither custom factory matches gpt-4o, but built-in o200k profile does
+    const o200k = getTokenCounter('gpt-4o');
+    expect(o200k.model).toBe('gpt-4o');
+
+    // Truly unknown model falls through everything to GptTokenCounter
+    const fallback = getTokenCounter('totally-unknown');
     expect(fallback).toBeInstanceOf(GptTokenCounter);
   });
 });

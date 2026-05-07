@@ -360,5 +360,6 @@ describe('compressMixed — savings', () => {
     expect(result.savings.byLayer).toHaveProperty('dictionary');
     expect(result.savings.byLayer).toHaveProperty('tokenizer');
     expect(result.savings.byLayer).toHaveProperty('semantic');
+    expect(result.savings.byLayer).toHaveProperty('content');
   });
 });

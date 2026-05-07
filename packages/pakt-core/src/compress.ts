@@ -7,7 +7,9 @@
  * L1 (structural) -> L2 (dictionary) -> L3 (tokenizer, optional) -> L4 (semantic, optional)
  */
 
+import { computeCacheBreakpoint } from './cache-breakpoint.js';
 import {
+  applyContentLayer,
   applyDictionaryLayer,
   applyPIIPostPass,
   applySemanticLayer,
@@ -23,7 +25,7 @@ import { parseInput } from './format-parsers/index.js';
 import { applyDeltaEncoding, compressL1, compressText } from './layers/index.js';
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
-import type { PaktOptions, PaktResult } from './types.js';
+import type { PaktOptions, PaktPipelineOptions, PaktResult } from './types.js';
 
 // ---------------------------------------------------------------------------
 // UTF-8 byte counting (allocation-free)
@@ -147,7 +149,7 @@ function utf8ByteLength(s: string, stopAt: number): number {
  * });
  * ```
  */
-export function compress(input: string, options?: Partial<PaktOptions>): PaktResult {
+export function compress(input: string, options?: Partial<PaktPipelineOptions>): PaktResult {
   const targetModel = options?.targetModel ?? DEFAULT_OPTIONS.targetModel;
 
   // 0. Early return for empty / whitespace-only input — no valid structure to compress
@@ -184,7 +186,18 @@ export function compress(input: string, options?: Partial<PaktOptions>): PaktRes
      text-fallback, pakt-passthrough, mixed — flows through the same
      scanner. Running it inside `compressPipeline` would skip the early
      pakt-passthrough branch and the text-compression fallback. */
-  return finalizePIIPostPass(result, options, targetModel);
+  result = finalizePIIPostPass(result, options, targetModel);
+
+  /* Cache-control hint runs after PII so the offset reflects the final
+     compressed string. PII redaction only mutates body content, not the
+     `@dict ... @end` prefix, but we wait so that any future post-pass
+     that touches headers stays correctly accounted for. */
+  if (options?.target) {
+    const hint = computeCacheBreakpoint(result.compressed, options.target);
+    if (hint) result = { ...result, cacheBreakpoint: hint };
+  }
+
+  return result;
 }
 
 /**
@@ -261,7 +274,7 @@ function tryTextCompression(
     savings: {
       totalPercent: originalTokens > 0 ? Math.round((savedTokens / originalTokens) * 100) : 0,
       totalTokens: savedTokens,
-      byLayer: { structural: 0, dictionary: savedTokens, tokenizer: 0, semantic: 0 },
+      byLayer: { structural: 0, dictionary: savedTokens, tokenizer: 0, semantic: 0, content: 0 },
     },
     reversible: true,
     detectedFormat,
@@ -271,7 +284,7 @@ function tryTextCompression(
 
 function compressPipeline(
   input: string,
-  options: Partial<PaktOptions> | undefined,
+  options: Partial<PaktPipelineOptions> | undefined,
   targetModel: string,
 ): PaktResult {
   const setup = buildPipelineSetup(input, options, targetModel);
@@ -296,6 +309,7 @@ function compressPipeline(
     setup.dictMinSavings,
     l1Tokens,
     targetModel,
+    options?.seedAliases,
   );
   const tokenizerLayer = applyTokenizerLayer(
     dictionaryLayer.doc,
@@ -309,6 +323,12 @@ function compressPipeline(
     options?.semanticBudget ?? 0,
     targetModel,
   );
+  const contentLayer = applyContentLayer(
+    semanticLayer.doc,
+    semanticLayer.compressed,
+    setup.layers.contentAware,
+    targetModel,
+  );
 
   /* L4 PII post-pass lives outside this function — see
      {@link finalizePIIPostPass} in `compress()`. That placement ensures
@@ -316,8 +336,7 @@ function compressPipeline(
      scanned uniformly; wiring it here would skip the passthrough
      branches below. */
 
-  const finalCompressed = semanticLayer.compressed;
-  const compressedTokens = countTokens(finalCompressed, targetModel);
+  const compressedTokens = countTokens(contentLayer.compressed, targetModel);
 
   // If structural compression didn't help, try text compression as fallback
   if (compressedTokens >= setup.originalTokens) {
@@ -325,9 +344,11 @@ function compressPipeline(
     if (textFallback) return textFallback;
   }
 
+  const reversible = semanticLayer.reversible && contentLayer.reversible;
+
   return buildCompressedResult(
-    semanticLayer.doc,
-    finalCompressed,
+    contentLayer.doc,
+    contentLayer.compressed,
     setup.originalTokens,
     compressedTokens,
     setup.detectedFormat,
@@ -336,7 +357,8 @@ function compressPipeline(
       dictionary: dictionaryLayer.saved,
       tokenizer: tokenizerLayer.saved,
       semantic: semanticLayer.saved,
+      content: contentLayer.saved,
     },
-    semanticLayer.reversible,
+    reversible,
   );
 }

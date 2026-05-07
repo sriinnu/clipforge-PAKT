@@ -26,11 +26,14 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
+import { MODEL_PRICING } from '../constants.js';
 import type { CallRecord } from '../mcp/session-stats.js';
 import type {
   ActiveSession,
   DailySummary,
+  LifetimeStats,
+  ProjectStats,
   ReadOptions,
   SessionFooter,
   SessionHeader,
@@ -128,6 +131,7 @@ export function initSession(sessionId: string, meta: SessionMeta): void {
     agent: meta.agent,
     pid: meta.pid,
     startedAt: meta.startedAt,
+    ...(meta.project ? { project: meta.project } : {}),
   };
   appendLine(sessionFilePath(sessionId), header);
 }
@@ -246,6 +250,9 @@ export function readAllRecords(options?: ReadOptions): CallRecord[] {
 
     // Filter by agent name
     if (options?.agent && header && header.agent !== options.agent) continue;
+
+    // Filter by project
+    if (options?.project && header && header.project !== options.project) continue;
 
     // Filter active-only (sessions without a footer)
     if (options?.activeOnly && footer) continue;
@@ -388,6 +395,108 @@ export function compactSessions(maxAgeDays = 7): { compacted: number; archived: 
   }
 
   return { compacted, archived: newLines.length };
+}
+
+// ---------------------------------------------------------------------------
+// Project detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect the current project identifier from the working directory.
+ * Returns the basename of `process.cwd()`.
+ */
+export function detectProject(): string {
+  try {
+    return basename(process.cwd());
+  } catch {
+    return 'unknown';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Project-level stats
+// ---------------------------------------------------------------------------
+
+/**
+ * Read and aggregate stats for a specific project across all sessions.
+ *
+ * @param project - Project name to filter by
+ * @param model - Model identifier for cost estimation (default: 'gpt-4o')
+ */
+export function readProjectStats(project: string, model = 'gpt-4o'): ProjectStats {
+  const files = listSessionFiles();
+  let totalCalls = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalSavedTokens = 0;
+  let firstTimestamp = Number.POSITIVE_INFINITY;
+  let lastTimestamp = 0;
+
+  for (const filePath of files) {
+    const { header, records } = parseSessionFile(filePath);
+    if (!header || header.project !== project) continue;
+
+    for (const record of records) {
+      totalCalls++;
+      totalInputTokens += record.inputTokens;
+      totalOutputTokens += record.outputTokens;
+      totalSavedTokens += record.savedTokens;
+      if (record.timestamp < firstTimestamp) firstTimestamp = record.timestamp;
+      if (record.timestamp > lastTimestamp) lastTimestamp = record.timestamp;
+    }
+  }
+
+  const pricing = MODEL_PRICING[model];
+  const costSaved = pricing
+    ? {
+        input: (totalSavedTokens / 1_000_000) * pricing.inputPerMTok,
+        output: (totalSavedTokens / 1_000_000) * pricing.outputPerMTok,
+        currency: 'USD',
+      }
+    : null;
+
+  return {
+    project,
+    totalCalls,
+    totalInputTokens,
+    totalOutputTokens,
+    totalSavedTokens,
+    overallSavingsPercent:
+      totalInputTokens > 0 ? Math.round((totalSavedTokens / totalInputTokens) * 100) : 0,
+    costSaved,
+    firstSeen:
+      firstTimestamp < Number.POSITIVE_INFINITY
+        ? new Date(firstTimestamp).toISOString().slice(0, 10)
+        : 'never',
+    lastSeen: lastTimestamp > 0 ? new Date(lastTimestamp).toISOString().slice(0, 10) : 'never',
+  };
+}
+
+/**
+ * Read and aggregate stats across all projects.
+ *
+ * @param model - Model identifier for cost estimation (default: 'gpt-4o')
+ */
+export function readLifetimeStats(model = 'gpt-4o'): LifetimeStats {
+  const files = listSessionFiles();
+  const projectSet = new Set<string>();
+  let totalSavedTokens = 0;
+  let totalCalls = 0;
+
+  // First pass: collect all project names
+  for (const filePath of files) {
+    const { header, records } = parseSessionFile(filePath);
+    if (header?.project) projectSet.add(header.project);
+    for (const record of records) {
+      totalCalls++;
+      totalSavedTokens += record.savedTokens;
+    }
+  }
+
+  // Second pass: aggregate per project
+  const projects = [...projectSet].map((p) => readProjectStats(p, model));
+
+  return { totalSavedTokens, totalCalls, projects };
 }
 
 // ---------------------------------------------------------------------------

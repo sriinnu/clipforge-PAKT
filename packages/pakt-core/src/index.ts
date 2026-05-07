@@ -103,13 +103,18 @@ export { countTokens, compareSavings } from './tokens/index.js';
 // Pluggable tokenizer
 // ---------------------------------------------------------------------------
 
-export { GptTokenCounter } from './tokens/index.js';
+export {
+  GptTokenCounter,
+  O200kTokenCounter,
+  o200kFactory,
+  getModelEncoding,
+} from './tokens/index.js';
 export {
   registerTokenCounter,
   getTokenCounter,
   resetTokenCounterRegistry,
 } from './tokens/index.js';
-export type { TokenCounter, TokenCounterFactory } from './tokens/index.js';
+export type { TokenCounter, TokenCounterFactory, BpeEncoding } from './tokens/index.js';
 
 // ---------------------------------------------------------------------------
 // Tokenizer family awareness
@@ -157,7 +162,10 @@ export { interpretModelOutput } from './model-output.js';
 export {
   PAKT_AUTO_CONTRACT,
   PAKT_COMPRESS_CONTRACT,
+  PAKT_DASHBOARD_CONTRACT,
+  PAKT_EXPLAIN_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_SAVINGS_CONTRACT,
   PAKT_STATS_CONTRACT,
   PAKT_MCP_CONTRACTS,
   PAKT_MCP_TOOLS,
@@ -167,8 +175,12 @@ export {
   recordCall,
   getSessionStats,
   resetSessionStats,
+  setSessionId,
+  getSessionId,
   dedupCache,
   resetDedupCache,
+  rollingDict,
+  resetRollingDict,
 } from './mcp/index.js';
 export type {
   PaktMcpContract,
@@ -179,8 +191,14 @@ export type {
   PaktCompressResult,
   PaktAutoArgs,
   PaktAutoResult,
+  PaktExplainArgs,
+  PaktExplainResult,
   PaktInspectArgs,
   PaktInspectResult,
+  PaktSavingsArgs,
+  PaktSavingsResult,
+  PaktDashboardArgs,
+  PaktDashboardResult,
   PaktStatsArgs,
   PaktStatsResult,
   PaktToolName,
@@ -191,6 +209,9 @@ export type {
   FormatStats,
   DedupEntry,
   DedupStats,
+  RollingEntry,
+  RollingDictStats,
+  PaktToolOptions,
 } from './mcp/index.js';
 
 // ---------------------------------------------------------------------------
@@ -203,20 +224,59 @@ export {
   appendRecord,
   finalizeSession,
   readAllRecords,
+  readProjectStats,
+  readLifetimeStats,
   getActiveSessions,
   compactSessions,
+  detectProject,
   resetAll,
   getStatsDir,
+  resetStatsDir,
+  setDisabled,
 } from './stats/index.js';
 export type {
   SessionHeader,
   SessionFooter,
   RawRecord,
   DailySummary,
+  StatsLine,
   ReadOptions,
   SessionMeta,
   ActiveSession,
+  ProjectStats,
+  LifetimeStats,
 } from './stats/index.js';
+
+// ---------------------------------------------------------------------------
+// Middleware interceptor & proxy
+// ---------------------------------------------------------------------------
+
+export { createPaktInterceptor, optimizeMessages } from './middleware/index.js';
+export { startProxy } from './cli-proxy.js';
+export type {
+  PaktInterceptor,
+  InterceptorConfig,
+  InterceptorResult,
+  InterceptorStats,
+  OptimizeResult,
+  ToolResultMessage,
+} from './middleware/index.js';
+
+// ---------------------------------------------------------------------------
+// Context engine
+// ---------------------------------------------------------------------------
+
+export { ContextEngine, createContextEngine } from './context-engine/index.js';
+export type {
+  CompressionStrategy,
+  ContextEngineConfig,
+  ContextEngineStats,
+  ContextFact,
+  ContextIndex,
+  ContextMessage,
+  ContextSavings,
+  OptimizedContext,
+} from './context-engine/index.js';
 
 // ---------------------------------------------------------------------------
 // Compressibility scoring
@@ -235,12 +295,15 @@ export type {
 
 export type {
   PaktOptions,
+  PaktPipelineOptions,
   PaktResult,
   PaktFormat,
   PaktLayers,
   PaktLayerProfileId,
   PaktLayerProfile,
   PaktSavings,
+  CacheTarget,
+  CacheBreakpoint,
   DecompressResult,
   DetectionResult,
   DictEntry,

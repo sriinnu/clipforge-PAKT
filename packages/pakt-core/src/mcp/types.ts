@@ -14,9 +14,14 @@ import type {
   PaktCompressArgsFromContract,
   PaktCompressResultFromContract,
   PaktContractToolName,
+  PaktDashboardArgsFromContract,
+  PaktDashboardResultFromContract,
+  PaktExplainArgsFromContract,
   PaktInspectArgsFromContract,
   PaktInspectResultFromContract,
   PaktMcpContract,
+  PaktSavingsArgsFromContract,
+  PaktSavingsResultFromContract,
   PaktStatsArgsFromContract,
 } from './contract.js';
 
@@ -67,7 +72,34 @@ export type PaktAutoArgs = PaktAutoArgsFromContract;
 export type PaktAutoResult = PaktAutoResultFromContract;
 export type PaktInspectArgs = PaktInspectArgsFromContract;
 export type PaktInspectResult = PaktInspectResultFromContract;
+export type PaktExplainArgs = PaktExplainArgsFromContract;
 export type PaktStatsArgs = PaktStatsArgsFromContract;
+export type PaktSavingsArgs = PaktSavingsArgsFromContract;
+export type PaktSavingsResult = PaktSavingsResultFromContract;
+export type PaktDashboardArgs = PaktDashboardArgsFromContract;
+export type PaktDashboardResult = PaktDashboardResultFromContract;
+/**
+ * MCP-facing explain result. Nested objects (layerBreakdown, structuralAnalysis,
+ * dictionaryAnalysis) are serialized as JSON strings to conform to the flat
+ * contract outputSchema.
+ */
+export interface PaktExplainResult {
+  /** Detected input format */
+  detectedFormat: string;
+  /** Overall savings percentage (0-100) */
+  savings: number;
+  /** Absolute tokens saved */
+  savedTokens: number;
+  /** JSON array of per-layer breakdown entries */
+  layerBreakdown: string;
+  /** JSON object with structural analysis */
+  structuralAnalysis: string;
+  /** JSON object with dictionary analysis */
+  dictionaryAnalysis: string;
+  /** Human-readable recommendation */
+  recommendation: string;
+}
+
 /**
  * MCP-facing stats result. Nested objects are serialized as JSON strings
  * to conform to the flat contract outputSchema.
@@ -87,18 +119,34 @@ export interface PaktStatsResult {
   dedupHits?: number;
   dedupEntries?: number;
   totalCompoundingSavings?: number;
+  /** Rolling dictionary size (cross-turn alias reuse). */
+  rollingDictSize?: number;
+  /** Number of times a seeded alias was reused across turns. */
+  rollingDictReuses?: number;
+  /** Estimated tokens saved by rolling dictionary seeding. */
+  rollingDictSavings?: number;
 }
 
 /** Union of all valid MCP tool names exposed by PAKT. */
 export type PaktToolName = PaktContractToolName;
 
 /** Union of all valid MCP tool argument types. */
-export type PaktToolArgs = PaktCompressArgs | PaktAutoArgs | PaktInspectArgs | PaktStatsArgs;
+export type PaktToolArgs =
+  | PaktCompressArgs
+  | PaktAutoArgs
+  | PaktInspectArgs
+  | PaktStatsArgs
+  | PaktExplainArgs
+  | PaktSavingsArgs
+  | PaktDashboardArgs;
 
 /** Union of all valid MCP tool result types. */
 export type PaktToolResult =
   | PaktCompressResult
   | PaktAutoResult
   | PaktInspectResult
-  | PaktStatsResult;
+  | PaktStatsResult
+  | PaktExplainResult
+  | PaktSavingsResult
+  | PaktDashboardResult;
 export type { PaktMcpContract };
