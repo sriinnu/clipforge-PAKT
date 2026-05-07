@@ -8,7 +8,10 @@ import type { PaktFormat } from '../types.js';
 import {
   PAKT_AUTO_CONTRACT,
   PAKT_COMPRESS_CONTRACT,
+  PAKT_DASHBOARD_CONTRACT,
+  PAKT_EXPLAIN_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_SAVINGS_CONTRACT,
   PAKT_STATS_CONTRACT,
 } from './contract.js';
 import { PaktToolInputError, handlePaktTool } from './handler.js';
@@ -42,7 +45,11 @@ function num(v: unknown, fallback = 0): number {
  * We access result properties via Record<string, unknown> because the
  * Zod-inferred contract types resolve to unknown for dynamically-built schemas.
  */
-function recordCallFromResult(name: PaktToolName, result: PaktToolResult): void {
+function recordCallFromResult(
+  name: PaktToolName,
+  result: PaktToolResult,
+  durationMs: number,
+): void {
   const r = result as unknown as Record<string, unknown>;
   const now = Date.now();
 
@@ -57,6 +64,7 @@ function recordCallFromResult(name: PaktToolName, result: PaktToolResult): void 
         savingsPercent: num(r.savings),
         reversible: r.reversible === true,
         timestamp: now,
+        durationMs,
       });
       break;
     case 'pakt_auto':
@@ -69,6 +77,7 @@ function recordCallFromResult(name: PaktToolName, result: PaktToolResult): void 
         savingsPercent: num(r.savings),
         reversible: r.reversible !== false,
         timestamp: now,
+        durationMs,
       });
       break;
     case 'pakt_inspect':
@@ -81,19 +90,29 @@ function recordCallFromResult(name: PaktToolName, result: PaktToolResult): void 
         savingsPercent: num(r.estimatedSavings),
         reversible: r.reversible !== false,
         timestamp: now,
+        durationMs,
       });
       break;
     case 'pakt_stats':
+    case 'pakt_explain':
+    case 'pakt_savings':
+    case 'pakt_dashboard':
       break;
   }
 }
 
 function executeTool(name: PaktToolName, args: Record<string, unknown>) {
+  const startedAt = Date.now();
   try {
     const result = handlePaktTool(name, args);
 
-    if (name !== 'pakt_stats') {
-      recordCallFromResult(name, result);
+    if (
+      name !== 'pakt_stats' &&
+      name !== 'pakt_explain' &&
+      name !== 'pakt_savings' &&
+      name !== 'pakt_dashboard'
+    ) {
+      recordCallFromResult(name, result, Date.now() - startedAt);
     }
 
     return toTextResult(result);
@@ -150,5 +169,35 @@ export function registerPaktTools(server: McpServer, options?: PaktToolOptions):
       outputSchema: PAKT_STATS_CONTRACT.outputSchema,
     },
     async (args) => executeTool('pakt_stats', args),
+  );
+
+  server.registerTool(
+    'pakt_explain',
+    {
+      description: PAKT_EXPLAIN_CONTRACT.description,
+      inputSchema: PAKT_EXPLAIN_CONTRACT.inputSchema,
+      outputSchema: PAKT_EXPLAIN_CONTRACT.outputSchema,
+    },
+    async (args) => executeTool('pakt_explain', args),
+  );
+
+  server.registerTool(
+    'pakt_savings',
+    {
+      description: PAKT_SAVINGS_CONTRACT.description,
+      inputSchema: PAKT_SAVINGS_CONTRACT.inputSchema,
+      outputSchema: PAKT_SAVINGS_CONTRACT.outputSchema,
+    },
+    async (args) => executeTool('pakt_savings', args),
+  );
+
+  server.registerTool(
+    'pakt_dashboard',
+    {
+      description: PAKT_DASHBOARD_CONTRACT.description,
+      inputSchema: PAKT_DASHBOARD_CONTRACT.inputSchema,
+      outputSchema: PAKT_DASHBOARD_CONTRACT.outputSchema,
+    },
+    async (args) => executeTool('pakt_dashboard', args),
   );
 }

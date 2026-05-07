@@ -13,7 +13,8 @@
  *   pakt inspect [file] [--model gpt-4o|claude-sonnet|...] [--semantic-budget 120]
  *   pakt tokens [file] [--model gpt-4o|claude-sonnet|...]
  *   pakt savings [file] [--model gpt-4o|claude-sonnet|...]
- *   pakt stats [file] [--model gpt-4o|...] [--today|--week] [--agent <name>]
+ *   pakt stats [file] [--model gpt-4o|...] [--today|--week] [--agent <name>] [--json] [--export]
+ *   pakt report [--model gpt-4o|...]
  *   pakt serve --stdio [--agent-name <name>]
  *   pakt --version
  *   pakt --help
@@ -27,6 +28,7 @@ import {
   cmdDecompress,
   cmdDetect,
   cmdInspect,
+  cmdReport,
   cmdSavings,
   cmdStats,
   cmdTokens,
@@ -44,6 +46,7 @@ const LAYER_MAP: Record<number, keyof PaktLayers> = {
   2: 'dictionary',
   3: 'tokenizerAware',
   4: 'semantic',
+  5: 'contentAware',
 };
 
 // ---------------------------------------------------------------------------
@@ -58,6 +61,9 @@ Usage:
   pakt auto [file] [options]        Auto-detect and compress or decompress
   pakt serve --stdio [--agent-name <name>]
                                     Start MCP server over stdio
+  pakt serve --stdio --wrap "<command>"
+                                    Proxy mode: wrap another MCP server,
+                                    auto-compress all its tool results
   pakt detect [file]                Detect input format
   pakt inspect [file] [options]     Inspect whether to compress, decompress, or leave as-is
   pakt tokens [file] [options]      Count tokens in input
@@ -67,15 +73,19 @@ Usage:
   pakt stats --today|--week         Filter by time range
   pakt stats --agent <name>         Filter by agent name
   pakt stats --active               Only running agents
+  pakt stats --json                 Output stats as JSON to stdout
+  pakt stats --export               Export daily savings as CSV to stdout
   pakt stats --compact              Compact old sessions into archive
   pakt stats --reset                Clear all stats
+  pakt report                       Human-readable savings report
+  pakt report --model <model>       Report with cost estimates for a specific model
   pakt --version                    Print version
   pakt --help                       Show this help
 
 Options:
   --from <format>    Force input format (json|yaml|csv|md|text)
   --to <format>      Output format for decompress (json|yaml|csv|md|text)
-  --layers <list>    Compression layers to enable (comma-separated: 1,2,3,4)
+  --layers <list>    Compression layers to enable (comma-separated: 1,2,3,4,5)
   --semantic-budget <tokens>
                      Enable L4 semantic compression with a positive token budget
   --pii-mode <mode>  PII strategy: off (default) | flag (headers only) | redact (mutates)
@@ -210,19 +220,20 @@ function parseLayers(layerStr: string): Partial<PaktLayers> {
     dictionary: false,
     tokenizerAware: false,
     semantic: false,
+    contentAware: false,
   };
 
   const parts = layerStr.split(',');
   for (const part of parts) {
     const trimmed = part.trim();
     if (!/^\d+$/.test(trimmed)) {
-      throw new Error(`Invalid layer number: "${part.trim()}". Expected 1, 2, 3, or 4.`);
+      throw new Error(`Invalid layer number: "${part.trim()}". Expected 1, 2, 3, 4, or 5.`);
     }
     const num = Number.parseInt(trimmed, 10);
     const key = LAYER_MAP[num];
     if (!key) {
       throw new Error(
-        `Unknown layer: ${String(num)}. Valid layers: 1 (structural), 2 (dictionary), 3 (tokenizer), 4 (semantic).`,
+        `Unknown layer: ${String(num)}. Valid layers: 1 (structural), 2 (dictionary), 3 (tokenizer), 4 (semantic), 5 (content).`,
       );
     }
     layers[key] = true;
@@ -263,7 +274,11 @@ async function main(): Promise<void> {
       cmdAuto(args, readInput, parseLayers);
       break;
     case 'serve':
-      await startServe(args.options.get('agent-name'));
+      await startServe({
+        agentName: args.options.get('agent-name'),
+        wrap: args.options.get('wrap'),
+        passthrough: args.options.get('passthrough')?.split(','),
+      });
       return; // serve keeps the stdio transport open
     case 'detect':
       cmdDetect(args, readInput);
@@ -279,6 +294,9 @@ async function main(): Promise<void> {
       break;
     case 'stats':
       cmdStats(args, readInput);
+      break;
+    case 'report':
+      cmdReport(args);
       break;
     default:
       process.stderr.write(`Unknown command: "${args.command}"\n\n`);

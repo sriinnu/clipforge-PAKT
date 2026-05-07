@@ -4,11 +4,13 @@ import { compressText } from './layers/compress-text.js';
 import {
   applyL3Transforms,
   applyL4Transforms,
+  applyL5Transforms,
   applyPIILayer,
   compressL2,
   compressL3,
   compressL4,
   extractDictEntries,
+  markL5,
   revertL3,
 } from './layers/index.js';
 import { compressMixed } from './mixed/index.js';
@@ -54,6 +56,7 @@ export function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
     dictionary: partial.dictionary ?? DEFAULT_LAYERS.dictionary,
     tokenizerAware: partial.tokenizerAware ?? DEFAULT_LAYERS.tokenizerAware,
     semantic: partial.semantic ?? DEFAULT_LAYERS.semantic,
+    contentAware: partial.contentAware ?? DEFAULT_LAYERS.contentAware,
   };
 }
 
@@ -151,6 +154,7 @@ export function tryCompressSpecialFormats(
           dictionary: savedTokens,
           tokenizer: 0,
           semantic: 0,
+          content: 0,
         },
       },
       reversible: true,
@@ -214,12 +218,13 @@ export function applyDictionaryLayer(
   dictMinSavings: number,
   l1Tokens: number,
   targetModel: string,
+  seedAliases?: Set<string>,
 ): LayerApplication {
   if (!enabled) {
     return { compressed: serialize(doc), doc, saved: 0 };
   }
 
-  const l2Doc = compressL2(doc, dictMinSavings);
+  const l2Doc = compressL2(doc, dictMinSavings, seedAliases);
   const afterL2 = serialize(l2Doc);
   const saved = l1Tokens - countTokens(afterL2, targetModel);
   if (saved <= 0) {
@@ -352,20 +357,62 @@ export function applyPIIPostPass(
 }
 
 /**
- * Assemble the final {@link PaktResult} from the pipeline’s outputs.
+ * Apply the L5 content-aware layer if enabled and it pays off.
+ * Operates on the serialized PAKT text and rewrites content-level
+ * patterns (abbreviations, common-token substitutions) under a
+ * `@compress content` header so the decompressor can reverse them.
+ */
+export function applyContentLayer(
+  doc: PaktDocument,
+  compressed: string,
+  enabled: boolean,
+  targetModel: string,
+): SemanticApplication {
+  if (!enabled) {
+    return { compressed, doc, reversible: true, saved: 0 };
+  }
+
+  const l5Doc = markL5(doc);
+  const transformed = applyL5Transforms(compressed);
+  const withHeader = injectCompressContentHeader(transformed);
+  const saved = countTokens(compressed, targetModel) - countTokens(withHeader, targetModel);
+
+  if (saved <= 0) {
+    return { compressed, doc, reversible: true, saved: 0 };
+  }
+
+  return { compressed: withHeader, doc: l5Doc, reversible: false, saved };
+}
+
+/**
+ * Inject `@compress content` header into serialized PAKT text after
+ * the last existing `@` header line so it appears in the header block,
+ * not in the body.
+ */
+export function injectCompressContentHeader(text: string): string {
+  const HEADER = '@compress content';
+  if (/^@compress\s+content\s*$/m.test(text)) return text;
+
+  const lines = text.split('\n');
+  let lastHeaderIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i]!.startsWith('@')) {
+      lastHeaderIdx = i;
+    } else if (lines[i]!.trim() !== '') {
+      break;
+    }
+  }
+  const insertIdx = lastHeaderIdx >= 0 ? lastHeaderIdx + 1 : 0;
+  lines.splice(insertIdx, 0, HEADER);
+  return lines.join('\n');
+}
+
+/**
+ * Assemble the final {@link PaktResult} from the pipeline's outputs.
  *
  * Computes the headline savings percent, normalises the per-layer
  * savings to non-negative integers, and pulls the dictionary entries
  * off the final document so consumers can inspect them.
- *
- * @param doc              - Final compressed document
- * @param compressed       - Serialized PAKT string
- * @param originalTokens   - Token count of the original input
- * @param compressedTokens - Token count of the serialized output
- * @param detectedFormat   - Format the input was detected as
- * @param layerSavings     - Per-layer token savings tally
- * @param reversible       - Whether the pipeline was lossless end-to-end
- * @returns A populated {@link PaktResult}
  */
 export function buildCompressedResult(
   doc: PaktDocument,
@@ -416,7 +463,7 @@ export function buildUnchangedResult(
     savings: {
       totalPercent: 0,
       totalTokens: 0,
-      byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
+      byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0, content: 0 },
     },
     reversible: true,
     detectedFormat,
@@ -432,5 +479,6 @@ function normalizeLayerSavings(
     dictionary: Math.max(0, layerSavings.dictionary),
     tokenizer: Math.max(0, layerSavings.tokenizer),
     semantic: Math.max(0, layerSavings.semantic),
+    content: Math.max(0, layerSavings.content),
   };
 }

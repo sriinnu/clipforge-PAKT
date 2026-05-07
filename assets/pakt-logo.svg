@@ -1,28 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" width="240" height="60">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" width="280" height="64">
   <defs>
-    <linearGradient id="pakt-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="50%" stop-color="#818cf8" />
       <stop offset="100%" stop-color="#8b5cf6" />
     </linearGradient>
-    <linearGradient id="pakt-chevron" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="50%" stop-color="#8b5cf6" />
-      <stop offset="100%" stop-color="#6366f1" />
+    <linearGradient id="pipe" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0" />
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
     </linearGradient>
   </defs>
 
-  <!-- Left chevron: compression "squeeze" -->
-  <polygon points="8,10 24,30 8,50" fill="none" stroke="url(#pakt-grad)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <!-- Subtle glow behind the icon -->
+  <ellipse cx="30" cy="32" rx="26" ry="24" fill="url(#glow)" />
 
-  <!-- Second left chevron (tighter) -->
-  <polygon points="22,14 34,30 22,46" fill="none" stroke="url(#pakt-grad)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.6" />
+  <!-- Compression funnel: wide input → narrow output -->
+  <!-- Left side: expanded data (braces) -->
+  <path d="M 8,12 C 14,12 16,20 16,24" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5" />
+  <path d="M 8,52 C 14,52 16,44 16,40" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5" />
 
-  <!-- "PAKT" text -->
-  <text x="50" y="42" font-family="'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace" font-size="36" font-weight="700" fill="url(#pakt-grad)" letter-spacing="3">PAKT</text>
+  <!-- Center: three pipe lines (the PAKT format) -->
+  <line x1="20" y1="24" x2="44" y2="28" stroke="url(#pipe)" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="18" y1="32" x2="46" y2="32" stroke="url(#pipe)" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="20" y1="40" x2="44" y2="36" stroke="url(#pipe)" stroke-width="2.5" stroke-linecap="round" />
 
-  <!-- Right chevron (mirror) -->
-  <polygon points="218,14 206,30 218,46" fill="none" stroke="url(#pakt-grad)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.6" />
+  <!-- Right side: compressed output (tight) -->
+  <path d="M 46,28 C 50,30 50,34 46,36" stroke="#8b5cf6" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7" />
 
-  <!-- Second right chevron -->
-  <polygon points="232,10 216,30 232,50" fill="none" stroke="url(#pakt-grad)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+  <!-- Pipe separator dots between the lines -->
+  <circle cx="32" cy="26" r="1.5" fill="#818cf8" opacity="0.7" />
+  <circle cx="32" cy="32" r="1.5" fill="#818cf8" opacity="0.9" />
+  <circle cx="32" cy="38" r="1.5" fill="#818cf8" opacity="0.7" />
+
+  <!-- PAKT wordmark -->
+  <text x="60" y="43" font-family="'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace" font-size="34" font-weight="800" fill="url(#pg)" letter-spacing="4">PAKT</text>
+
+  <!-- Tagline -->
+  <text x="62" y="56" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="9" fill="#6366f1" opacity="0.6" letter-spacing="1.5">COMPRESS ENGINE</text>
 </svg>

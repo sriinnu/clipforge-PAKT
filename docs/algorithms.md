@@ -366,7 +366,234 @@ sweepline algorithms].
 | `[number, number][]` | `mixed/extractor.ts` | Sorted occupied intervals for overlap check | O(B) space, B = blocks |
 | `PackerItem[]` | `packer/types.ts` | Context window items with priority | O(N) space |
 | `TokenCounterFactory[]` | `tokens/registry.ts` | Pluggable tokenizer chain | O(F) space, F = registered factories |
+| `RollingEntry` map | `mcp/rolling-dict.ts` | Cross-turn alias memory | O(E) space, E = entries (max 100) |
+| `ContextMessage[]` | `context-engine/engine.ts` | Conversation state with turn/token metadata | O(M) space, M = messages |
+| `ContextFact[]` | `context-engine/engine.ts` | Extracted facts from old turns | O(F) space |
 
 ---
 
-*Last updated: March 2026*
+## 8. L5: Content-Aware Compression
+
+**Source:** `packages/pakt-core/src/layers/L5-content.ts`, `L5-abbreviations.ts`
+
+L5 compresses VALUES, not FORMAT. It applies deterministic, rule-based
+transforms that LLMs understand identically to the original.
+
+### 8.1 Transforms Applied
+
+| Transform | Example | Token Savings |
+|-----------|---------|---------------|
+| Word abbreviation | `infrastructure` → `infra` | 1 token (2→1) |
+| URL compression | `https://` → `h//` | 0-1 tokens |
+| Timestamp normalization | `T14:30:00.000Z` → `T14:30Z` | 1-2 tokens |
+
+### 8.2 Abbreviation Dictionary
+
+The dictionary at `L5-abbreviations.ts` contains ~55 common→short mappings.
+**However, only 3 entries actually save BPE tokens** (cl100k_base):
+
+- `infrastructure` (2 tokens) → `infra` (1 token) = **1 saved**
+- `specification` (2 tokens) → `spec` (1 token) = **1 saved**
+- `miscellaneous` (2 tokens) → `misc` (1 token) = **1 saved**
+
+Most entries like `application`→`app` save **0 tokens** because BPE already
+encodes both as 1 token each.
+
+### 8.3 Known Limitation: L2 Preempts L5
+
+L5 runs AFTER L2 in the pipeline. By the time L5 tries to abbreviate
+`application`, L2 has already aliased it as a substring (`$e: applicatio`).
+The word boundary regex `\bapplication\b` can't match `${e}n`.
+
+This is an architectural ordering issue. For L5 to deliver meaningful savings,
+abbreviations would need to move to L1.5 (before L2) at the AST level.
+
+### 8.4 What Was Removed and Why
+
+**Boolean shorthand** (`true`→`T`, `false`→`F`, `null`→`~`) was removed because
+it's inherently ambiguous on reverse. A standalone `T` value could be a grade,
+a type code, or a compressed boolean — the decompressor can't distinguish them.
+Data integrity was prioritized over marginal token savings.
+
+---
+
+## 9. Rolling Dictionary (Cross-Turn Alias Reuse)
+
+**Source:** `packages/pakt-core/src/mcp/rolling-dict.ts`
+
+### 9.1 Problem
+
+Each `pakt_auto` call discovers L2 dictionary entries independently. If turn 1
+finds `$a: developer` and turn 5 has different data also containing "developer",
+turn 5 rediscovers it from scratch.
+
+### 9.2 Solution
+
+The `RollingDictionary` class maintains a session-level set of known expansions:
+
+```
+seed()   → returns Set<string> of known expansions from prior turns
+update() → merges newly discovered DictEntry[] back into the rolling set
+```
+
+### 9.3 How Seeds Affect L2
+
+Seeded expansions get lower thresholds in L2's candidate detection AND greedy
+simulation:
+- Normal threshold: 3 occurrences, 3 minimum net savings
+- Seeded threshold: 2 occurrences, 0 minimum net savings
+
+This means recurring values get aliased faster in subsequent turns.
+
+### 9.4 No Custom Alias Namespace
+
+Seeds use standard `$a`-`$az` aliases assigned by L2 — no separate `$ra` range.
+This ensures any PAKT decompressor can handle the output without knowing about
+the rolling dictionary.
+
+### 9.5 Pruning
+
+Entries unused for `pruneAfterTurns` (default 20) turns are removed. When the
+dictionary exceeds `maxEntries` (default 100), lowest-value entries (scored by
+`usageCount × tokensPerOcc`) are evicted.
+
+---
+
+## 10. Context Engine
+
+**Source:** `packages/pakt-core/src/context-engine/`
+
+### 10.1 The Token Budget Problem
+
+In a 20-turn LLM conversation:
+- System prompt: **39%** of total tokens (repeated every API call)
+- Conversation history: **56%** (grows linearly)
+- New content: **4%** (tool results, user message)
+
+PAKT's structural compression only touches the 4%. The Context Engine attacks
+the full 100%.
+
+### 10.2 Architecture
+
+```
+ContextEngine.addMessage()     → stores with turn/token metadata
+ContextEngine.addToolResult()  → auto-compresses structured data on ingestion
+ContextEngine.optimize()       → returns compressed messages array
+```
+
+### 10.3 Optimization Layers
+
+1. **Tool result compression** — structured data (JSON/YAML/CSV) compressed
+   via PAKT on ingestion. Never returns expanded results (negative-savings guard).
+
+2. **Content deduplication** — identical content across turns replaced with
+   `[Same as turn N: preview...]` reference. Uses hash of first 200 chars + length.
+
+3. **Progressive history compression** — turns older than `recentTurns` window
+   get PAKT-compressed if they contain structured data. Prose is left verbatim.
+
+4. **Heuristic fact extraction** — when context exceeds 60% of budget, old turns
+   are summarized into a structured context index using regex pattern matching:
+   - Decisions: "decided to use...", "chose...", "going with..."
+   - Errors: "the bug is...", "the issue was..."
+   - Actions: "fixed...", "created...", "implemented..."
+   - Requirements: "must...", "should...", "needs to..."
+
+### 10.4 Context Rot
+
+Research from Chroma shows every frontier model (GPT-4.1, Claude Opus 4,
+Gemini 2.5) degrades with longer context — 30%+ accuracy drops from "lost in
+the middle" effects. Context compression doesn't just save money — it
+**improves accuracy** by reducing noise in the attention mechanism.
+
+---
+
+## 11. MCP Middleware Interceptor
+
+**Source:** `packages/pakt-core/src/middleware/`
+
+### 11.1 Problem
+
+PAKT as an MCP tool requires the LLM to decide to call `pakt_auto`. In 90% of
+conversations, the LLM never thinks to compress tool results. The middleware
+approach intercepts automatically.
+
+### 11.2 API
+
+```typescript
+const interceptor = createPaktInterceptor({
+  minTokens: 100,
+  formats: ['json', 'yaml', 'csv'],
+  passthrough: ['pakt_*'],
+});
+
+const result = interceptor.processToolResult('read_file', bigJson);
+// result.text — compressed if beneficial, original otherwise
+```
+
+### 11.3 optimizeMessages()
+
+For API proxy use — compresses tool_result messages in a messages array:
+
+```typescript
+const { messages: optimized, savings } = optimizeMessages(messages);
+// optimized is ready for the LLM API
+```
+
+---
+
+## 12. Negative Savings Guard
+
+**Source:** `packages/pakt-core/src/mcp/handler.ts` (handleAuto)
+
+### The Problem
+
+PAKT headers (`@from json`, `@dict`, `@compress delta`, etc.) add ~15-20 tokens
+of overhead. For small or non-repetitive payloads, this overhead exceeds the
+structural savings, making the compressed output LARGER than the input.
+
+### The Fix
+
+`handleAuto()` checks `savedTokens <= 0` after compression. If compression made
+things worse, it returns the original text unchanged with `belowThreshold: true`.
+PAKT never makes things worse.
+
+---
+
+## 13. Design Decisions & Tradeoffs
+
+### Why L1-L3 are lossless and L4-L5 are lossy
+
+L1-L3 preserve every byte of information — the structural rewrite, dictionary
+aliases, and tokenizer optimizations are all perfectly reversible. L4 (semantic)
+and L5 (content) intentionally lose information: L4 truncates values and drops
+fields; L5 abbreviates words. Both are opt-in and flagged via headers.
+
+### Why pipe delimiters
+
+BPE tokenizers encode `|` as a single token. Alternatives like `\t` (tab) or
+`,` (comma) also tokenize as 1 token, but `|` has the lowest collision rate with
+actual data values. CSV uses commas; TSV uses tabs; PAKT uses pipes.
+
+### Why L2 caps at 52 aliases
+
+`$a`-`$z` (26) + `$aa`-`$az` (26) = 52 slots. Beyond this, diminishing returns:
+the 53rd alias saves fewer tokens than the 1st. The greedy selection pass
+ensures the most valuable patterns get aliased first.
+
+### Why delta encoding uses `~` sentinel
+
+The tilde (`~`) is a single BPE token, rarely appears in real data, and is
+visually distinct from actual values. It means "same as the value above in this
+column position."
+
+### What we tried that didn't work
+
+1. **Boolean shorthand** (`true`→`T`): Ambiguous on reverse — removed.
+2. **Rolling alias namespace** (`$ra`-`$raz`): Non-standard, breaks interop — folded into `$a`-`$az`.
+3. **L5 after L2**: L2 shatters words via substring aliasing before L5 can match them — marginal savings.
+4. **Trailing zero stripping**: `362.0`→`362` risks mutating quoted strings — omitted.
+
+---
+
+*Last updated: April 2026*

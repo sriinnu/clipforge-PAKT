@@ -35,6 +35,8 @@ export type { TokenCounter, TokenCounterFactory } from './types.js';
 // ---------------------------------------------------------------------------
 
 export { countTokens, GptTokenCounter } from './counter.js';
+export { O200kTokenCounter, getModelEncoding, o200kFactory } from './model-profiles.js';
+export type { BpeEncoding } from './model-profiles.js';
 
 // ---------------------------------------------------------------------------
 // Registry

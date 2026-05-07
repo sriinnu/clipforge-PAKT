@@ -7,10 +7,11 @@
  * handlers and validators live in sibling modules to keep each file under
  * the 400-line cap:
  *
- *  - `handler-validation.ts`      — input validators + PII helpers + `PaktToolInputError`
- *  - `handler-compress.ts`        — `pakt_compress`
- *  - `handler-auto.ts`            — `pakt_auto`
- *  - `handler-inspect-stats.ts`   — `pakt_inspect`, `pakt_stats`
+ *  - `handler-validation.ts`               — input validators + PII helpers + `PaktToolInputError`
+ *  - `handler-compress.ts`                 — `pakt_compress`
+ *  - `handler-auto.ts`                     — `pakt_auto`
+ *  - `handler-inspect-stats.ts`            — `pakt_inspect`, `pakt_stats`
+ *  - `handler-explain-savings-dashboard.ts`— `pakt_explain`, `pakt_savings`, `pakt_dashboard`
  *
  * @example
  * ```ts
@@ -28,12 +29,20 @@
 
 import { handleAuto } from './handler-auto.js';
 import { handleCompress } from './handler-compress.js';
+import {
+  handleDashboard,
+  handleExplain,
+  handleSavings,
+} from './handler-explain-savings-dashboard.js';
 import { handleInspect, handleStats } from './handler-inspect-stats.js';
 import { PaktToolInputError } from './handler-validation.js';
 import type {
   PaktAutoArgs,
   PaktCompressArgs,
+  PaktDashboardArgs,
+  PaktExplainArgs,
   PaktInspectArgs,
+  PaktSavingsArgs,
   PaktStatsArgs,
   PaktToolName,
   PaktToolResult,
@@ -42,6 +51,10 @@ import type {
 // Re-export the error class so existing `import { PaktToolInputError } from './handler.js'`
 // consumers (e.g. `mcp/server.ts`, package barrel) keep working unchanged.
 export { PaktToolInputError };
+
+// ---------------------------------------------------------------------------
+// Main dispatch
+// ---------------------------------------------------------------------------
 
 /**
  * Dispatch an MCP tool call to the appropriate PAKT handler.
@@ -61,6 +74,12 @@ export function handlePaktTool(name: PaktToolName, args: Record<string, unknown>
       return handleInspect(args as unknown as PaktInspectArgs);
     case 'pakt_stats':
       return handleStats(args as unknown as PaktStatsArgs);
+    case 'pakt_explain':
+      return handleExplain(args as unknown as PaktExplainArgs);
+    case 'pakt_savings':
+      return handleSavings(args as unknown as PaktSavingsArgs);
+    case 'pakt_dashboard':
+      return handleDashboard(args as unknown as PaktDashboardArgs);
     default: {
       const _exhaustive: never = name;
       throw new Error(`Unknown PAKT MCP tool: "${String(_exhaustive)}"`);

@@ -40,7 +40,7 @@ export type PaktFormat = 'json' | 'yaml' | 'csv' | 'markdown' | 'pakt' | 'text';
  * ```ts
  * const layers: PaktLayers = {
  *   structural: true, dictionary: true,
- *   tokenizerAware: false, semantic: false,
+ *   tokenizerAware: false, semantic: false, contentAware: false,
  * };
  * ```
  */
@@ -53,6 +53,8 @@ export interface PaktLayers {
   tokenizerAware: boolean;
   /** L4 -- lossy semantic compression (opt-in, flagged) */
   semantic: boolean;
+  /** L5 -- content-aware compression: abbreviations, URL compression, etc. (opt-in) */
+  contentAware: boolean;
 }
 
 /**
@@ -150,6 +152,49 @@ export interface PaktOptions {
    * PAKT output itself never carries the mapping. Default: `false`.
    */
   piiReversible?: boolean;
+  /**
+   * Target LLM provider. When set, `compress()` returns a
+   * `cacheBreakpoint` hint on the result identifying where the
+   * cacheable prefix ends (right after the `@dict ... @end` block) and
+   * what TTL the target accepts. PAKT itself does not call the SDK —
+   * consumers translate the hint into the provider's `cache_control`
+   * field. Bedrock supports a 1-hour TTL (Jan 2026) while Anthropic's
+   * default dropped to 5 minutes (Mar 2026), so the prefix-stable
+   * `@dict` work matters more on Bedrock today. Leave unset to skip the
+   * hint entirely.
+   */
+  target?: CacheTarget;
+}
+
+/** LLM provider targets for cache_control breakpoint hints. */
+export type CacheTarget = 'anthropic' | 'bedrock' | 'openai' | 'google';
+
+/**
+ * Cache-control hint computed during compression. Indicates where the
+ * cacheable prefix ends in `compressed` and what TTL the chosen target
+ * supports. Consumers pass this to their provider SDK.
+ */
+export interface CacheBreakpoint {
+  /** Byte offset in `compressed` where the cacheable prefix ends. */
+  byteOffset: number;
+  /**
+   * Recommended cache TTL in seconds. `3600` for Bedrock, `300` for
+   * Anthropic direct, `0` for providers that auto-manage caching
+   * (OpenAI, Google).
+   */
+  recommendedTTLSeconds: number;
+  /** Target provider this hint was computed for. */
+  target: CacheTarget;
+}
+
+/**
+ * Extended options including internal pipeline plumbing.
+ * Used by the MCP handler to pass rolling dictionary seeds through the pipeline.
+ * Not part of the public API — consumers use {@link PaktOptions}.
+ */
+export interface PaktPipelineOptions extends PaktOptions {
+  /** Set of expansion strings known from prior turns for cross-turn alias reuse. */
+  seedAliases?: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +239,13 @@ export interface PaktResult {
    * the mapping.
    */
   piiMapping?: Record<string, string>;
+  /**
+   * Cache-control hint when {@link PaktOptions.target} is set. Identifies
+   * the byte offset in `compressed` where the cacheable prefix ends so
+   * consumers can place the provider's `cache_control` breakpoint there.
+   * Absent when no `target` was specified.
+   */
+  cacheBreakpoint?: CacheBreakpoint;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +258,7 @@ export interface PaktResult {
  * ```ts
  * const s: PaktSavings = {
  *   totalPercent: 42, totalTokens: 120,
- *   byLayer: { structural: 60, dictionary: 45, tokenizer: 15, semantic: 0 },
+ *   byLayer: { structural: 60, dictionary: 45, tokenizer: 15, semantic: 0, content: 0 },
  * };
  * ```
  */
@@ -221,6 +273,7 @@ export interface PaktSavings {
     dictionary: number;
     tokenizer: number;
     semantic: number;
+    content: number;
   };
 }
 

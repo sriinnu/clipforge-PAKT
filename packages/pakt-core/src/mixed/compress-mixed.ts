@@ -174,6 +174,7 @@ export function compressMixed(input: string, options?: Partial<PaktOptions>): Mi
         dictionary: 0,
         tokenizer: 0,
         semantic: 0,
+        content: 0,
       },
     },
     blocks: blockResults,
@@ -200,7 +201,7 @@ function buildPassthrough(input: string, tokens: number): MixedCompressResult {
     savings: {
       totalPercent: 0,
       totalTokens: 0,
-      byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0 },
+      byLayer: { structural: 0, dictionary: 0, tokenizer: 0, semantic: 0, content: 0 },
     },
     blocks: [],
     reversible: true,
