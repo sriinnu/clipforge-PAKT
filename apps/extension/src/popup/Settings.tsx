@@ -293,7 +293,7 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
       </div>
 
       <div style={sectionStyle}>
-        <span style={sectionTitleStyle}>Prompt Cache Target</span>
+        <span style={sectionTitleStyle}>Prompt cache target</span>
         <SegmentedControl
           options={[
             { label: 'Off', value: 'off' as const },
@@ -302,9 +302,9 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
             { label: 'OpenAI', value: 'openai' as const },
             { label: 'Google', value: 'google' as const },
           ]}
-          value={(settings.cacheTarget ?? 'off') as 'off' | CacheTarget}
+          value={settings.cacheTarget ?? 'off'}
           onChange={(v) =>
-            update({ cacheTarget: v === 'off' ? undefined : (v as CacheTarget) })
+            update({ cacheTarget: v === 'off' ? undefined : v })
           }
         />
         <span style={settingDescStyle}>

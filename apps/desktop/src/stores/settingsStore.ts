@@ -1,4 +1,9 @@
-import { DEFAULT_SEMANTIC_BUDGET, type PaktFormat, type PaktLayers } from '@sriinnu/pakt';
+import {
+  type CacheTarget,
+  DEFAULT_SEMANTIC_BUDGET,
+  type PaktFormat,
+  type PaktLayers,
+} from '@sriinnu/pakt';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -15,6 +20,12 @@ interface SettingsState {
   fontPreset: FontPreset;
   semanticBudget: number;
   layers: PaktLayers;
+  /**
+   * Provider cache target. When set, `compress()` returns a
+   * `cacheBreakpoint` hint with byte offset + recommended TTL.
+   * `undefined` disables the hint entirely (default).
+   */
+  cacheTarget: CacheTarget | undefined;
   setOutputFormat: (f: PaktFormat) => void;
   setModel: (m: string) => void;
   setAutoCompress: (v: boolean) => void;
@@ -23,6 +34,7 @@ interface SettingsState {
   setFontPreset: (p: FontPreset) => void;
   setSemanticBudget: (v: number) => void;
   toggleLayer: (key: keyof PaktLayers) => void;
+  setCacheTarget: (target: CacheTarget | undefined) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -42,6 +54,7 @@ export const useSettingsStore = create<SettingsState>()(
         semantic: false,
         contentAware: false,
       },
+      cacheTarget: undefined,
       setOutputFormat: (f) => set({ outputFormat: f }),
       setModel: (m) => set({ model: m }),
       setAutoCompress: (v) => set({ autoCompress: v }),
@@ -57,6 +70,7 @@ export const useSettingsStore = create<SettingsState>()(
             [key]: !state.layers[key],
           },
         })),
+      setCacheTarget: (target) => set({ cacheTarget: target }),
     }),
     { name: 'clipforge-settings' },
   ),

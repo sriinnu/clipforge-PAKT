@@ -5,7 +5,7 @@
  * Also supports a skeleton loading state shown while compression runs.
  */
 
-import type { CacheBreakpoint } from '@sriinnu/pakt';
+import type { CacheBreakpoint, PaktFormat } from '@sriinnu/pakt';
 import type React from 'react';
 
 /** Props for StatsCard. */
@@ -18,6 +18,7 @@ interface StatsCardProps {
     durationMs?: number;
     cacheBreakpoint?: CacheBreakpoint;
     lossy?: boolean;
+    cacheUnavailableFor?: PaktFormat;
   } | null;
   /** When true, shows a shimmer skeleton instead of real data. */
   loading: boolean;
@@ -90,7 +91,10 @@ export function StatsCard({ stats, loading }: StatsCardProps) {
         </div>
       )}
       {/* Optional 0.10 metadata line: latency, cache hint, lossy flag */}
-      {(stats.durationMs !== undefined || stats.cacheBreakpoint || stats.lossy) && (
+      {(stats.durationMs !== undefined ||
+        stats.cacheBreakpoint ||
+        stats.lossy ||
+        stats.cacheUnavailableFor) && (
         <div style={metaRowStyle}>
           {stats.durationMs !== undefined && (
             <span style={metaItemStyle} title="Wall-clock compress duration">
@@ -100,9 +104,21 @@ export function StatsCard({ stats, loading }: StatsCardProps) {
           {stats.cacheBreakpoint && (
             <span
               style={metaItemStyle}
-              title={`Cache prefix ends at byte ${String(stats.cacheBreakpoint.byteOffset)} (${stats.cacheBreakpoint.target}, TTL ${String(stats.cacheBreakpoint.recommendedTTLSeconds)}s)`}
+              title={`Place cache marker at byte ${String(stats.cacheBreakpoint.byteOffset)} for ${stats.cacheBreakpoint.target}`}
             >
-              {`cache @${String(stats.cacheBreakpoint.byteOffset)}b · ${stats.cacheBreakpoint.target}`}
+              {`cache @${String(stats.cacheBreakpoint.byteOffset)}b · ${stats.cacheBreakpoint.target} · ${
+                stats.cacheBreakpoint.recommendedTTLSeconds > 0
+                  ? `${String(stats.cacheBreakpoint.recommendedTTLSeconds)}s`
+                  : 'auto'
+              }`}
+            </span>
+          )}
+          {stats.cacheUnavailableFor && !stats.cacheBreakpoint && (
+            <span
+              style={metaItemStyle}
+              title={`Cache hints require a structured input. ${stats.cacheUnavailableFor} content goes through mixed-content compression which doesn't emit a prefix anchor.`}
+            >
+              {`cache hint: unavailable for ${stats.cacheUnavailableFor}`}
             </span>
           )}
           {stats.lossy && (

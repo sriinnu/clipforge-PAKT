@@ -1,4 +1,4 @@
-import type { PaktFormat } from '@sriinnu/pakt';
+import type { CacheTarget, PaktFormat } from '@sriinnu/pakt';
 import type { CompressionConfig } from './pakt-service';
 import {
   analyzePreview,
@@ -32,6 +32,7 @@ type WorkerRequest =
       input: string;
       semanticBudget?: number;
       targetModel?: string;
+      cacheTarget?: CacheTarget;
     }
   | { id: number; type: 'compressibility'; text: string };
 
@@ -85,6 +86,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
             message.input,
             message.semanticBudget,
             message.targetModel,
+            message.cacheTarget,
           ),
         });
         return;

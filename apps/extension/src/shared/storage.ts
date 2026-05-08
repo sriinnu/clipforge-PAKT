@@ -91,6 +91,11 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   theme: 'dark',
   fontPreset: 'modern',
   targetModel: 'gpt-4o',
+  /* Must appear here even when undefined so `chrome.storage.sync.get()`
+     fetches it and the change-listener's `key in DEFAULT_SETTINGS` gate
+     lets the event through. Setting it to `undefined` instead of
+     omitting the key makes both round-trips work. */
+  cacheTarget: undefined,
 };
 
 function isProfileId(value: unknown): value is PaktLayerProfileId {
