@@ -22,6 +22,17 @@ const TTL_BY_TARGET: Record<CacheTarget, number> = {
   google: 0,
 };
 
+/* `Buffer` is Node-only — using it in this module would crash the
+   extension popup, desktop renderer, and playground worker the moment
+   a user enables `cacheTarget`. `TextEncoder` is universal (Node 11+,
+   all evergreen browsers) and gives the same byte length. We allocate
+   once per call here, but the prefix region is small (a few hundred
+   bytes typically) so it's not worth caching. */
+const TEXT_ENCODER = new TextEncoder();
+function utf8ByteLength(s: string): number {
+  return TEXT_ENCODER.encode(s).length;
+}
+
 /**
  * Known PAKT headers. Restricting recognition to this set prevents a
  * body line that legitimately starts with `@` (`@mention`, `@Component`,
@@ -117,24 +128,32 @@ function findPrefixEnd(compressed: string): number {
   // If we exited the loop while still inside @dict, dict was unterminated.
   if (inDict) return 0;
 
-  return Buffer.byteLength(compressed.slice(0, pos), 'utf8');
+  return utf8ByteLength(compressed.slice(0, pos));
 }
 
 /**
  * Compute a cache breakpoint hint for the given compressed output and
  * target. Returns `null` when the prefix has no usable boundary (e.g.
  * the input was passed through unchanged with no PAKT headers).
+ *
+ * Guards: returns `null` for null/undefined/empty input rather than
+ * crashing — the function is exported on the public surface, so JS
+ * callers (without TS protection) can hit it with bad arguments. The
+ * TTL lookup falls back to `0` for unknown targets so a tampered
+ * downstream string can't produce `undefined` numerics.
  */
 export function computeCacheBreakpoint(
   compressed: string,
   target: CacheTarget,
 ): CacheBreakpoint | null {
+  if (typeof compressed !== 'string' || compressed.length === 0) return null;
+
   const byteOffset = findPrefixEnd(compressed);
   if (byteOffset === 0) return null;
 
   return {
     byteOffset,
-    recommendedTTLSeconds: TTL_BY_TARGET[target],
+    recommendedTTLSeconds: TTL_BY_TARGET[target] ?? 0,
     target,
   };
 }

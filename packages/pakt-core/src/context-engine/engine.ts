@@ -30,6 +30,16 @@ import type {
 // Defaults
 // ---------------------------------------------------------------------------
 
+/**
+ * Hard cap on the byte size of any single tool result accepted by
+ * `addToolResult`. Above this, the content is char-truncated to the
+ * tail with a marker. Protects the engine from adversarial or
+ * runaway tool output that would otherwise OOM the worker via
+ * `split('\n')` materialization in `ageToolResults` or via the
+ * tokenizer's per-call allocation cost.
+ */
+const MAX_TOOL_RESULT_BYTES = 1_048_576; // 1 MiB
+
 const DEFAULT_CONFIG: Required<Omit<ContextEngineConfig, 'summarizer'>> & {
   summarizer: ContextEngineConfig['summarizer'];
 } = {
@@ -110,9 +120,21 @@ export class ContextEngine {
    * if it's structured data above the token threshold.
    */
   addToolResult(toolName: string, content: string): void {
-    const tokens = countTokens(content, this.config.model);
-    const detected = detect(content);
-    let finalContent = content;
+    /* Pre-clamp to MAX_TOOL_RESULT_BYTES before any tokenizer or
+       split-based work runs on the input. A single 100 MB stdout dump
+       from a wrapped MCP server would otherwise OOM the engine on
+       split('\n') alone. We char-slice (not byte-slice) for simplicity
+       — UTF-8 bytes are bounded by 4× chars, so the cap is at most ~4×
+       generous, which is fine for a defensive guard. */
+    let safeContent = content;
+    if (typeof content === 'string' && content.length > MAX_TOOL_RESULT_BYTES) {
+      const elidedChars = content.length - MAX_TOOL_RESULT_BYTES;
+      safeContent = `[... ${String(elidedChars)} earlier characters elided: tool result exceeded ${String(MAX_TOOL_RESULT_BYTES)} bytes ...]\n${content.slice(-MAX_TOOL_RESULT_BYTES)}`;
+    }
+
+    const tokens = countTokens(safeContent, this.config.model);
+    const detected = detect(safeContent);
+    let finalContent = safeContent;
     let compressed = false;
 
     // Compress structured tool results above threshold
@@ -120,7 +142,7 @@ export class ContextEngine {
       tokens >= this.config.minToolResultTokens &&
       (detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv')
     ) {
-      const result = compress(content, { fromFormat: detected.format });
+      const result = compress(safeContent, { fromFormat: detected.format });
       if (result.compressedTokens < tokens) {
         finalContent = result.compressed;
         compressed = true;
