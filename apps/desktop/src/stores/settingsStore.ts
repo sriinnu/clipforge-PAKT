@@ -10,6 +10,15 @@ import { persist } from 'zustand/middleware';
 /** Font preset identifier — matches the extension's FontPreset type. */
 export type FontPreset = 'modern' | 'classic' | 'rounded' | 'system';
 
+const CACHE_TARGETS: readonly CacheTarget[] = ['anthropic', 'bedrock', 'openai', 'google'];
+
+/* `zustand persist` rehydrates from localStorage; tampered or stale
+   values must not flow into `compress({ target: <bad> })`. Validate
+   at the setter and at rehydrate time. */
+function isCacheTarget(value: unknown): value is CacheTarget {
+  return typeof value === 'string' && CACHE_TARGETS.includes(value as CacheTarget);
+}
+
 interface SettingsState {
   outputFormat: PaktFormat;
   model: string;
@@ -70,8 +79,21 @@ export const useSettingsStore = create<SettingsState>()(
             [key]: !state.layers[key],
           },
         })),
-      setCacheTarget: (target) => set({ cacheTarget: target }),
+      setCacheTarget: (target) =>
+        set({ cacheTarget: target === undefined || isCacheTarget(target) ? target : undefined }),
     }),
-    { name: 'clipforge-settings' },
+    {
+      name: 'clipforge-settings',
+      /* Coerce a tampered or stale `cacheTarget` from localStorage to
+         `undefined` on rehydrate — a bogus string would otherwise flow
+         into `compress({ target })` and produce undefined TTL math. */
+      merge: (persisted, current) => {
+        const p = persisted as Partial<SettingsState> | undefined;
+        if (p && p.cacheTarget !== undefined && !isCacheTarget(p.cacheTarget)) {
+          return { ...current, ...p, cacheTarget: undefined };
+        }
+        return { ...current, ...(p ?? {}) };
+      },
+    },
   ),
 );
