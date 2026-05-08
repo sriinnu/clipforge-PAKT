@@ -1,4 +1,4 @@
-import type { PaktFormat } from '@sriinnu/pakt';
+import type { CacheTarget, PaktFormat } from '@sriinnu/pakt';
 import { VERSION } from '@sriinnu/pakt';
 import type { FC } from 'react';
 import { FONT_PRESETS } from '../fonts';
@@ -97,6 +97,30 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="block desktop-card desktop-card-inner">
+          <span className="desktop-section-title">Prompt cache target</span>
+          <select
+            value={settings.cacheTarget ?? 'off'}
+            onChange={(e) => {
+              const v = e.target.value;
+              settings.setCacheTarget(v === 'off' ? undefined : (v as CacheTarget));
+            }}
+            className="desktop-select"
+          >
+            <option value="off">Off</option>
+            <option value="anthropic">Anthropic (5min default)</option>
+            <option value="bedrock">AWS Bedrock (1h)</option>
+            <option value="openai">OpenAI (auto)</option>
+            <option value="google">Google Gemini (auto)</option>
+          </select>
+          <p className="desktop-copy">
+            When set, compressed output carries a cache breakpoint hint
+            with the byte offset where the provider's cache marker should
+            sit. Off by default — turn on if you call Anthropic, Bedrock,
+            OpenAI, or Gemini with a long prompt prefix.
+          </p>
         </label>
 
         <div className="desktop-card desktop-card-inner">

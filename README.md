@@ -262,7 +262,7 @@ PAKT automatically compresses data on every MCP tool call to reduce conversation
 
 ### Prompt Cache Integration (0.10)
 
-LLM providers reward byte-identical prefixes. AWS Bedrock now supports a 1-hour `cache_control` TTL (Jan 2026) while Anthropic's direct API default dropped to 5 minutes (Mar 2026). PAKT 0.10 makes the `@dict` block prefix-stable across turns and emits a cache breakpoint hint so consumers can place provider `cache_control` in the right spot.
+LLM providers reward byte-identical prefixes. AWS Bedrock added 1-hour prompt-cache TTL via the `cachePoint` API (Jan 2026); Anthropic's direct API supports `cache_control` with default 5-minute TTL and a `ttl: "1h"` opt-in (Mar 2026). PAKT 0.10 makes the `@dict` block prefix-stable across turns and emits a cache breakpoint hint so consumers can place each provider's cache marker in the right spot.
 
 ```ts
 import { compress } from '@sriinnu/pakt';
@@ -277,12 +277,12 @@ const result = compress(payload, { target: 'bedrock' });
 
 | Target       | TTL hint | Notes |
 |--------------|----------|-------|
-| `bedrock`    | 3600s    | AWS Bedrock 1-hour `cache_control` (Jan 2026) |
-| `anthropic`  | 300s     | Direct API default; pass `ttl: "1h"` to override |
+| `bedrock`    | 3600s    | AWS Bedrock `cachePoint` 1-hour TTL (Jan 2026) |
+| `anthropic`  | 300s     | `cache_control` default; pass `ttl: "1h"` to override |
 | `openai`     | 0s       | Auto-managed prefix cache, no TTL knob |
 | `google`     | 0s       | Auto context cache, ≥32k tokens |
 
-The byte offset lands right where the `@dict ... @end` block ends so the entire prefix (headers + dictionary) sits in the cacheable region. Pair with the rolling-dict in `pakt_auto` for cross-turn alias reuse — same expansion gets the same `$a, $b, ...` slot turn after turn, keeping the prefix byte-identical.
+The byte offset lands right where the `@dict ... @end` block ends so the entire prefix (headers + dictionary) sits in the cacheable region. **Prefix byte-stability across turns requires the rolling dictionary**, which is engaged automatically via `pakt_auto` (MCP) — bare `compress()` calls regenerate the alias map per call. Use `pakt_auto` (or wire `seedAliases` yourself) when you need cross-turn cache hits.
 
 ### Context Engine (0.10)
 

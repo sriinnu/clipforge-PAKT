@@ -171,7 +171,7 @@ console.log(result.compressed); // includes @compress semantic + @warning lossy
 
 ### Prompt cache integration (0.10)
 
-When the LLM provider supports prefix caching (Anthropic `cache_control`, AWS Bedrock 1h TTL, OpenAI auto-prefix-cache, Google context caching), pass a `target` and PAKT will tell you exactly where the cacheable prefix ends:
+When the LLM provider supports prefix caching (Anthropic `cache_control`, AWS Bedrock `cachePoint` 1h TTL, OpenAI auto-prefix-cache, Google context caching), pass a `target` and PAKT will tell you exactly where the cacheable prefix ends:
 
 ```typescript
 import { compress } from '@sriinnu/pakt';
@@ -187,12 +187,14 @@ console.log(result.cacheBreakpoint);
 
 | Target       | Recommended TTL | Source |
 |--------------|-----------------|--------|
-| `bedrock`    | 3600s (1h)      | AWS What's-New (Jan 2026) |
-| `anthropic`  | 300s (5min)     | Anthropic prompt-caching docs (Mar 2026 default) |
+| `bedrock`    | 3600s (1h)      | AWS Bedrock `cachePoint` API (Jan 2026) |
+| `anthropic`  | 300s (5min)     | Anthropic `cache_control` default (Mar 2026) |
 | `openai`     | 0 (auto)        | OpenAI prefix cache, server-managed |
 | `google`     | 0 (auto)        | Gemini context caching, ≥32k tokens |
 
 The byte offset lands right after the `@dict ... @end` block. Header recognition is restricted to a known whitelist (`@from`, `@dict`, `@end`, `@compress`, `@warning`, `@version`, `@target`, `@profile`) so a body line starting with `@mention` or `@Component` does not get absorbed into the prefix and break byte-stability.
+
+**Note on cross-turn stability:** the byte offset is stable per-call, but for the prefix bytes themselves to stay identical *across turns*, you need the rolling dictionary engaged. That's automatic via `pakt_auto` (MCP). Bare `compress()` regenerates the alias map per call — same input → same output, but two different inputs that share expansions still get fresh alias slots. Use `pakt_auto` for agent loops, or pass `seedAliases` manually if you're driving the pipeline yourself.
 
 ### Context engine (0.10)
 
