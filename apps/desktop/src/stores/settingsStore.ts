@@ -40,6 +40,7 @@ export const useSettingsStore = create<SettingsState>()(
         dictionary: true,
         tokenizerAware: false,
         semantic: false,
+        contentAware: false,
       },
       setOutputFormat: (f) => set({ outputFormat: f }),
       setModel: (m) => set({ model: m }),

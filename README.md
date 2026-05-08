@@ -260,12 +260,63 @@ PAKT automatically compresses data on every MCP tool call to reduce conversation
 
 ---
 
+### Prompt Cache Integration (0.10)
+
+LLM providers reward byte-identical prefixes. AWS Bedrock now supports a 1-hour `cache_control` TTL (Jan 2026) while Anthropic's direct API default dropped to 5 minutes (Mar 2026). PAKT 0.10 makes the `@dict` block prefix-stable across turns and emits a cache breakpoint hint so consumers can place provider `cache_control` in the right spot.
+
+```ts
+import { compress } from '@sriinnu/pakt';
+
+const result = compress(payload, { target: 'bedrock' });
+// result.cacheBreakpoint = {
+//   byteOffset: 142,                  // place cache_control here
+//   recommendedTTLSeconds: 3600,      // bedrock supports 1h
+//   target: 'bedrock'
+// }
+```
+
+| Target       | TTL hint | Notes |
+|--------------|----------|-------|
+| `bedrock`    | 3600s    | AWS Bedrock 1-hour `cache_control` (Jan 2026) |
+| `anthropic`  | 300s     | Direct API default; pass `ttl: "1h"` to override |
+| `openai`     | 0s       | Auto-managed prefix cache, no TTL knob |
+| `google`     | 0s       | Auto context cache, ≥32k tokens |
+
+The byte offset lands right where the `@dict ... @end` block ends so the entire prefix (headers + dictionary) sits in the cacheable region. Pair with the rolling-dict in `pakt_auto` for cross-turn alias reuse — same expansion gets the same `$a, $b, ...` slot turn after turn, keeping the prefix byte-identical.
+
+### Context Engine (0.10)
+
+Unified context-window optimizer for agent loops. Compresses tool results, deduplicates repeated content across turns, extracts key facts from old turns, and ages older tool outputs back to a configurable tail.
+
+```ts
+import { createContextEngine } from '@sriinnu/pakt';
+
+const engine = createContextEngine({
+  maxContextTokens: 50_000,
+  recentTurns: 5,
+  toolResultTailLines: 30,    // last 30 lines kept on aged tool outputs
+});
+
+engine.addMessage({ role: 'user', content: 'fix the auth bug' });
+engine.addToolResult('read_file', bigJson);
+
+const { messages, savings } = engine.optimize();
+console.log(savings.breakdown);
+// { toolResults, historyCompression, summarization, deduplication, toolResultAging }
+```
+
+**Tool-result aging** (Gemini-CLI pattern): when running tokens exceed `maxContextTokens`, the engine walks back-to-front, snaps the cutoff to the nearest user-message boundary (never splits a tool call mid-turn), and tail-truncates older tool outputs. Char-fallback handles long single-line payloads (minified JSON, base64 dumps).
+
+---
+
 ## Key Features
 
 - **Lossless by default** -- L1 (Structural), L2 (Dictionary), and L3 (Tokenizer-Aware) round-trip exactly. L4 (Semantic) is opt-in and explicitly lossy, gated by a `semanticBudget`.
 - **Multi-format** -- JSON, YAML, CSV, Markdown, and Plain Text with auto-detection, so the same pipeline handles structured, tabular, and mixed content.
 - **Tokenizer-aware via real BPE** -- Uses `gpt-tokenizer` to measure and pick tokens LLMs actually merge, not byte-level heuristics that vanish at the API boundary.
-- **MCP + CLI + library, zero model dependency** -- `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, and `pakt_stats` to agents; the same logic ships as a CLI and a typed TypeScript library.
+- **MCP + CLI + library, zero model dependency** -- `pakt serve --stdio` exposes seven tools to agents: `pakt_compress`, `pakt_auto`, `pakt_inspect`, `pakt_stats`, `pakt_explain`, `pakt_savings`, `pakt_dashboard`. Same logic ships as a CLI and a typed TypeScript library.
+- **Prompt-cache aware (0.10)** -- `target: 'bedrock' | 'anthropic' | 'openai' | 'google'` returns a `cacheBreakpoint` hint with byte offset and recommended TTL. Combined with prefix-stable `@dict` (deterministic alias slots across turns), enables 90% input-token cost reduction on multi-turn agent loops via provider prompt caching.
+- **Latency + lossy observability (0.10)** -- `pakt_stats` and `pakt_dashboard` now surface P50/P95/P99 latency percentiles and lossy-call accounting (count + tokens) so you can see whether traffic is bleeding latency or running through L4/PII redaction.
 - **27-69% savings with public benchmarks** -- 27-33% on JSON payloads, 57% on duplicate log lines, 38-69% on repetitive text. Full reproducible numbers in [docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md).
 
 ---

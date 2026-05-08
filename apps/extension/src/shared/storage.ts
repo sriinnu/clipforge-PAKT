@@ -3,7 +3,12 @@
  * Uses chrome.storage.sync so settings persist across devices.
  */
 
-import { DEFAULT_SEMANTIC_BUDGET, type PIIMode, type PaktLayerProfileId } from '@sriinnu/pakt';
+import {
+  type CacheTarget,
+  DEFAULT_SEMANTIC_BUDGET,
+  type PIIMode,
+  type PaktLayerProfileId,
+} from '@sriinnu/pakt';
 import { type FontPreset, isFontPreset } from '../popup/fonts';
 
 const PROFILE_IDS: readonly PaktLayerProfileId[] = [
@@ -14,6 +19,12 @@ const PROFILE_IDS: readonly PaktLayerProfileId[] = [
 ];
 
 const PII_MODES: readonly PIIMode[] = ['off', 'flag', 'redact'];
+
+const CACHE_TARGETS: readonly CacheTarget[] = ['anthropic', 'bedrock', 'openai', 'google'];
+
+function isCacheTarget(value: unknown): value is CacheTarget {
+  return typeof value === 'string' && CACHE_TARGETS.includes(value as CacheTarget);
+}
 
 interface LegacyExtensionSettings {
   layerStructural?: boolean;
@@ -60,6 +71,14 @@ export interface ExtensionSettings {
   fontPreset: FontPreset;
   /** Target model — feeds L3's merge-savings gate and `countTokens()`. */
   targetModel: string;
+  /**
+   * Provider cache target. When set, `compress()` returns a
+   * `cacheBreakpoint` hint with the byte offset where provider
+   * `cache_control` should be placed and the recommended TTL.
+   * Bedrock supports 1h, Anthropic defaults to 5min, OpenAI/Google
+   * auto-manage. `undefined` disables the hint entirely (default).
+   */
+  cacheTarget?: CacheTarget;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -120,6 +139,7 @@ function normalizeSettings(
       typeof raw.targetModel === 'string' && raw.targetModel.length > 0
         ? raw.targetModel
         : DEFAULT_SETTINGS.targetModel,
+    ...(isCacheTarget(raw.cacheTarget) ? { cacheTarget: raw.cacheTarget } : {}),
   };
 }
 
@@ -162,6 +182,13 @@ function normalizeSettingsChange(raw: Record<string, unknown>): Partial<Extensio
 
   if (typeof raw.targetModel === 'string' && raw.targetModel.length > 0) {
     updated.targetModel = raw.targetModel;
+  }
+
+  /* `cacheTarget` accepts undefined to mean "off" — both must round-trip. */
+  if (raw.cacheTarget === undefined || raw.cacheTarget === null) {
+    updated.cacheTarget = undefined;
+  } else if (isCacheTarget(raw.cacheTarget)) {
+    updated.cacheTarget = raw.cacheTarget;
   }
 
   return updated;
