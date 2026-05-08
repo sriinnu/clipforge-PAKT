@@ -14,6 +14,7 @@ import {
   estimateCompressibility,
 } from '@sriinnu/pakt';
 import type {
+  CacheBreakpoint,
   CompressibilityLabel,
   DecompressResult,
   MixedCompressResult,
@@ -27,6 +28,12 @@ export interface CompressionStats {
   before: number;
   after: number;
   savings: number;
+  /** Wall-clock duration of the compress call in milliseconds. */
+  durationMs?: number;
+  /** Cache-control hint when the user picked a provider cache target. */
+  cacheBreakpoint?: CacheBreakpoint;
+  /** True when L4 semantic or PII redact was applied (output is non-reversible). */
+  lossy?: boolean;
 }
 
 /** Pre-compression compressibility estimate exposed to the UI. */
@@ -81,28 +88,45 @@ export function useCompression(
             ? { semanticBudget: settings.semanticBudget }
             : {}),
           targetModel: settings.targetModel,
+          ...(settings.cacheTarget ? { target: settings.cacheTarget } : {}),
         });
 
         let compressed: string;
         let originalTokens: number;
         let compressedTokens: number;
         let savingsPercent: number;
+        let cacheBreakpoint: CacheBreakpoint | undefined;
+        let lossy = false;
 
+        const startedAt = performance.now();
         if (detectedFormat === 'markdown' || detectedFormat === 'text') {
           const result: MixedCompressResult = compressMixed(text, options);
           compressed = result.compressed;
           originalTokens = result.originalTokens;
           compressedTokens = result.compressedTokens;
           savingsPercent = result.savings.totalPercent;
+          /* compressMixed's narrower options type strips `target`, so it
+             never returns a cacheBreakpoint. Skip the hint on the mixed
+             path — only structured compress carries it. */
         } else {
           const result: PaktResult = compress(text, options);
           compressed = result.compressed;
           originalTokens = result.originalTokens;
           compressedTokens = result.compressedTokens;
           savingsPercent = result.savings.totalPercent;
+          if (result.cacheBreakpoint) cacheBreakpoint = result.cacheBreakpoint;
+          if (!result.reversible) lossy = true;
         }
+        const durationMs = Math.round(performance.now() - startedAt);
 
-        setStats({ before: originalTokens, after: compressedTokens, savings: savingsPercent });
+        setStats({
+          before: originalTokens,
+          after: compressedTokens,
+          savings: savingsPercent,
+          durationMs,
+          ...(cacheBreakpoint ? { cacheBreakpoint } : {}),
+          ...(lossy ? { lossy: true } : {}),
+        });
 
         if (compressedTokens >= originalTokens || savingsPercent < MIN_MEANINGFUL_SAVINGS_PERCENT) {
           setOutput('');

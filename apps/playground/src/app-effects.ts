@@ -9,7 +9,13 @@
  * cancellation logic kept identical to the previous inline `useEffect`s.
  */
 
-import type { CompressibilityResult, PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
+import type {
+  CacheBreakpoint,
+  CacheTarget,
+  CompressibilityResult,
+  PaktFormat,
+  PaktLayerProfileId,
+} from '@sriinnu/pakt';
 import { type MutableRefObject, startTransition, useEffect, useRef } from 'react';
 import type { Action } from './app-constants';
 import { getErrorMessage } from './app-helpers';
@@ -64,6 +70,7 @@ export interface LivePreviewSetters {
   setOutputTokens: (count: number) => void;
   setLastAction: (action: Action) => void;
   setError: (message: string | null) => void;
+  setCacheBreakpoint: (hint: CacheBreakpoint | null) => void;
 }
 
 /**
@@ -79,6 +86,7 @@ export function useLivePreview(
     profileId: PaktLayerProfileId;
     semanticBudget?: number;
     targetModel: string;
+    cacheTarget?: CacheTarget;
   },
   suppressPreviewOnceRef: MutableRefObject<boolean>,
   setters: LivePreviewSetters,
@@ -113,6 +121,7 @@ export function useLivePreview(
             s.setOutputTokens(next.outputTokens);
             s.setLastAction(next.lastAction);
             s.setError(next.error);
+            s.setCacheBreakpoint(next.cacheBreakpoint ?? null);
           });
         } catch (error) {
           if (cancelled) return;
@@ -122,6 +131,7 @@ export function useLivePreview(
             s.setOutput('');
             s.setOutputTokens(0);
             s.setLastAction(null);
+            s.setCacheBreakpoint(null);
             s.setError(getErrorMessage(error, 'Preview unavailable'));
           });
         }

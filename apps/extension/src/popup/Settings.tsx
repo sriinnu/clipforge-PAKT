@@ -1,4 +1,5 @@
 import {
+  type CacheTarget,
   DEFAULT_SEMANTIC_BUDGET,
   PAKT_LAYER_PROFILES,
   type PaktLayerProfileId,
@@ -289,6 +290,30 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
             {tokenizerInfo.approximationNote}
           </span>
         ) : null}
+      </div>
+
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Prompt Cache Target</span>
+        <SegmentedControl
+          options={[
+            { label: 'Off', value: 'off' as const },
+            { label: 'Anthropic', value: 'anthropic' as const },
+            { label: 'Bedrock', value: 'bedrock' as const },
+            { label: 'OpenAI', value: 'openai' as const },
+            { label: 'Google', value: 'google' as const },
+          ]}
+          value={(settings.cacheTarget ?? 'off') as 'off' | CacheTarget}
+          onChange={(v) =>
+            update({ cacheTarget: v === 'off' ? undefined : (v as CacheTarget) })
+          }
+        />
+        <span style={settingDescStyle}>
+          When set, the popup shows a <code>cache @Nb</code> hint with the byte offset
+          where your provider's <code>cache_control</code> should sit.{' '}
+          <strong>Bedrock</strong> supports a 1h TTL; <strong>Anthropic</strong>{' '}
+          defaults to 5min; <strong>OpenAI</strong> and <strong>Google</strong> auto-manage
+          prefix caching. Stays in the popup — no network calls.
+        </span>
       </div>
 
       <div style={sectionStyle}>

@@ -6,7 +6,7 @@
  * cards and forwards events.
  */
 
-import type { CompressibilityResult, PaktFormat } from '@sriinnu/pakt';
+import type { CacheBreakpoint, CompressibilityResult, PaktFormat } from '@sriinnu/pakt';
 import { DECOMPRESS_FORMATS } from '../app-constants';
 import { formatDelta, formatPercent } from '../app-helpers';
 
@@ -40,6 +40,8 @@ export interface PlaygroundWorkspaceProps {
   // Stats
   statsTone: StatsTone;
   actionSummary: { title: string; body: string };
+  /** Cache-control hint when a provider cache target is selected. */
+  cacheBreakpoint: CacheBreakpoint | null;
 
   // Handlers
   onInputChange: (value: string) => void;
@@ -75,6 +77,7 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
     packedInputDetected,
     statsTone,
     actionSummary,
+    cacheBreakpoint,
     onInputChange,
     onLiveCompressChange,
     onCompress,
@@ -211,6 +214,20 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
           <strong>{actionSummary.title}</strong>
           <p>{actionSummary.body}</p>
         </article>
+        {cacheBreakpoint && output ? (
+          <article className="card stat-card">
+            <span className="stat-label">Prompt cache hint</span>
+            <strong>
+              {`@ byte ${cacheBreakpoint.byteOffset.toLocaleString()}`}
+            </strong>
+            <p>
+              {`Place \`cache_control\` here for ${cacheBreakpoint.target}. `}
+              {cacheBreakpoint.recommendedTTLSeconds > 0
+                ? `TTL: ${String(cacheBreakpoint.recommendedTTLSeconds)}s.`
+                : 'Provider auto-manages caching.'}
+            </p>
+          </article>
+        ) : null}
       </div>
     </>
   );

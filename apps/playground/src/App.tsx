@@ -8,6 +8,8 @@
  */
 
 import {
+  type CacheBreakpoint,
+  type CacheTarget,
   DEFAULT_SEMANTIC_BUDGET,
   type PaktFormat,
   type PaktLayerProfileId,
@@ -52,6 +54,8 @@ export default function App() {
   const [selectedSample, setSelectedSample] = useState(initialSample?.id ?? '');
   const [compressionProfileId, setCompressionProfileId] = useState<PaktLayerProfileId>('standard');
   const [targetModel, setTargetModel] = useState<string>(TARGET_MODELS[0]?.id ?? 'gpt-4o');
+  const [cacheTarget, setCacheTarget] = useState<CacheTarget | undefined>(undefined);
+  const [cacheBreakpoint, setCacheBreakpoint] = useState<CacheBreakpoint | null>(null);
   const [semanticBudgetInput, setSemanticBudgetInput] = useState(String(DEFAULT_SEMANTIC_BUDGET));
   const [input, setInput] = useState(initialSample?.text ?? '');
   const [detectedFormat, setDetectedFormat] = useState<PaktFormat>(initialSample?.format ?? 'json');
@@ -94,8 +98,9 @@ export default function App() {
       profileId: compressionProfileId,
       ...(semanticBudget !== undefined ? { semanticBudget } : {}),
       targetModel,
+      ...(cacheTarget ? { cacheTarget } : {}),
     }),
-    [compressionProfileId, semanticBudget, targetModel],
+    [compressionProfileId, semanticBudget, targetModel, cacheTarget],
   );
 
   const livePreviewEnabled = liveCompress && !packedInputDetected && semanticBudgetValid;
@@ -177,6 +182,7 @@ export default function App() {
     setOutputTokens,
     setLastAction,
     setError,
+    setCacheBreakpoint,
   });
 
   useComparison(
@@ -241,6 +247,7 @@ export default function App() {
       setPackedInputDetected(next.packedInputDetected);
       setOutput(next.output);
       setOutputTokens(next.outputTokens);
+      setCacheBreakpoint(next.cacheBreakpoint ?? null);
       setLastAction('compress');
       setError(null);
     } catch (err) {
@@ -269,6 +276,7 @@ export default function App() {
       setPackedInputDetected(next.packedInputDetected);
       setOutput(next.output);
       setOutputTokens(next.outputTokens);
+      setCacheBreakpoint(null);
       setLastAction('decompress');
       setError(null);
     } catch (err) {
@@ -354,10 +362,12 @@ export default function App() {
         compressionProfileId={compressionProfileId}
         selectedProfile={selectedProfile}
         targetModel={targetModel}
+        cacheTarget={cacheTarget}
         semanticBudgetInput={semanticBudgetInput}
         onSampleChange={loadSample}
         onProfileChange={setCompressionProfileId}
         onTargetModelChange={setTargetModel}
+        onCacheTargetChange={setCacheTarget}
         onSemanticBudgetChange={setSemanticBudgetInput}
       />
 
@@ -387,6 +397,7 @@ export default function App() {
           packedInputDetected={packedInputDetected}
           statsTone={statsTone}
           actionSummary={actionSummary}
+          cacheBreakpoint={cacheBreakpoint}
           onInputChange={handleInputChange}
           onLiveCompressChange={setLiveCompress}
           onCompress={handleCompress}

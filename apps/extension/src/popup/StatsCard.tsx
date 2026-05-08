@@ -5,12 +5,20 @@
  * Also supports a skeleton loading state shown while compression runs.
  */
 
+import type { CacheBreakpoint } from '@sriinnu/pakt';
 import type React from 'react';
 
 /** Props for StatsCard. */
 interface StatsCardProps {
   /** Token counts and savings, or null when no results yet. */
-  stats: { before: number; after: number; savings: number } | null;
+  stats: {
+    before: number;
+    after: number;
+    savings: number;
+    durationMs?: number;
+    cacheBreakpoint?: CacheBreakpoint;
+    lossy?: boolean;
+  } | null;
   /** When true, shows a shimmer skeleton instead of real data. */
   loading: boolean;
 }
@@ -81,6 +89,29 @@ export function StatsCard({ stats, loading }: StatsCardProps) {
           <div style={{ ...progressFillStyle, width: `${Math.min(100, savingsPercent)}%` }} />
         </div>
       )}
+      {/* Optional 0.10 metadata line: latency, cache hint, lossy flag */}
+      {(stats.durationMs !== undefined || stats.cacheBreakpoint || stats.lossy) && (
+        <div style={metaRowStyle}>
+          {stats.durationMs !== undefined && (
+            <span style={metaItemStyle} title="Wall-clock compress duration">
+              {`${stats.durationMs}ms`}
+            </span>
+          )}
+          {stats.cacheBreakpoint && (
+            <span
+              style={metaItemStyle}
+              title={`Cache prefix ends at byte ${String(stats.cacheBreakpoint.byteOffset)} (${stats.cacheBreakpoint.target}, TTL ${String(stats.cacheBreakpoint.recommendedTTLSeconds)}s)`}
+            >
+              {`cache @${String(stats.cacheBreakpoint.byteOffset)}b · ${stats.cacheBreakpoint.target}`}
+            </span>
+          )}
+          {stats.lossy && (
+            <span style={{ ...metaItemStyle, color: 'var(--cf-warn, #ffcb6b)' }} title="Output is non-reversible (L4 semantic or PII redact)">
+              lossy
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -128,6 +159,17 @@ const progressFillStyle: React.CSSProperties = {
   backgroundColor: 'var(--cf-success)',
   borderRadius: 2,
   transition: 'width 0.4s ease',
+};
+const metaRowStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  fontSize: 10,
+  color: 'var(--cf-text-dim)',
+};
+const metaItemStyle: React.CSSProperties = {
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
 };
 
 /** Shimmer skeleton bar — used during loading. */
