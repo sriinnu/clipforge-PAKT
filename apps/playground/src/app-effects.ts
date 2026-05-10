@@ -9,7 +9,13 @@
  * cancellation logic kept identical to the previous inline `useEffect`s.
  */
 
-import type { CompressibilityResult, PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
+import type {
+  CacheBreakpoint,
+  CacheTarget,
+  CompressibilityResult,
+  PaktFormat,
+  PaktLayerProfileId,
+} from '@sriinnu/pakt';
 import { type MutableRefObject, startTransition, useEffect, useRef } from 'react';
 import type { Action } from './app-constants';
 import { getErrorMessage } from './app-helpers';
@@ -64,6 +70,8 @@ export interface LivePreviewSetters {
   setOutputTokens: (count: number) => void;
   setLastAction: (action: Action) => void;
   setError: (message: string | null) => void;
+  setCacheBreakpoint: (hint: CacheBreakpoint | null) => void;
+  setLossy: (lossy: boolean) => void;
 }
 
 /**
@@ -79,6 +87,7 @@ export function useLivePreview(
     profileId: PaktLayerProfileId;
     semanticBudget?: number;
     targetModel: string;
+    cacheTarget?: CacheTarget;
   },
   suppressPreviewOnceRef: MutableRefObject<boolean>,
   setters: LivePreviewSetters,
@@ -113,6 +122,8 @@ export function useLivePreview(
             s.setOutputTokens(next.outputTokens);
             s.setLastAction(next.lastAction);
             s.setError(next.error);
+            s.setCacheBreakpoint(next.cacheBreakpoint ?? null);
+            s.setLossy(next.lossy === true);
           });
         } catch (error) {
           if (cancelled) return;
@@ -122,6 +133,8 @@ export function useLivePreview(
             s.setOutput('');
             s.setOutputTokens(0);
             s.setLastAction(null);
+            s.setCacheBreakpoint(null);
+            s.setLossy(false);
             s.setError(getErrorMessage(error, 'Preview unavailable'));
           });
         }
@@ -147,6 +160,7 @@ export function useComparison(
   packedInputDetected: boolean,
   semanticBudget: number | undefined,
   targetModel: string,
+  cacheTarget: CacheTarget | undefined,
   setComparisonState: (next: ComparisonState) => void,
 ): void {
   // Mirror the setter through a ref for the same reason as useLivePreview:
@@ -181,7 +195,12 @@ export function useComparison(
 
     const timeoutId = window.setTimeout(async () => {
       try {
-        const next = await computeComparison(deferredInput, semanticBudget, targetModel);
+        const next = await computeComparison(
+          deferredInput,
+          semanticBudget,
+          targetModel,
+          cacheTarget,
+        );
         if (cancelled) return;
 
         startTransition(() => {
@@ -205,5 +224,5 @@ export function useComparison(
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [enabled, deferredInput, packedInputDetected, semanticBudget, targetModel]);
+  }, [enabled, deferredInput, packedInputDetected, semanticBudget, targetModel, cacheTarget]);
 }

@@ -1,4 +1,9 @@
-import type { CompressibilityResult, PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
+import type {
+  CacheTarget,
+  CompressibilityResult,
+  PaktFormat,
+  PaktLayerProfileId,
+} from '@sriinnu/pakt';
 import type {
   ComparisonState,
   CompressionConfig,
@@ -17,6 +22,7 @@ type WorkerMessage =
       input: string;
       semanticBudget?: number;
       targetModel?: string;
+      cacheTarget?: CacheTarget;
     }
   | { type: 'compressibility'; text: string };
 
@@ -147,12 +153,14 @@ export async function computeComparison(
   input: string,
   semanticBudget?: number,
   targetModel?: string,
+  cacheTarget?: CacheTarget,
 ): Promise<ComparisonState> {
   return callWorker<ComparisonState>({
     type: 'computeComparison',
     input,
     semanticBudget,
     targetModel,
+    cacheTarget,
   });
 }
 

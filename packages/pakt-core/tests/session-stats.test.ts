@@ -26,6 +26,49 @@ describe('SessionStats', () => {
     expect(result.topFormat).toBeNull();
     expect(result.lastCallAt).toBeNull();
     expect(result.sessionDuration).toMatch(/^\d+s$/);
+    expect(result.latencyMs).toBeNull();
+    expect(result.lossy).toEqual({ count: 0, inputTokens: 0 });
+  });
+
+  it('rejects NaN and negative durationMs from percentile computation', () => {
+    stats.record({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+      durationMs: Number.NaN,
+    });
+    stats.record({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+      durationMs: -1,
+    });
+    stats.record({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+      durationMs: 50,
+    });
+    const lat = stats.getStats().latencyMs;
+    // Only the valid 50ms sample should contribute.
+    expect(lat?.samples).toBe(1);
+    expect(lat?.p50).toBe(50);
+    expect(Number.isFinite(lat?.p99 ?? Number.NaN)).toBe(true);
   });
 
   it('tracks a single compress call', () => {
@@ -317,5 +360,129 @@ describe('module-level singleton helpers', () => {
     resetSessionStats();
     const result = getSessionStats();
     expect(result.totalCalls).toBe(0);
+  });
+
+  // -------------------------------------------------------------------
+  // Latency percentiles + lossy accounting (via singleton helpers)
+  // -------------------------------------------------------------------
+
+  it('latencyMs is null when no records carry timing', () => {
+    resetSessionStats();
+    recordCall({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+    });
+    expect(getSessionStats().latencyMs).toBeNull();
+  });
+
+  it('computes p50/p95/p99/avg from durationMs samples', () => {
+    resetSessionStats();
+    for (let i = 1; i <= 100; i++) {
+      recordCall({
+        action: 'compress',
+        format: 'json',
+        inputTokens: 10,
+        outputTokens: 5,
+        savedTokens: 5,
+        savingsPercent: 50,
+        reversible: true,
+        timestamp: Date.now(),
+        durationMs: i,
+      });
+    }
+    const lat = getSessionStats().latencyMs;
+    expect(lat).not.toBeNull();
+    expect(lat?.samples).toBe(100);
+    expect(lat?.p50).toBe(50);
+    expect(lat?.p95).toBe(95);
+    expect(lat?.p99).toBe(99);
+    expect(lat?.avg).toBeGreaterThan(40);
+    expect(lat?.avg).toBeLessThan(60);
+  });
+
+  it('aggregates non-reversible calls into lossy accounting', () => {
+    resetSessionStats();
+    recordCall({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 200,
+      outputTokens: 80,
+      savedTokens: 120,
+      savingsPercent: 60,
+      reversible: false,
+      timestamp: Date.now(),
+    });
+    recordCall({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 50,
+      savedTokens: 50,
+      savingsPercent: 50,
+      reversible: true,
+      timestamp: Date.now(),
+    });
+    recordCall({
+      action: 'decompress',
+      format: 'json',
+      inputTokens: 50,
+      outputTokens: 100,
+      savedTokens: -50,
+      savingsPercent: 0,
+      reversible: true,
+      timestamp: Date.now(),
+    });
+    const result = getSessionStats();
+    expect(result.lossy.count).toBe(1);
+    expect(result.lossy.inputTokens).toBe(200);
+  });
+
+  it('lossy accounting is zero when all calls are reversible', () => {
+    resetSessionStats();
+    recordCall({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+    });
+    expect(getSessionStats().lossy).toEqual({ count: 0, inputTokens: 0 });
+  });
+
+  it('mixes records with and without durationMs (only timed records inform percentiles)', () => {
+    resetSessionStats();
+    recordCall({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+    });
+    recordCall({
+      action: 'compress',
+      format: 'json',
+      inputTokens: 100,
+      outputTokens: 30,
+      savedTokens: 70,
+      savingsPercent: 70,
+      reversible: true,
+      timestamp: Date.now(),
+      durationMs: 42,
+    });
+    const lat = getSessionStats().latencyMs;
+    expect(lat?.samples).toBe(1);
+    expect(lat?.p50).toBe(42);
   });
 });

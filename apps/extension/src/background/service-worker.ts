@@ -61,6 +61,7 @@ function compressForDetectedFormat(
       ? { semanticBudget: settings.semanticBudget }
       : {}),
     targetModel: settings.targetModel,
+    ...(settings.cacheTarget ? { target: settings.cacheTarget } : {}),
   });
 
   if (format === 'markdown' || format === 'text') {

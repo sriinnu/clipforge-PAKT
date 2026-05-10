@@ -14,6 +14,7 @@ import {
   estimateCompressibility,
 } from '@sriinnu/pakt';
 import type {
+  CacheBreakpoint,
   CompressibilityLabel,
   DecompressResult,
   MixedCompressResult,
@@ -27,6 +28,18 @@ export interface CompressionStats {
   before: number;
   after: number;
   savings: number;
+  /** Wall-clock duration of the compress call in milliseconds. */
+  durationMs?: number;
+  /** Cache-control hint when the user picked a provider cache target. */
+  cacheBreakpoint?: CacheBreakpoint;
+  /** True when L4 semantic or PII redact was applied (output is non-reversible). */
+  lossy?: boolean;
+  /**
+   * Set when `cacheTarget` is configured but the path taken doesn't
+   * emit a breakpoint (e.g. markdown / text via `compressMixed`).
+   * Carries the format name so the UI can explain why no hint appeared.
+   */
+  cacheUnavailableFor?: PaktFormat;
 }
 
 /** Pre-compression compressibility estimate exposed to the UI. */
@@ -81,28 +94,51 @@ export function useCompression(
             ? { semanticBudget: settings.semanticBudget }
             : {}),
           targetModel: settings.targetModel,
+          ...(settings.cacheTarget ? { target: settings.cacheTarget } : {}),
         });
 
         let compressed: string;
         let originalTokens: number;
         let compressedTokens: number;
         let savingsPercent: number;
+        let cacheBreakpoint: CacheBreakpoint | undefined;
+        let lossy = false;
+        let mixedPath = false;
 
+        const startedAt = performance.now();
         if (detectedFormat === 'markdown' || detectedFormat === 'text') {
           const result: MixedCompressResult = compressMixed(text, options);
           compressed = result.compressed;
           originalTokens = result.originalTokens;
           compressedTokens = result.compressedTokens;
           savingsPercent = result.savings.totalPercent;
+          mixedPath = true;
+          /* compressMixed's narrower options type strips `target`, so it
+             never returns a cacheBreakpoint. Track the path so the UI
+             can surface "unavailable for {format}" instead of silently
+             dropping the hint. */
         } else {
           const result: PaktResult = compress(text, options);
           compressed = result.compressed;
           originalTokens = result.originalTokens;
           compressedTokens = result.compressedTokens;
           savingsPercent = result.savings.totalPercent;
+          if (result.cacheBreakpoint) cacheBreakpoint = result.cacheBreakpoint;
+          if (!result.reversible) lossy = true;
         }
+        const durationMs = Math.round(performance.now() - startedAt);
+        const cacheUnavailableFor =
+          settings.cacheTarget && mixedPath ? detectedFormat : undefined;
 
-        setStats({ before: originalTokens, after: compressedTokens, savings: savingsPercent });
+        setStats({
+          before: originalTokens,
+          after: compressedTokens,
+          savings: savingsPercent,
+          durationMs,
+          ...(cacheBreakpoint ? { cacheBreakpoint } : {}),
+          ...(lossy ? { lossy: true } : {}),
+          ...(cacheUnavailableFor ? { cacheUnavailableFor } : {}),
+        });
 
         if (compressedTokens >= originalTokens || savingsPercent < MIN_MEANINGFUL_SAVINGS_PERCENT) {
           setOutput('');

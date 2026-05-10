@@ -25,6 +25,7 @@
  */
 
 import { GptTokenCounter } from './gpt-counter.js';
+import { o200kFactory } from './model-profiles.js';
 import type { TokenCounter, TokenCounterFactory } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -34,8 +35,11 @@ import type { TokenCounter, TokenCounterFactory } from './types.js';
 /**
  * Registered factories, ordered most-recently-registered first.
  * Checked in order by {@link getTokenCounter}; first non-null wins.
+ *
+ * The o200k factory is registered as a built-in default so GPT-4o
+ * family models automatically get the correct o200k_base tokenizer.
  */
-let factories: TokenCounterFactory[] = [];
+let factories: TokenCounterFactory[] = [o200kFactory];
 
 // ---------------------------------------------------------------------------
 // registerTokenCounter
@@ -122,5 +126,5 @@ export function getTokenCounter(model: string): TokenCounter {
  * ```
  */
 export function resetTokenCounterRegistry(): void {
-  factories = [];
+  factories = [o200kFactory];
 }

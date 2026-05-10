@@ -49,15 +49,40 @@ const synPos: SourcePosition = { line: 0, column: 0, offset: 0 };
  *
  * @param doc - The DocumentNode to compress (typically after L1)
  * @param minSavings - Minimum net token savings to create an alias (default 3)
+ * @param seedAliases - Optional pre-existing expansion→alias map from a rolling
+ *   dictionary. Seeded expansions are included as candidates with boosted priority
+ *   if they appear in the input, allowing cross-turn alias reuse.
  * @returns A new DocumentNode with dictionary block and aliased body values
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: dictionary compression orchestrates candidate detection, dedup, and greedy selection
 export function compressL2(
   doc: DocumentNode,
   minSavings: number = DEFAULT_MIN_SAVINGS,
+  seedAliases?: Set<string>,
 ): DocumentNode {
   const scalars = collectStringScalars(doc.body);
   const allScalars = collectStringScalars(doc.body, true);
+
+  // -- 0. Seed candidates from rolling dictionary (cross-turn reuse) --
+  // Seeded expansions that appear in the input are added as high-priority
+  // exact candidates with a lower occurrence threshold (2 instead of 3).
+  const seededValues = new Set<string>();
+  if (seedAliases && seedAliases.size > 0) {
+    const seedFreq = new Map<string, number>();
+    for (const sc of scalars) {
+      if (seedAliases.has(sc.value)) {
+        seedFreq.set(sc.value, (seedFreq.get(sc.value) ?? 0) + 1);
+      }
+    }
+    for (const [value, occurrences] of seedFreq) {
+      if (occurrences < 2 || value.length < MIN_VALUE_LENGTH) continue;
+      const vTok = estimateTokens(value);
+      const netSavings = (vTok - 1) * occurrences - (vTok + 3);
+      if (netSavings > 0) {
+        seededValues.add(value);
+      }
+    }
+  }
 
   // -- 1. Exact-match candidates (unquoted only) --
   const freq = new Map<string, number>();
@@ -68,10 +93,15 @@ export function compressL2(
   const candidates: AliasCandidate[] = [];
   const exactDups = new Set<string>();
   for (const [value, occurrences] of freq) {
-    if (occurrences < MIN_OCCURRENCES || value.length < MIN_VALUE_LENGTH) continue;
+    // Seeded values get a lower threshold (2 occurrences, 0 min savings)
+    const isSeeded = seededValues.has(value);
+    const minOcc = isSeeded ? 2 : MIN_OCCURRENCES;
+    const minSav = isSeeded ? 0 : minSavings;
+
+    if (occurrences < minOcc || value.length < MIN_VALUE_LENGTH) continue;
     const vTok = estimateTokens(value);
     const netSavings = (vTok - 1) * occurrences - (vTok + 3);
-    if (netSavings >= minSavings) {
+    if (netSavings >= minSav) {
       candidates.push({ value, occurrences, netSavings, candidateType: 'exact' });
       exactDups.add(value);
     }
@@ -128,15 +158,19 @@ export function compressL2(
   const selected: AliasCandidate[] = [];
   for (const c of deduped) {
     if (selected.length >= MAX_ALIASES) break;
+    // Seeded values get a lower threshold in the greedy pass too
+    const isSeeded = seededValues.has(c.value);
+    const greedyMinOcc = isSeeded ? 2 : MIN_OCCURRENCES;
+    const greedyMinSav = isSeeded ? 0 : minSavings;
     if (c.candidateType === 'exact') {
       let effectiveOcc = 0;
       for (const v of simValues) {
         if (v === c.value) effectiveOcc++;
       }
-      if (effectiveOcc < MIN_OCCURRENCES) continue;
+      if (effectiveOcc < greedyMinOcc) continue;
       const tok = estimateTokens(c.value);
       const eff = (tok - 1) * effectiveOcc - (tok + 3);
-      if (eff < minSavings) continue;
+      if (eff < greedyMinSav) continue;
       selected.push({ ...c, occurrences: effectiveOcc, netSavings: eff });
       const placeholder = aliasForIndex(selected.length - 1);
       for (let i = 0; i < simValues.length; i++) {
@@ -163,15 +197,40 @@ export function compressL2(
     }
   }
 
-  /* Cache-stable alias assignment: once greedy selection has chosen which
-     values win aliases, re-order the winners deterministically by expansion
-     before handing out $a, $b, $c, ... This way, two payloads that share
-     the same high-frequency values produce the same dict header, preserving
-     prompt-cache hits across calls to Anthropic / OpenAI caching APIs. */
-  selected.sort((a, b) => {
-    if (a.value === b.value) return 0;
-    return a.value < b.value ? -1 : 1;
-  });
+  /* Cache-stable alias assignment.
+     Once greedy selection has chosen which values win aliases, re-order
+     the winners so the resulting `@dict` header is byte-identical across
+     turns whenever possible — provider prefix caches (Anthropic
+     cache_control, OpenAI prefix cache) require the cached prefix to be
+     unchanged, and a single reordering invalidates everything past it.
+     Strategy:
+       1. Seeded winners first, in seed-set iteration order (the rolling
+          dictionary emits them by discovery turn so $a, $b, ... stay
+          pinned to the same expansions across turns).
+       2. New winners (not in the seed set) appended afterwards, sorted
+          lexicographically so the order is reproducible across runs even
+          for stateless callers. */
+  if (seedAliases && seedAliases.size > 0) {
+    const seedOrder = new Map<string, number>();
+    let idx = 0;
+    for (const expansion of seedAliases) {
+      seedOrder.set(expansion, idx++);
+    }
+    selected.sort((a, b) => {
+      const ai = seedOrder.get(a.value);
+      const bi = seedOrder.get(b.value);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      if (a.value === b.value) return 0;
+      return a.value < b.value ? -1 : 1;
+    });
+  } else {
+    selected.sort((a, b) => {
+      if (a.value === b.value) return 0;
+      return a.value < b.value ? -1 : 1;
+    });
+  }
 
   if (selected.length === 0) {
     return {

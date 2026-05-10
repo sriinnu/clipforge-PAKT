@@ -108,7 +108,7 @@ describe('cli-serve MCP transport', () => {
     const result = await client.listTools();
     const names = result.tools.map((tool) => tool.name).sort();
 
-    expect(names).toEqual(['pakt_auto', 'pakt_compress', 'pakt_inspect', 'pakt_stats']);
+    expect(names).toEqual(['pakt_auto', 'pakt_compress', 'pakt_dashboard', 'pakt_explain', 'pakt_inspect', 'pakt_savings', 'pakt_stats']);
   });
 
   it('returns structured tool results over the SDK transport', async () => {
@@ -193,7 +193,7 @@ describe('cli-serve MCP transport', () => {
     const listed = await client.listTools();
     const toolNames = listed.tools.map((tool) => tool.name).sort();
 
-    expect(toolNames).toEqual(['pakt_auto', 'pakt_compress', 'pakt_inspect', 'pakt_stats']);
+    expect(toolNames).toEqual(['pakt_auto', 'pakt_compress', 'pakt_dashboard', 'pakt_explain', 'pakt_inspect', 'pakt_savings', 'pakt_stats']);
 
     const result = await client.callTool({
       name: 'pakt_inspect',

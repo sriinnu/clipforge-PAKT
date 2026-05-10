@@ -33,6 +33,11 @@ export interface CallRecord {
   reversible: boolean;
   /** Unix timestamp (Date.now()). */
   timestamp: number;
+  /**
+   * Wall-clock duration of the tool call in milliseconds. Optional for
+   * back-compat with persisted records that pre-date latency tracking.
+   */
+  durationMs?: number;
 }
 
 /** Per-format breakdown entry in session stats. */
@@ -68,6 +73,17 @@ export interface SessionStatsResult {
   estimatedCostSaved: { input: number; output: number; currency: string } | null;
   /** ISO timestamp of the most recent call, or null. */
   lastCallAt: string | null;
+  /**
+   * Tool-call latency percentiles in milliseconds, computed from records
+   * that carry a `durationMs`. `null` when no records have timing.
+   */
+  latencyMs: { p50: number; p95: number; p99: number; avg: number; samples: number } | null;
+  /**
+   * Lossy-call accounting: how many calls used non-reversible compression
+   * (L4 semantic, PII redact) and how many tokens those calls processed.
+   * Surfaces a warning that results aren't byte-identical round-trips.
+   */
+  lossy: { count: number; inputTokens: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +141,8 @@ export class SessionStats {
         topFormat: null,
         estimatedCostSaved: null,
         lastCallAt: null,
+        latencyMs: null,
+        lossy: { count: 0, inputTokens: 0 },
       };
     }
 
@@ -138,12 +156,29 @@ export class SessionStats {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let totalSavedTokens = 0;
+    let lossyCount = 0;
+    let lossyInputTokens = 0;
+    const durations: number[] = [];
 
     for (const rec of this.records) {
       callsByAction[rec.action]++;
       totalInputTokens += rec.inputTokens;
       totalOutputTokens += rec.outputTokens;
       totalSavedTokens += rec.savedTokens;
+      if (!rec.reversible) {
+        lossyCount++;
+        lossyInputTokens += rec.inputTokens;
+      }
+      /* `typeof NaN === 'number'` is true and would poison the
+         comparator-driven sort below; negative values would sort to
+         the front and become a misleading p50. Filter both. */
+      if (
+        typeof rec.durationMs === 'number' &&
+        Number.isFinite(rec.durationMs) &&
+        rec.durationMs >= 0
+      ) {
+        durations.push(rec.durationMs);
+      }
 
       const fmt = formatAccum[rec.format];
       if (fmt) {
@@ -198,6 +233,27 @@ export class SessionStats {
 
     const lastRecord = this.records[this.records.length - 1];
 
+    /* Latency percentiles. We compute them only if at least one record
+       carried a durationMs — older persisted records didn't. Using
+       nearest-rank percentiles (no interpolation) keeps the math honest
+       on small samples. */
+    let latencyMs: SessionStatsResult['latencyMs'] = null;
+    if (durations.length > 0) {
+      const sorted = [...durations].sort((a, b) => a - b);
+      const pickAt = (q: number): number => {
+        const idx = Math.min(sorted.length - 1, Math.ceil(q * sorted.length) - 1);
+        return sorted[Math.max(0, idx)] ?? 0;
+      };
+      const sum = sorted.reduce((a, b) => a + b, 0);
+      latencyMs = {
+        p50: pickAt(0.5),
+        p95: pickAt(0.95),
+        p99: pickAt(0.99),
+        avg: Math.round(sum / sorted.length),
+        samples: sorted.length,
+      };
+    }
+
     return {
       sessionDuration: formatDuration(now - this.startedAt),
       totalCalls: this.records.length,
@@ -211,6 +267,8 @@ export class SessionStats {
       topFormat: topEntry,
       estimatedCostSaved,
       lastCallAt: lastRecord ? new Date(lastRecord.timestamp).toISOString() : null,
+      latencyMs,
+      lossy: { count: lossyCount, inputTokens: lossyInputTokens },
     };
   }
 
