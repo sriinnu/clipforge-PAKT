@@ -169,6 +169,62 @@ console.log(result.reversible); // false
 console.log(result.compressed); // includes @compress semantic + @warning lossy
 ```
 
+### Prompt cache integration (0.10)
+
+When the LLM provider supports prefix caching (Anthropic `cache_control`, AWS Bedrock `cachePoint` 1h TTL, OpenAI auto-prefix-cache, Google context caching), pass a `target` and PAKT will tell you exactly where the cacheable prefix ends:
+
+```typescript
+import { compress } from '@sriinnu/pakt';
+
+const result = compress(payload, { target: 'bedrock' });
+
+console.log(result.cacheBreakpoint);
+// { byteOffset: 142, recommendedTTLSeconds: 3600, target: 'bedrock' }
+
+// Pass to the SDK: cache_control sits at byteOffset; everything before
+// is prefix-stable across turns (assuming you use pakt_auto + rolling-dict).
+```
+
+| Target       | Recommended TTL | Source |
+|--------------|-----------------|--------|
+| `bedrock`    | 3600s (1h)      | AWS Bedrock `cachePoint` API (Jan 2026) |
+| `anthropic`  | 300s (5min)     | Anthropic `cache_control` default (Mar 2026) |
+| `openai`     | 0 (auto)        | OpenAI prefix cache, server-managed |
+| `google`     | 0 (auto)        | Gemini context caching, ≥32k tokens |
+
+The byte offset lands right after the `@dict ... @end` block. Header recognition is restricted to a known whitelist (`@from`, `@dict`, `@end`, `@compress`, `@warning`, `@version`, `@target`, `@profile`) so a body line starting with `@mention` or `@Component` does not get absorbed into the prefix and break byte-stability.
+
+**Note on cross-turn stability:** the byte offset is stable per-call, but for the prefix bytes themselves to stay identical *across turns*, you need the rolling dictionary engaged. That's automatic via `pakt_auto` (MCP). Bare `compress()` regenerates the alias map per call — same input → same output, but two different inputs that share expansions still get fresh alias slots. Use `pakt_auto` for agent loops, or pass `seedAliases` manually if you're driving the pipeline yourself.
+
+### Context engine (0.10)
+
+Unified context-window optimizer for agent loops:
+
+```typescript
+import { createContextEngine } from '@sriinnu/pakt';
+
+const engine = createContextEngine({
+  maxContextTokens: 50_000,
+  recentTurns: 5,
+  toolResultTailLines: 30,    // older tool outputs truncate to last 30 lines
+});
+
+engine.addMessage({ role: 'user', content: 'fix the auth bug' });
+engine.addToolResult('read_file', bigJson);
+
+const { messages, savings } = engine.optimize();
+console.log(savings.breakdown);
+// {
+//   toolResults,         // savings from compressing tool results in place
+//   historyCompression,  // savings from compressing old turns
+//   summarization,       // savings from extracting key facts
+//   deduplication,       // savings from replacing repeated content with references
+//   toolResultAging,     // savings from tail-truncating older tool outputs (0.10)
+// }
+```
+
+**Tool-result aging** walks the transcript back-to-front, snaps the cutoff to the nearest user-message boundary, and tail-truncates older tool outputs. Char-fallback handles long single-line payloads (minified JSON, base64). Set `toolResultTailLines: 0` to disable aging entirely.
+
 ---
 
 ## MCP Server
@@ -186,7 +242,19 @@ Add 5 lines to your MCP config. This is the agent integration path for stdio-bas
 }
 ```
 
-Your AI agent gets `pakt_compress`, `pakt_auto`, `pakt_inspect`, and `pakt_stats` automatically. The tools accept optional `semanticBudget` for opt-in lossy L4, and `pakt_inspect` helps agents decide whether compression is worth it before they call it.
+Your AI agent gets seven tools automatically:
+
+| Tool | Purpose |
+|------|---------|
+| `pakt_compress` | Compress an explicit input with optional layer / semantic / PII / target options |
+| `pakt_auto` | Auto-detect: compress structured input, decompress PAKT input, passthrough otherwise. Backed by dedup cache + rolling-dict for cross-turn alias reuse |
+| `pakt_inspect` | Estimate savings without compressing — agents call this first to decide whether compression is worth it |
+| `pakt_stats` | Compression metrics for the current process (or `scope: 'all'` to aggregate from disk). Surfaces P50/P95/P99 latency and lossy-call accounting (0.10) |
+| `pakt_explain` | Per-layer breakdown of what each layer saved on a given input |
+| `pakt_savings` | Concise dollar-amount savings summary at the configured model's pricing |
+| `pakt_dashboard` | Rich view: format breakdown, dedup efficiency, rolling-dict reuse, latency, lossy (0.10) |
+
+The compress / auto tools accept `semanticBudget` for opt-in lossy L4, `piiMode` for redaction, and `target` for cache-control hints (0.10).
 
 If you are embedding PAKT into your own MCP host, register the tools directly:
 
@@ -220,14 +288,15 @@ pakt serve --stdio                            # start MCP server
 
 ## Key Features
 
-- **4-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), and opt-in budgeted Semantic (L4)
+- **5-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), opt-in budgeted Semantic (L4), Content-aware abbreviations (L5)
 - **Delta encoding** -- Adjacent rows sharing values replaced with `~` sentinels, plus `+N` / `-N` numeric deltas for monotonic columns (ids, timestamps, counters), saving 20-40% on repetitive tabular data
-- **Cache-stable dictionary** -- `@dict` aliases are assigned in lex order of their expansions so related payloads produce the same block, preserving prompt-cache hits on Anthropic and OpenAI caching APIs
+- **Prefix-stable `@dict` for prompt caching (0.10)** -- `RollingDictionary` pins seeded expansions to fixed alias slots across turns so the cacheable prefix stays byte-identical. New `target` option returns a `cacheBreakpoint` hint (byte offset + recommended TTL) for Anthropic, AWS Bedrock (1h TTL), OpenAI, and Google
+- **Context engine (0.10)** -- `createContextEngine()` unifies tool-result compression, dedup, fact extraction, and back-to-front tool-result aging that snaps to user-message boundaries
 - **Tokenizer-family aware** -- `getTokenizerFamily(model)` / `countTokens(text, model)` align the L3 merge-savings gate and downstream token counts with the target model (`o200k_base`, `cl100k_base`, fallback documented for Claude / Llama)
 - **10 MB input cap** -- `compress()` throws a typed error for oversize inputs with an allocation-free byte counter so the check does not materialise the input
 - **Auto context compression** -- Content-addressed dedup, text line dedup, word n-gram dictionary, whitespace normalization
 - **Compressibility scoring** -- `estimateCompressibility()` returns a 0-1 score and recommended profile before you compress
-- **Session stats** -- `pakt_stats` MCP tool and `pakt stats` CLI for real-time token savings tracking
+- **Session stats with latency + lossy (0.10)** -- `pakt_stats` and `pakt_dashboard` track P50/P95/P99 latency percentiles and non-reversible-call accounting alongside per-format token savings
 - **Multi-format support** -- JSON, YAML, CSV, Markdown, Plain Text with auto-detection
 - **Lossless round-tripping** -- L1-L3 preserve data fidelity; L4 is explicitly lossy. Property-based fuzzers run on every build
 - **MCP server + embeddable tools** -- `pakt serve --stdio` or `registerPaktTools()` for agent workflows

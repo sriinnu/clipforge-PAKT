@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-05-08
+
+### Added
+
+- **Prompt-cache breakpoint hint.** New `target?: CacheTarget` option on `PaktOptions` (`'anthropic' | 'bedrock' | 'openai' | 'google'`). When set, `compress()` returns a `cacheBreakpoint: { byteOffset, recommendedTTLSeconds, target }` on the result identifying where the cacheable prefix ends so consumers can place provider `cache_control` / `cachePoint` markers correctly. AWS Bedrock 1h TTL (Jan 2026), Anthropic 5min default with 1h opt-in (Mar 2026), OpenAI/Google auto-managed. Header detection uses a known-marker whitelist so a body line starting with `@mention` or `@Component` cannot leak into the prefix and break byte-stability across turns.
+- **Prefix-stable `@dict` for cross-turn cache hits.** `RollingDictionary.seed()` emits expansions in deterministic discovery order; `compressL2()` pins seeded expansions to fixed alias slots across turns. Engaged automatically via `pakt_auto` (MCP); bare `compress()` callers can pass `seedAliases` to opt in. Precondition for hitting Anthropic / OpenAI / Bedrock prompt caches.
+- **Tool-result aging in the context engine.** New `createContextEngine({ toolResultTailLines: 30 })` option implements the Gemini-CLI back-to-front aging pattern: walks history newest-first, snaps the cutoff to the nearest user-message boundary (never splits a tool call mid-turn), and tail-truncates older tool outputs. Char-fallback handles long single-line payloads (minified JSON, base64) above ~1000 tokens and ~4000 chars. New `ContextSavings.breakdown.toolResultAging` field surfaces savings.
+- **Latency + lossy observability on `pakt_stats` and `pakt_dashboard`.** New optional `durationMs` on `CallRecord`. New `latencyMs: { p50, p95, p99, avg, samples }` and `lossy: { count, inputTokens }` fields on `SessionStatsResult`, computed via nearest-rank percentiles with NaN/negative guards. Wired through MCP `executeTool` and the CLI compress path. New optional `outputFields` on `pakt_stats` / `pakt_dashboard` MCP contracts, all marked `required: false` for backward compatibility.
+- **`CacheTarget` UI surface across all three apps.** Extension popup (segmented control), playground (dropdown + dedicated stat card), desktop tray (settings select). All surfaces also render the cache hint, mixed-format unavailability message, and a lossy badge when L4 / PII redact runs.
+- **`docs/token-efficiency-roadmap.md`** with arxiv-cited tiered roadmap (CompactPrompt, ACON, PAACE, GenericAgent, etc.).
+
+### Changed
+
+- **`@sriinnu/pakt` exports `CacheTarget` and `CacheBreakpoint` types** from the package root for downstream typing.
+- **MCP handler split.** `mcp/handler.ts` is now a slim dispatch; `pakt_explain`, `pakt_savings`, `pakt_dashboard` live in `mcp/handler-explain-savings-dashboard.ts` to keep each module under the project's LOC cap.
+- **READMEs (root + `@sriinnu/pakt`)** add Prompt Cache Integration and Context Engine sections; MCP tools list grows from four to seven (adds `pakt_explain`, `pakt_savings`, `pakt_dashboard`); Bedrock/Anthropic per-provider naming disambiguated (`cachePoint` vs `cache_control`).
+- **Tauri crate version aligned.** `apps/desktop/src-tauri/Cargo.toml` bumped from 0.8.0 to 0.10.0 to match every other workspace surface.
+
+### Fixed
+
+- **Conflict resolution.** Resolved 4 stash-pop conflicts blocking the branch: `cli-commands.ts`, `compress.ts`, `compress-helpers.ts`, `mcp/handler.ts`.
+- **Extension `cacheTarget` round-trip.** `DEFAULT_SETTINGS` now declares `cacheTarget: undefined` so `chrome.storage.sync.get(defaults, ...)` actually fetches it AND the change-event listener's `key in DEFAULT_SETTINGS` gate lets cacheTarget changes through. Without this, picking "Bedrock" silently reverted on popup reload.
+- **Browser-safe byte counting in `cache-breakpoint.ts`.** Replaced `Buffer.byteLength` (Node-only) with `TextEncoder().encode().length` so the extension popup, desktop renderer, and playground worker don't crash when a user enables `cacheTarget`.
+- **Tool-result size guard in `addToolResult`.** New `MAX_TOOL_RESULT_BYTES = 1 MiB` cap pre-clamps adversarial or runaway tool output before tokenization or `split('\n')` materialization runs.
+- **Defensive guards** on `computeCacheBreakpoint` (null/empty input → `null`, unknown target TTL → `0`) and on the desktop `setCacheTarget` setter + persist `merge` (tampered localStorage values coerce to `undefined`).
+- **Compare view threads `cacheTarget`** through the worker bridge so the playground's profile sweep respects the option.
+
+### Breaking (TypeScript only)
+
+- **`ContextSavings.breakdown.toolResultAging: number`** is now a required field. Hand-constructed `ContextSavings` objects in tests / mocks need the new key.
+- **`SessionStatsResult.latencyMs: { p50, p95, p99, avg, samples } | null`** and **`SessionStatsResult.lossy: { count, inputTokens }`** are now required. Hand-constructed result objects need both keys.
+
+No runtime breaks — every new field is populated by the library on every code path. JS consumers who never touch these types are unaffected.
+
+### Stats
+
+- 1131 → 1157 tests on `@sriinnu/pakt` (+26 new across rolling-dict, MCP, cache-breakpoint, context-engine, session-stats).
+- All four surfaces (`pakt-core`, `playground`, `extension`, `desktop`) build clean.
+
 ## [0.9.0] - 2026-04-29
 
 ### Added

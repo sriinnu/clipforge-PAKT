@@ -1,4 +1,6 @@
 import {
+  type CacheBreakpoint,
+  type CacheTarget,
   type CompressibilityResult,
   PAKT_LAYER_PROFILES,
   type PaktFormat,
@@ -26,6 +28,12 @@ export interface CompressionConfig {
   semanticBudget?: number;
   /** Target model — flows into `countTokens` and L3's merge-savings gate. */
   targetModel?: string;
+  /**
+   * Provider cache target. When set, the compressed result includes a
+   * `cacheBreakpoint` hint for placing provider `cache_control` at the
+   * end of the cacheable prefix.
+   */
+  cacheTarget?: CacheTarget;
 }
 
 export interface PreviewResult {
@@ -36,6 +44,10 @@ export interface PreviewResult {
   outputTokens: number;
   error: string | null;
   lastAction: Action;
+  /** Cache-control hint when `config.cacheTarget` is set. */
+  cacheBreakpoint?: CacheBreakpoint;
+  /** True when the compressed output is non-reversible (L4 / PII redact). */
+  lossy?: boolean;
 }
 
 export interface ComparisonItem {
@@ -74,6 +86,10 @@ export interface CompressionResult {
   packedInputDetected: boolean;
   output: string;
   outputTokens: number;
+  /** Cache-control hint when `config.cacheTarget` is set. */
+  cacheBreakpoint?: CacheBreakpoint;
+  /** True when the compressed output is non-reversible (L4 / PII redact). */
+  lossy?: boolean;
 }
 
 export interface DecompressionResult {
@@ -135,6 +151,7 @@ function buildCompressionOptions(format: PaktFormat, config: CompressionConfig) 
     fromFormat: format,
     ...(hasSemanticBudget(config) ? { semanticBudget: config.semanticBudget } : {}),
     ...(config.targetModel ? { targetModel: config.targetModel } : {}),
+    ...(config.cacheTarget ? { target: config.cacheTarget } : {}),
   });
 }
 
@@ -147,16 +164,30 @@ async function compressDocument(
   originalTokens: number;
   compressedTokens: number;
   reversible: boolean;
+  cacheBreakpoint?: CacheBreakpoint;
 }> {
   const { compress, compressMixed } = await loadPakt();
   const options = buildCompressionOptions(format, config);
-  const result = isMixedFormat(format) ? compressMixed(input, options) : compress(input, options);
 
+  if (isMixedFormat(format)) {
+    /* compressMixed has a narrower options shape that strips `target`,
+       so it never returns a cacheBreakpoint. */
+    const result = compressMixed(input, options);
+    return {
+      compressed: result.compressed,
+      originalTokens: result.originalTokens,
+      compressedTokens: result.compressedTokens,
+      reversible: result.reversible,
+    };
+  }
+
+  const result = compress(input, options);
   return {
     compressed: result.compressed,
     originalTokens: result.originalTokens,
     compressedTokens: result.compressedTokens,
     reversible: result.reversible,
+    ...(result.cacheBreakpoint ? { cacheBreakpoint: result.cacheBreakpoint } : {}),
   };
 }
 
@@ -225,6 +256,8 @@ export async function analyzePreview(
       outputTokens: result.compressedTokens,
       error: null,
       lastAction: 'compress',
+      ...(result.cacheBreakpoint ? { cacheBreakpoint: result.cacheBreakpoint } : {}),
+      ...(result.reversible ? {} : { lossy: true }),
     };
   } catch (error) {
     return {
@@ -259,6 +292,8 @@ export async function compressSource(
     packedInputDetected,
     output: result.compressed,
     outputTokens: result.compressedTokens,
+    ...(result.cacheBreakpoint ? { cacheBreakpoint: result.cacheBreakpoint } : {}),
+    ...(result.reversible ? {} : { lossy: true }),
   };
 }
 
@@ -283,6 +318,7 @@ export async function computeComparison(
   input: string,
   semanticBudget?: number,
   targetModel?: string,
+  cacheTarget?: CacheTarget,
 ): Promise<ComparisonState> {
   if (!input.trim()) {
     return { status: 'idle', items: null, error: null, recommendation: null };
@@ -318,6 +354,7 @@ export async function computeComparison(
         profileId: profile.id,
         ...(profile.requiresSemanticBudget ? { semanticBudget } : {}),
         ...(targetModel ? { targetModel } : {}),
+        ...(cacheTarget ? { cacheTarget } : {}),
       });
 
       const item: ComparisonItem = {
@@ -344,6 +381,7 @@ export async function computeComparison(
         const result = await compressDocument(variant.text, variant.format, {
           profileId: 'standard',
           ...(targetModel ? { targetModel } : {}),
+          ...(cacheTarget ? { cacheTarget } : {}),
         });
         const item: ComparisonItem = {
           id: variant.id,

@@ -5,6 +5,7 @@
  */
 
 import {
+  type CacheTarget,
   PAKT_LAYER_PROFILES,
   type PaktLayerProfile,
   type PaktLayerProfileId,
@@ -32,6 +33,8 @@ export interface ControlsCardProps {
   selectedProfile: PaktLayerProfile;
   /** Currently selected target-model id. */
   targetModel: string;
+  /** Currently selected provider cache target (`undefined` = off). */
+  cacheTarget: CacheTarget | undefined;
   /** Raw text in the semantic-budget number input. */
   semanticBudgetInput: string;
   /** Handler invoked when the user picks a sample (or "" to clear). */
@@ -40,6 +43,8 @@ export interface ControlsCardProps {
   onProfileChange: (id: PaktLayerProfileId) => void;
   /** Handler invoked when the target-model select changes. */
   onTargetModelChange: (modelId: string) => void;
+  /** Handler invoked when the cache-target select changes. */
+  onCacheTargetChange: (target: CacheTarget | undefined) => void;
   /** Handler invoked when the semantic-budget number input changes. */
   onSemanticBudgetChange: (raw: string) => void;
 }
@@ -57,10 +62,12 @@ export function ControlsCard({
   compressionProfileId,
   selectedProfile,
   targetModel,
+  cacheTarget,
   semanticBudgetInput,
   onSampleChange,
   onProfileChange,
   onTargetModelChange,
+  onCacheTargetChange,
   onSemanticBudgetChange,
 }: ControlsCardProps) {
   const currentSample = samples.find((sample) => sample.id === selectedSample);
@@ -110,6 +117,22 @@ export function ControlsCard({
                 {model.label}
               </option>
             ))}
+          </select>
+        </label>
+        <label>
+          Prompt cache target
+          <select
+            value={cacheTarget ?? 'off'}
+            onChange={(event) => {
+              const v = event.target.value;
+              onCacheTargetChange(v === 'off' ? undefined : (v as CacheTarget));
+            }}
+          >
+            <option value="off">Off</option>
+            <option value="anthropic">Anthropic (5min default)</option>
+            <option value="bedrock">AWS Bedrock (1h)</option>
+            <option value="openai">OpenAI (auto)</option>
+            <option value="google">Google Gemini (auto)</option>
           </select>
         </label>
         {selectedProfile.requiresSemanticBudget ? (

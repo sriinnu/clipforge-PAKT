@@ -6,7 +6,12 @@
  * cards and forwards events.
  */
 
-import type { CompressibilityResult, PaktFormat } from '@sriinnu/pakt';
+import type {
+  CacheBreakpoint,
+  CacheTarget,
+  CompressibilityResult,
+  PaktFormat,
+} from '@sriinnu/pakt';
 import { DECOMPRESS_FORMATS } from '../app-constants';
 import { formatDelta, formatPercent } from '../app-helpers';
 
@@ -40,6 +45,12 @@ export interface PlaygroundWorkspaceProps {
   // Stats
   statsTone: StatsTone;
   actionSummary: { title: string; body: string };
+  /** Cache-control hint when a provider cache target is selected. */
+  cacheBreakpoint: CacheBreakpoint | null;
+  /** Currently selected cache target (used to surface "no hint" reason). */
+  cacheTarget: CacheTarget | undefined;
+  /** True when the latest output is non-reversible (L4 / PII redact). */
+  lossy: boolean;
 
   // Handlers
   onInputChange: (value: string) => void;
@@ -75,6 +86,9 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
     packedInputDetected,
     statsTone,
     actionSummary,
+    cacheBreakpoint,
+    cacheTarget,
+    lossy,
     onInputChange,
     onLiveCompressChange,
     onCompress,
@@ -211,6 +225,44 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
           <strong>{actionSummary.title}</strong>
           <p>{actionSummary.body}</p>
         </article>
+        {cacheBreakpoint && output ? (
+          <article className="card stat-card">
+            <span className="stat-label">Prompt cache hint</span>
+            <strong>
+              {`@ byte ${cacheBreakpoint.byteOffset.toLocaleString()}`}
+            </strong>
+            <p>
+              {`Place cache marker here for ${cacheBreakpoint.target}. `}
+              {cacheBreakpoint.recommendedTTLSeconds > 0
+                ? `TTL: ${String(cacheBreakpoint.recommendedTTLSeconds)}s.`
+                : 'Provider auto-manages caching.'}
+            </p>
+          </article>
+        ) : cacheTarget && output ? (
+          /* Cache target set but no breakpoint came back — happens for
+             markdown / text inputs that go through `compressMixed`,
+             which doesn't carry a cacheBreakpoint. Tell the user why
+             instead of silently dropping the hint. */
+          <article className="card stat-card tone-idle">
+            <span className="stat-label">Prompt cache hint</span>
+            <strong>Unavailable for {detectedFormat}</strong>
+            <p>
+              Cache hints require a structured input (JSON, YAML, CSV).
+              Markdown / text payloads route through mixed-content
+              compression, which doesn't emit a prefix anchor.
+            </p>
+          </article>
+        ) : null}
+        {lossy && output ? (
+          <article className="card stat-card tone-expanded">
+            <span className="stat-label">Lossy output</span>
+            <strong>Non-reversible</strong>
+            <p>
+              L4 semantic compression or PII redaction was applied. Round-trip
+              will not produce the exact original payload.
+            </p>
+          </article>
+        ) : null}
       </div>
     </>
   );

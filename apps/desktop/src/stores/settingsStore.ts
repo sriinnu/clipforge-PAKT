@@ -1,9 +1,23 @@
-import { DEFAULT_SEMANTIC_BUDGET, type PaktFormat, type PaktLayers } from '@sriinnu/pakt';
+import {
+  type CacheTarget,
+  DEFAULT_SEMANTIC_BUDGET,
+  type PaktFormat,
+  type PaktLayers,
+} from '@sriinnu/pakt';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 /** Font preset identifier — matches the extension's FontPreset type. */
 export type FontPreset = 'modern' | 'classic' | 'rounded' | 'system';
+
+const CACHE_TARGETS: readonly CacheTarget[] = ['anthropic', 'bedrock', 'openai', 'google'];
+
+/* `zustand persist` rehydrates from localStorage; tampered or stale
+   values must not flow into `compress({ target: <bad> })`. Validate
+   at the setter and at rehydrate time. */
+function isCacheTarget(value: unknown): value is CacheTarget {
+  return typeof value === 'string' && CACHE_TARGETS.includes(value as CacheTarget);
+}
 
 interface SettingsState {
   outputFormat: PaktFormat;
@@ -15,6 +29,12 @@ interface SettingsState {
   fontPreset: FontPreset;
   semanticBudget: number;
   layers: PaktLayers;
+  /**
+   * Provider cache target. When set, `compress()` returns a
+   * `cacheBreakpoint` hint with byte offset + recommended TTL.
+   * `undefined` disables the hint entirely (default).
+   */
+  cacheTarget: CacheTarget | undefined;
   setOutputFormat: (f: PaktFormat) => void;
   setModel: (m: string) => void;
   setAutoCompress: (v: boolean) => void;
@@ -23,6 +43,7 @@ interface SettingsState {
   setFontPreset: (p: FontPreset) => void;
   setSemanticBudget: (v: number) => void;
   toggleLayer: (key: keyof PaktLayers) => void;
+  setCacheTarget: (target: CacheTarget | undefined) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -40,7 +61,9 @@ export const useSettingsStore = create<SettingsState>()(
         dictionary: true,
         tokenizerAware: false,
         semantic: false,
+        contentAware: false,
       },
+      cacheTarget: undefined,
       setOutputFormat: (f) => set({ outputFormat: f }),
       setModel: (m) => set({ model: m }),
       setAutoCompress: (v) => set({ autoCompress: v }),
@@ -56,7 +79,21 @@ export const useSettingsStore = create<SettingsState>()(
             [key]: !state.layers[key],
           },
         })),
+      setCacheTarget: (target) =>
+        set({ cacheTarget: target === undefined || isCacheTarget(target) ? target : undefined }),
     }),
-    { name: 'clipforge-settings' },
+    {
+      name: 'clipforge-settings',
+      /* Coerce a tampered or stale `cacheTarget` from localStorage to
+         `undefined` on rehydrate — a bogus string would otherwise flow
+         into `compress({ target })` and produce undefined TTL math. */
+      merge: (persisted, current) => {
+        const p = persisted as Partial<SettingsState> | undefined;
+        if (p && p.cacheTarget !== undefined && !isCacheTarget(p.cacheTarget)) {
+          return { ...current, ...p, cacheTarget: undefined };
+        }
+        return { ...current, ...(p ?? {}) };
+      },
+    },
   ),
 );

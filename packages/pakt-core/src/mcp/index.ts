@@ -27,7 +27,10 @@ export { PAKT_MCP_TOOLS } from './tools.js';
 export {
   PAKT_AUTO_CONTRACT,
   PAKT_COMPRESS_CONTRACT,
+  PAKT_DASHBOARD_CONTRACT,
+  PAKT_EXPLAIN_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_SAVINGS_CONTRACT,
   PAKT_STATS_CONTRACT,
   PAKT_MCP_CONTRACTS,
 } from './contract.js';
@@ -50,10 +53,16 @@ export type {
   McpToolProperty,
   PaktAutoArgs,
   PaktAutoResult,
+  PaktDashboardArgs,
+  PaktDashboardResult,
+  PaktExplainArgs,
+  PaktExplainResult,
   PaktInspectArgs,
   PaktInspectResult,
   PaktCompressArgs,
   PaktCompressResult,
+  PaktSavingsArgs,
+  PaktSavingsResult,
   PaktStatsArgs,
   PaktStatsResult,
   PaktToolArgs,
@@ -65,3 +74,6 @@ export type { CallRecord, SessionStatsResult, FormatStats } from './session-stat
 
 export { dedupCache, resetDedupCache } from './dedup-cache.js';
 export type { DedupEntry, DedupStats } from './dedup-cache.js';
+
+export { rollingDict, resetRollingDict } from './rolling-dict.js';
+export type { RollingEntry, RollingDictStats } from './rolling-dict.js';

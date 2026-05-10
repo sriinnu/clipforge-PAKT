@@ -158,10 +158,19 @@ const MenuBarPanel: FC = () => {
     [historyEnabled, addEntry],
   );
 
+  const cacheTarget = useSettingsStore((s) => s.cacheTarget);
   const handleCompress = useCallback(
     (sourceText?: string) => {
       const result = recordHistory(
-        compactor.compress({ layers, fromFormat: undefined, targetModel: model }, sourceText),
+        compactor.compress(
+          {
+            layers,
+            fromFormat: undefined,
+            targetModel: model,
+            ...(cacheTarget ? { target: cacheTarget } : {}),
+          },
+          sourceText,
+        ),
       );
       if (result) {
         setLastAction('compress');
@@ -169,7 +178,7 @@ const MenuBarPanel: FC = () => {
       }
       return result;
     },
-    [compactor, layers, model, recordHistory],
+    [compactor, layers, model, cacheTarget, recordHistory],
   );
 
   const hasOutput = compactor.output.trim().length > 0;
