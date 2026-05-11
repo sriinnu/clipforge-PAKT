@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ClipForge PAKT mark">
+  <title>ClipForge PAKT</title>
+  <defs>
+    <linearGradient id="mkGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="55%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="mkShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect x="6" y="6" width="116" height="116" rx="26" ry="26" fill="url(#mkGrad)" filter="url(#mkShadow)"/>
+
+  <!-- Left brace -->
+  <path d="M44 30 C32 30 32 50 32 60 C32 64 26 64 24 64 C26 64 32 64 32 68 C32 78 32 98 44 98"
+        fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right brace -->
+  <path d="M84 30 C96 30 96 50 96 60 C96 64 102 64 104 64 C102 64 96 64 96 68 C96 78 96 98 84 98"
+        fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Pipes -->
+  <rect x="52" y="46" width="4.5" height="36" rx="2.25" fill="#ffffff"/>
+  <rect x="61.75" y="46" width="4.5" height="36" rx="2.25" fill="#ffffff"/>
+  <rect x="71.5" y="46" width="4.5" height="36" rx="2.25" fill="#ffffff"/>
+</svg>
