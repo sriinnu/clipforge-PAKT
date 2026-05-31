@@ -7,11 +7,10 @@
 # these at SPONSOR_BADGE_MIN_STARS stargazers, in the same PR that
 # re-inserts the README badges, so visibility flips on atomically.
 #
-# To turn sponsorship visibility back on manually, uncomment the two
-# active lines below (github + buy_me_a_coffee).
+# Sponsorship visibility is ON (github + buy_me_a_coffee).
 
-# github: [sriinnu]
-# buy_me_a_coffee: sriinnu
+github: [sriinnu]
+buy_me_a_coffee: sriinnu
 
 # Additional platforms to enable later if wanted:
 # ko_fi: sriinnu
