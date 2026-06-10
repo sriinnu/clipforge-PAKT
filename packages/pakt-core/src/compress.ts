@@ -8,9 +8,11 @@
  */
 
 import { computeCacheBreakpoint } from './cache-breakpoint.js';
+import { extractDictBlock, injectCacheDirective } from './dict-external.js';
 import {
   applyContentLayer,
   applyDictionaryLayer,
+  applyMetatokenLayer,
   applyPIIPostPass,
   applySemanticLayer,
   applyTokenizerLayer,
@@ -26,70 +28,7 @@ import { applyDeltaEncoding, compressL1, compressText } from './layers/index.js'
 import { serialize } from './serializer/index.js';
 import { countTokens } from './tokens/index.js';
 import type { PaktOptions, PaktPipelineOptions, PaktResult } from './types.js';
-
-// ---------------------------------------------------------------------------
-// UTF-8 byte counting (allocation-free)
-// ---------------------------------------------------------------------------
-
-/**
- * Count the UTF-8 byte length of a JS string without allocating a buffer,
- * short-circuiting once a `stopAt` threshold is exceeded.
- *
- * Used by the OOM guard in {@link compress}: we want to reject oversized
- * inputs (e.g. 100MB) without first allocating 100MB via `TextEncoder`.
- *
- * @param s - Input string (UTF-16 code units)
- * @param stopAt - Return early once the running byte count reaches this
- *   value. Pass `Infinity` to count the entire string.
- * @returns Number of UTF-8 bytes, capped at `stopAt`.
- */
-/**
- * UTF-8 byte size of a single BMP code unit (non-surrogate).
- * @param c - UTF-16 code unit value (must NOT be in the surrogate range D800-DFFF)
- * @returns 1, 2, or 3 bytes per the standard UTF-8 encoding rules.
- */
-function bmpByteSize(c: number): number {
-  if (c < 0x80) return 1;
-  if (c < 0x800) return 2;
-  return 3;
-}
-
-/**
- * UTF-8 byte size starting at a high-surrogate position.
- *
- * Returns `{ size, paired }` where `paired` is `true` iff the next code unit
- * is a valid low surrogate (DC00-DFFF). A valid pair encodes one supplementary
- * codepoint as 4 bytes; an unpaired high surrogate is replaced by U+FFFD (3 bytes)
- * by `TextEncoder`, matching what the runtime would do for the same input.
- *
- * @param next - The next UTF-16 code unit (0 if past end of string)
- */
-function highSurrogateByteSize(next: number): { size: number; paired: boolean } {
-  if (next >= 0xdc00 && next <= 0xdfff) return { size: 4, paired: true };
-  return { size: 3, paired: false };
-}
-
-function utf8ByteLength(s: string, stopAt: number): number {
-  let len = 0;
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    if (c < 0xd800 || c >= 0xe000) {
-      // Non-surrogate: BMP code point, simple per-range size.
-      len += bmpByteSize(c);
-    } else if (c <= 0xdbff) {
-      // High surrogate: peek at the next unit to decide pair vs unpaired.
-      const next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
-      const { size, paired } = highSurrogateByteSize(next);
-      len += size;
-      if (paired) i++; // consume the low surrogate as part of the pair
-    } else {
-      // Isolated low surrogate -> U+FFFD (3 bytes) by TextEncoder semantics.
-      len += 3;
-    }
-    if (len >= stopAt) return len;
-  }
-  return len;
-}
+import { utf8ByteLength } from './utils/utf8-length.js';
 
 // ---------------------------------------------------------------------------
 // Main compress function
@@ -188,16 +127,72 @@ export function compress(input: string, options?: Partial<PaktPipelineOptions>):
      pakt-passthrough branch and the text-compression fallback. */
   result = finalizePIIPostPass(result, options, targetModel);
 
-  /* Cache-control hint runs after PII so the offset reflects the final
-     compressed string. PII redaction only mutates body content, not the
-     `@dict ... @end` prefix, but we wait so that any future post-pass
-     that touches headers stays correctly accounted for. */
-  if (options?.target) {
-    const hint = computeCacheBreakpoint(result.compressed, options.target);
-    if (hint) result = { ...result, cacheBreakpoint: hint };
-  }
+  /* Cache pack (directive injection, dict extraction, breakpoint hint)
+     runs after PII so offsets reflect the final compressed string. */
+  result = finalizeCachePack(result, options, targetModel);
 
   return result;
+}
+
+/**
+ * Cache-synergy finalization for a finished {@link PaktResult}:
+ *
+ * 1. Inject the `@cache prefix-end` directive after the `@dict ... @end`
+ *    block when a {@link PaktOptions.target} is set or
+ *    {@link PaktOptions.cacheDirective} requests it (no-op without a
+ *    dict block). Token counts are refreshed when the string changes.
+ * 2. With `dictPlacement: 'system'`, split the dict block (directive
+ *    included) onto `result.dictBlock` and leave the body dict-free.
+ * 3. With a provider `target`, attach the `cacheBreakpoint` hint —
+ *    skipped when the dict was extracted, since the whole `dictBlock`
+ *    is then the cacheable unit.
+ *
+ * @param result - Finished compression result
+ * @param options - PAKT options bag
+ * @param targetModel - Model id used for token re-count when mutated
+ * @returns Possibly annotated result with directive / dictBlock / hint
+ */
+function finalizeCachePack(
+  result: PaktResult,
+  options: Partial<PaktOptions> | undefined,
+  targetModel: string,
+): PaktResult {
+  let next = result;
+
+  if (options?.target !== undefined || options?.cacheDirective === true) {
+    const injected = injectCacheDirective(next.compressed);
+    if (injected !== next.compressed) {
+      const compressedTokens = countTokens(injected, targetModel);
+      const savedTokens = next.originalTokens - compressedTokens;
+      const totalPercent =
+        next.originalTokens > 0 ? Math.round((savedTokens / next.originalTokens) * 100) : 0;
+      next = {
+        ...next,
+        compressed: injected,
+        compressedTokens,
+        savings: { ...next.savings, totalTokens: savedTokens, totalPercent },
+      };
+    }
+  }
+
+  let dictExtracted = false;
+  if (options?.dictPlacement === 'system') {
+    const split = extractDictBlock(next.compressed);
+    if (split) {
+      /* compressedTokens intentionally keeps counting dict + body — the
+         dict still reaches the model once, amortized via the cached
+         system prompt. See PaktResult.dictBlock docs. */
+      next = { ...next, compressed: split.body, dictBlock: split.dictBlock };
+      dictExtracted = true;
+    }
+  }
+
+  if (options?.target && !dictExtracted) {
+    const hint = computeCacheBreakpoint(next.compressed, options.target);
+    if (hint) next = { ...next, cacheBreakpoint: hint };
+  }
+
+  return next;
 }
 
 /**
@@ -316,9 +311,17 @@ function compressPipeline(
     setup.layers.tokenizerAware,
     targetModel,
   );
-  const semanticLayer = applySemanticLayer(
+  /* L3.5 — meta-token: runs on the serialized string after L2/L3, before L4.
+     Opt-in via layers.metatoken. Lossless; extends the existing @dict block. */
+  const metatokenLayer = applyMetatokenLayer(
     tokenizerLayer.doc,
     tokenizerLayer.compressed,
+    setup.layers.metatoken === true,
+    targetModel,
+  );
+  const semanticLayer = applySemanticLayer(
+    metatokenLayer.doc,
+    metatokenLayer.compressed,
     setup.layers.semantic,
     options?.semanticBudget ?? 0,
     targetModel,
@@ -354,7 +357,7 @@ function compressPipeline(
     setup.detectedFormat,
     {
       structural: setup.originalTokens - l1Tokens,
-      dictionary: dictionaryLayer.saved,
+      dictionary: dictionaryLayer.saved + metatokenLayer.saved,
       tokenizer: tokenizerLayer.saved,
       semantic: semanticLayer.saved,
       content: contentLayer.saved,

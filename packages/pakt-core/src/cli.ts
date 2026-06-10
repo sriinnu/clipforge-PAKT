@@ -92,6 +92,13 @@ Options:
   --pii-kinds <list> Restrict scan to comma-separated kinds (email,phone,ipv4,ipv6,jwt,
                      aws-access-key,aws-secret-key,credit-card,ssn)
   --pii-reversible   Emit a placeholder→value mapping when --pii-mode redact
+  --dict-placement <p>
+                     compress: dictionary placement, inline (default) | system.
+                     With system, the @dict block is removed from the body and
+                     written to --dict-out (required) for system-prompt caching
+  --dict-out <file>  compress: file to write the @dict block to (system placement)
+  --dict <file-or-string>
+                     decompress: external dictionary block produced by --dict-out
   --model <model>    Model for token counting (gpt-4o|claude-sonnet|claude-opus|claude-haiku|gpt-4o-mini)
   --agent-name <name>
                      Name this agent session (used with serve)
@@ -105,6 +112,8 @@ Examples:
   pakt compress data.json --semantic-budget 120
   cat data.json | pakt compress --from json
   pakt decompress compressed.pakt --to json
+  pakt compress data.json --dict-placement system --dict-out dict.pakt
+  pakt decompress body.pakt --dict dict.pakt --to json
   pakt detect mystery-file.txt
   pakt inspect data.json --model gpt-4o
   pakt tokens data.json --model claude-sonnet

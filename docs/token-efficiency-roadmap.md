@@ -2,27 +2,19 @@
 
 A working list of techniques surveyed from 2024-2026 research that would extend PAKT's reach beyond the current L1-L5 layer model. Each item names the paper, the slot it fits in PAKT's pipeline, the headline savings claimed by the authors, and a difficulty estimate.
 
-This document captures **what's next**, not what's shipped. For shipped layers and prior research, see [docs/research.md](./research.md) and [docs/articles/research-landscape-2024-2026.md](./articles/research-landscape-2024-2026.md).
+This document captures **what's next** (and what just shipped). For shipped layers and prior research, see [docs/research.md](./research.md) and [docs/articles/research-landscape-2024-2026.md](./articles/research-landscape-2024-2026.md). For ranked future features and polyglot port options, see [docs/research/2026-06-future-features.md](./research/2026-06-future-features.md) and [docs/research/2026-06-polyglot-port-options.md](./research/2026-06-polyglot-port-options.md).
 
 ---
 
-## Tier 1 — High-leverage, on-roadmap
+## Recently Shipped — 0.11.0 (2026-06-10)
 
-### 1. Prefix-stable @dict ordering for prompt-cache hits *(0.10, partial)*
+### ✓ Cache-synergy pack: rolling-dict in handleCompress + @cache prefix-end
 
-**The opportunity:** Anthropic prompt cache reads cost 10% of base input tokens (90% off); OpenAI gives 50% off cached prefixes. The cached prefix has to be **byte-identical** across calls. PAKT's `@dict` block lives at the top of the output and is therefore in the cacheable region — but if the alias map reshuffles between turns, the cache invalidates.
-
-**What landed in 0.10:**
-- `RollingDictionary.seed()` now emits expansions in deterministic, append-only order (sorted by `discoveredAtTurn`, tie-broken lex).
-- `compressL2()` pins seeded expansions to the same `$a, $b, ...` slots they had in prior turns; new winners append.
-- `handleAuto` wires `rollingDict.seed()` and `update()` through the structured-format path.
-
-**What's still ahead:**
-- Wire rolling-dict into `handleCompress` (currently stateless).
-- Emit a `@cache prefix-end` directive after `@dict ... @end` so MCP clients know exactly where to set provider `cache_control` breakpoints.
-- Pin the L1 `@from <fmt>` and `@compress <mode>` headers to a fixed order (already mostly stable).
-
-**Estimated lift:** 90% input-token cost reduction on multi-turn agent loops once the entire prefix is cache-stable. Effort: small.
+**What shipped:**
+- `RollingDictionary` wired into `handleCompress` (MCP `pakt_compress`) — cross-turn alias reuse is now on by default for explicit compress calls; opt out with `statelessDict: true`.
+- `@cache prefix-end` directive emitted after `@dict ... @end` when `cacheTarget` is set or `cacheDirective: true`.
+- `cache-breakpoint.ts::findCacheDirectiveOffset` returns the exact byte offset for provider `cache_control` / `cachePoint` placement.
+- Prefix byte-stability verified by `tests/cache-stability.test.ts`.
 
 **References:**
 - Anthropic [Prompt Caching docs](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
@@ -30,28 +22,32 @@ This document captures **what's next**, not what's shipped. For shipped layers a
 
 ---
 
-### 2. Meta-token compression beyond word boundaries
+### ✓ Dictionary-as-system-prompt — `dictPlacement: 'inline' | 'system'`
 
-**Paper:** *Lossless Token Sequence Compression via Meta-Tokens* — Wang et al., [arXiv:2506.00307](https://arxiv.org/abs/2506.00307) (Aug 2025). LZ77-style lossless compression of token sequences, achieving 27%/18% length reduction with the decoder reconstructing the original deterministically.
+**What shipped:**
+- `compress()` accepts `dictPlacement: 'system'`; result carries `result.dictBlock` for placement in the system prompt.
+- `decompress(body, { dict })` accepts an externally-supplied dict block (inline wins on conflict).
+- CLI: `--dict-placement system --dict-out <file>` on compress; `--dict <file>` on decompress.
+- MCP: `dictPlacement` parameter on `pakt_compress`.
 
-**PAKT slot:** L3 (tokenizer-aware). PAKT today rewrites delimiters for tokenizer alignment; the meta-token approach generalises this to learn frequent multi-token spans across word boundaries.
-
-**Implementation sketch:**
-- Build a session-level frequency table of tokenizer-output spans, not raw substrings.
-- Replace top-N spans with a sentinel character pair the decompressor can reverse.
-- Constraint: the sentinel must round-trip through the same tokenizer the model uses.
-
-**Estimated lift:** 15-30% additional savings on text-heavy content. Effort: medium (needs per-tokenizer span tables).
+**Paper:** *Lossless Prompt Compression via Dictionary-Encoding and In-Context Learning* — [arXiv:2604.13066](https://arxiv.org/abs/2604.13066).
 
 ---
 
-### 3. Dictionary-as-system-prompt for repetitive logs
+### ✓ Meta-token compression beyond word boundaries (L3.5, opt-in, experimental)
 
-**Paper:** *Lossless Prompt Compression via Dictionary-Encoding and In-Context Learning* — [arXiv:2604.13066](https://arxiv.org/abs/2604.13066). 60-80% compression on log-style data with 0.99+ exact-match round-trip, no fine-tuning required.
+**What shipped:**
+- `src/layers/L3-5-metatoken.ts` — BPE token-span aliasing reusing the `@dict` path. Off in all profiles by default.
+- Per-span safety gate: only writes rewrites that strictly decrease token count.
+- Measured on bundled test fixtures (gpt-4o / o200k_base): ~3-4% additional savings on repetitive JSON/log payloads; 0% on non-repetitive data. These are fixture-level measurements, not the 15-30% figure from arXiv 2506.00307 (different workload/encoding scheme).
 
-**PAKT slot:** A new MCP option `dictPlacement: 'inline' | 'system'`. When `'system'`, PAKT emits the body without the `@dict` block and returns the dictionary separately so the consumer can pin it to the system prompt — where prompt caching is most effective and survives across user turns.
+**Paper:** *Lossless Token Sequence Compression via Meta-Tokens* — Wang et al., [arXiv:2506.00307](https://arxiv.org/abs/2506.00307).
 
-**Estimated lift:** Compounds with #1; potentially 95%+ effective input-cost reduction for stable system contexts. Effort: small (handler-level wiring, no algorithm changes).
+---
+
+## Tier 1 — High-leverage, on-roadmap
+
+*(The three items that were here — cache-synergy pack, meta-token layer, dictionary-as-system-prompt — shipped in 0.11.0. See "Recently Shipped" above.)*
 
 ---
 

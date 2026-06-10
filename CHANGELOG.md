@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 0.11.0-dev
+
+### Added
+
+- **Cache-synergy pack.** `RollingDictionary` wired into `handleCompress` (MCP `pakt_compress`) for cross-turn alias reuse; opt out with `statelessDict: true`. `@cache prefix-end` directive now emitted after `@dict ... @end` when `cacheTarget` is set or `cacheDirective: true`; `cache-breakpoint.ts::findCacheDirectiveOffset` returns the exact byte offset. Prefix byte-stability verified by `tests/cache-stability.test.ts`.
+- **`dictPlacement: 'inline' | 'system'` option on `compress()`.** When `'system'`, the result carries `result.dictBlock` for placement in the system prompt (where provider caching is most effective). `decompress(body, { dict })` accepts an externally-supplied dict block (inline wins on conflict). CLI: `--dict-placement system` + `--dict-out <file>` on compress; `--dict <file>` on decompress. MCP: `dictPlacement` parameter.
+- **Provider cache adapters (`src/middleware/provider-adapter.ts`).** New pure, model-free exports: `buildAnthropicCacheHints` (produces `cache_control` message fragments; 4-breakpoint budget; min-prefix gating at 2 048 / 4 096 tokens; TTL break-even math) and `buildOpenAICacheHints` (produces `prompt_cache_key` from a SHA-256 of the stable prefix).
+- **Proxy tool-catalog modes.** `--tools slim` applies lossless-in-spirit one-way schema compression + description caps to upstream tools (measured savings logged). `--tools search` exposes a 3-tool facade (`search_tools` / `get_tool_schema` answered locally; `call_tool` forwards but returns a documented structured error when the schema was not pre-fetched — not yet a full transparent rewrite path).
+- **Compaction-cooperative context engine.** Provider compaction blocks (e.g. `compact-2026-01-12` format) treated as opaque/immutable: skipped across dedup, aging, summarization, and fact-extraction passes. New `providerCompactionThresholdTokens` config option; `headroomTokens` surfaced in `ContextSavings`. `engine.ts` refactored from 592 → 384 LOC into focused submodules (`opaque-blocks.ts`, `tool-aging.ts`, `fact-extraction.ts`, `history-strategies.ts`).
+- **`pakt stats --json` fully implemented.** Emits a single JSON object (`schemaVersion: 1`) to stdout in both single-file and aggregate modes. Previously the flag was accepted but silently ignored.
+- **L3.5 meta-token layer (`src/layers/L3-5-metatoken.ts` + `L3-5-metatoken-encode.ts`).** Opt-in (off in all profiles); discovers recurring BPE token spans crossing word boundaries and aliases them into the shared `@dict` block; per-span safety gate ensures token count strictly decreases before any rewrite. Decompression handled by existing `decompressL2` path. Measured on bundled fixtures (gpt-4o / o200k_base): ~3-4% additional savings on repetitive JSON/log data; 0% on non-repetitive data (safety gate fires). Experimental — actual savings are payload-dependent.
+- **Python client — `pakt-client` (`packages/pakt-python`).** Thin wrapper over the PAKT CLI and MCP stdio server. Zero runtime dependencies (stdlib only); Python ≥ 3.10; Node ≥ 22 required at runtime. Published to PyPI as `pakt-client`. 25 tests across CLI-arg, discovery, parsing, and integration suites.
+- **Comprehension eval harness (`scripts/eval/`).** Key-gated; `--mock` pipeline fully verified. Estimated full cost: ~$1.40/model at Fable 5 pricing (~$0.14 at Haiku 4.5). No live model runs have been executed — no model accuracy numbers exist. Measured token savings on eval fixtures: tabular users 29%, logs 53%, nested config −25% (PAKT expands small deeply-nested configs under the standard profile; `pakt_inspect` exists for exactly this).
+- **New brand assets.** Chevron-pipe icon mark (`assets/pakt-icon.svg`), rewritten vector wordmark (`assets/pakt-logo.svg`, no font deps), full Tauri icon set, extension PNGs, playground favicon.
+- **Research docs.** `docs/research/2026-06-future-features.md` (ranked feature research) and `docs/research/2026-06-polyglot-port-options.md` (port evaluation; recommendation: protocol surfaces now, Rust core + bindings when demand proves).
+
+### Changed
+
+- **Desktop repositioned as Agent Telemetry HQ.** Default tab is now a telemetry dashboard reading `~/.pakt/stats` JSONL files (today / 7-day savings, per-agent source table, latency percentiles, lossy share, sparklines). Clipboard compress is the second tab.
+- **Desktop history is now real SQLite.** `tauri-plugin-sql` frontend API replaces old Rust stubs; legacy `localStorage` history migrated automatically on first open. macOS is the validated compile-and-run path; Windows and Linux are source targets.
+- **Extension store prep complete.** `apps/extension/store/` contains listing copy, privacy policy, screenshots checklist, smoke-test script, and submission checklist. Extension remains unpublished and not yet smoke-tested on live sites.
+- **Extension site-allowlist editor added.** Settings popup and Options page include a `siteWhitelist` editor for controlling which domains trigger auto-compress-on-paste.
+
+### Stats
+
+- `pakt-core` test suite grows with new tests for cache-stability, provider-adapter, dict-placement, meta-token layer, and proxy tool modes.
+
 ## [0.10.0] - 2026-05-08
 
 ### Added

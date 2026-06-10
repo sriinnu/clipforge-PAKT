@@ -1,16 +1,23 @@
 /**
- * Top toolbar of the menu-bar panel: brand mark, watch / history pills,
- * and the two icon buttons that open the History and Settings overlays.
+ * Top toolbar of the menu-bar panel: brand mark, the Telemetry/Compress
+ * tab switcher, watch / history pills, and the two icon buttons that
+ * open the History and Settings overlays.
  *
  * Pure presentation — parent owns the panel state and click handlers.
  */
 
+import type { KeyboardEvent } from 'react';
 import clipforgeMark from '../../../../assets/clipforge-mark.svg';
+import { MAIN_TABS, type MainTab } from './menu-bar-constants';
 
 /** Props for {@link MenuBarToolbar}. */
 export interface MenuBarToolbarProps {
   autoCompress: boolean;
   historyEnabled: boolean;
+  /** Active primary tab (telemetry HQ or compress workspace). */
+  activeTab: MainTab;
+  /** Switch the primary tab. */
+  onTabChange: (tab: MainTab) => void;
   onOpenHistory: () => void;
   onOpenSettings: () => void;
 }
@@ -18,14 +25,27 @@ export interface MenuBarToolbarProps {
 /**
  * Render the toolbar strip at the top of the panel. The two SVG icon
  * buttons (history clock + settings gear) are inlined here because they
- * are unique to this surface.
+ * are unique to this surface. The tab switcher is a proper tablist with
+ * Left/Right arrow-key support for keyboard users.
  */
 export function MenuBarToolbar({
   autoCompress,
   historyEnabled,
+  activeTab,
+  onTabChange,
   onOpenHistory,
   onOpenSettings,
 }: MenuBarToolbarProps) {
+  // Arrow-key navigation between tabs (roving focus follows selection).
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const index = MAIN_TABS.findIndex((tab) => tab.id === activeTab);
+    const delta = event.key === 'ArrowRight' ? 1 : -1;
+    const next = MAIN_TABS[(index + delta + MAIN_TABS.length) % MAIN_TABS.length];
+    if (next) onTabChange(next.id);
+  };
+
   return (
     <div className="desktop-toolbar">
       <div className="desktop-toolbar-left">
@@ -35,8 +55,30 @@ export function MenuBarToolbar({
           </div>
           <div className="desktop-brand-copy">
             <h1 className="desktop-brand-title">ClipForge</h1>
-            <p className="desktop-brand-subtitle">Structured clipboard packer</p>
+            <p className="desktop-brand-subtitle">Agent telemetry &amp; clipboard packer</p>
           </div>
+        </div>
+        <div
+          className="desktop-segmented"
+          role="tablist"
+          aria-label="Panel view"
+          onKeyDown={handleTabKeyDown}
+        >
+          {MAIN_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
+              className={`desktop-segment ${activeTab === tab.id ? 'is-active' : ''}`}
+              onClick={() => onTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
       <div className="desktop-toolbar-actions">

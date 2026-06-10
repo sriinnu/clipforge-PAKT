@@ -263,6 +263,23 @@ export type {
 } from './middleware/index.js';
 
 // ---------------------------------------------------------------------------
+// Proxy tool-catalog optimization (slim mode + search facade)
+// ---------------------------------------------------------------------------
+
+export { slimTool, slimTools, applySlimMode, truncateAtSentence, ToolCatalog, FACADE_TOOL_DEFINITIONS, handleFacadeRequest } from './proxy/index.js';
+export type { FacadeHandleResult } from './proxy/index.js';
+export type {
+  ProviderTool,
+  ToolInputSchema,
+  ToolSchemaProperty,
+  SlimToolOptions,
+  ToolSlimSavings,
+  CatalogEntry,
+  CatalogSearchResult,
+  FacadeToolName,
+} from './proxy/index.js';
+
+// ---------------------------------------------------------------------------
 // Context engine
 // ---------------------------------------------------------------------------
 
@@ -277,6 +294,20 @@ export type {
   ContextSavings,
   OptimizedContext,
 } from './context-engine/index.js';
+
+// ---------------------------------------------------------------------------
+// Prompt-cache synergy (cache directive + external dictionaries)
+// ---------------------------------------------------------------------------
+
+export { computeCacheBreakpoint, findCacheDirectiveOffset } from './cache-breakpoint.js';
+export {
+  CACHE_DIRECTIVE,
+  extractDictBlock,
+  injectCacheDirective,
+  mergeExternalDict,
+  stripCacheDirectives,
+} from './dict-external.js';
+export type { DictBlockSplit } from './dict-external.js';
 
 // ---------------------------------------------------------------------------
 // Compressibility scoring
@@ -304,6 +335,8 @@ export type {
   PaktSavings,
   CacheTarget,
   CacheBreakpoint,
+  DictPlacement,
+  DecompressOptions,
   DecompressResult,
   DetectionResult,
   DictEntry,
@@ -326,3 +359,20 @@ export type {
 
 /** Re-export constants from the dedicated constants module. */
 export { DEFAULT_OPTIONS, DEFAULT_LAYERS, MODEL_PRICING } from './constants.js';
+
+// ---------------------------------------------------------------------------
+// Provider cache adapters
+// ---------------------------------------------------------------------------
+
+export {
+  buildAnthropicCacheHints,
+  buildOpenAICacheHints,
+} from './middleware/provider-adapter.js';
+export type {
+  AnthropicCacheControl,
+  AnthropicContentBlock,
+  AnthropicCacheHints,
+  AnthropicCacheHintsOptions,
+  OpenAICacheHints,
+  OpenAICacheHintsOptions,
+} from './middleware/provider-adapter.js';

@@ -55,6 +55,13 @@ export interface PaktLayers {
   semantic: boolean;
   /** L5 -- content-aware compression: abbreviations, URL compression, etc. (opt-in) */
   contentAware: boolean;
+  /**
+   * L3.5 -- meta-token compression: aliases for recurring BPE token spans that
+   * cross word boundaries (the gap L2 substring mining misses). OFF by default.
+   * Requires L2 (dictionary) to be active. Lossless; uses the same @dict alias
+   * mechanism as L2 so decompression needs zero additional logic.
+   */
+  metatoken?: boolean;
 }
 
 /**
@@ -162,30 +169,37 @@ export interface PaktOptions {
    * default dropped to 5 minutes (Mar 2026), so the prefix-stable
    * `@dict` work matters more on Bedrock today. Leave unset to skip the
    * hint entirely.
+   *
+   * Setting a target also injects a `@cache prefix-end` directive after
+   * the `@dict ... @end` block (when a dictionary was emitted) so the
+   * boundary is visible in the output itself. The directive is a no-op
+   * header — `decompress()` strips it before parsing.
    */
   target?: CacheTarget;
-}
-
-/** LLM provider targets for cache_control breakpoint hints. */
-export type CacheTarget = 'anthropic' | 'bedrock' | 'openai' | 'google';
-
-/**
- * Cache-control hint computed during compression. Indicates where the
- * cacheable prefix ends in `compressed` and what TTL the chosen target
- * supports. Consumers pass this to their provider SDK.
- */
-export interface CacheBreakpoint {
-  /** Byte offset in `compressed` where the cacheable prefix ends. */
-  byteOffset: number;
   /**
-   * Recommended cache TTL in seconds. `3600` for Bedrock, `300` for
-   * Anthropic direct, `0` for providers that auto-manage caching
-   * (OpenAI, Google).
+   * Emit the `@cache prefix-end` directive after the `@dict ... @end`
+   * block without choosing a provider {@link target} (no
+   * `cacheBreakpoint` hint is computed). Useful when the consumer wants
+   * the boundary marked in-band but resolves TTLs itself. No-op when no
+   * dictionary block was emitted. @default false
    */
-  recommendedTTLSeconds: number;
-  /** Target provider this hint was computed for. */
-  target: CacheTarget;
+  cacheDirective?: boolean;
+  /**
+   * Where the L2 dictionary lives in the output. `'inline'` (default)
+   * keeps the `@dict` block at the top of `compressed`; `'system'`
+   * removes it from the body and returns it on
+   * {@link PaktResult.dictBlock} so it can be pinned into a cached
+   * system prompt. See {@link DictPlacement}.
+   */
+  dictPlacement?: DictPlacement;
 }
+
+// ---------------------------------------------------------------------------
+// Cache types — see `./types-cache.ts`
+// ---------------------------------------------------------------------------
+
+export type { CacheBreakpoint, CacheTarget, DictPlacement } from './types-cache.js';
+import type { CacheBreakpoint, CacheTarget, DictPlacement } from './types-cache.js';
 
 /**
  * Extended options including internal pipeline plumbing.
@@ -243,9 +257,22 @@ export interface PaktResult {
    * Cache-control hint when {@link PaktOptions.target} is set. Identifies
    * the byte offset in `compressed` where the cacheable prefix ends so
    * consumers can place the provider's `cache_control` breakpoint there.
-   * Absent when no `target` was specified.
+   * Absent when no `target` was specified, and also absent when
+   * `dictPlacement: 'system'` extracted the dictionary — in that case the
+   * entire {@link dictBlock} is the cacheable unit.
    */
   cacheBreakpoint?: CacheBreakpoint;
+  /**
+   * The standalone dictionary block (`@dict ... @end`, plus the
+   * `@cache prefix-end` directive when one was emitted), present only
+   * when {@link PaktOptions.dictPlacement} is `'system'` AND a dictionary
+   * was actually emitted. `compressed` then omits the inline `@dict`
+   * section and references aliases only. Token accounting note:
+   * `compressedTokens` still counts dict + body together, since the dict
+   * must reach the model once (amortized via the system-prompt cache).
+   * Round-trip with `decompress(compressed, { dict: dictBlock })`.
+   */
+  dictBlock?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,76 +329,16 @@ export interface DictEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Decompression result
+// Decompression — see `./types-decompress.ts`
 // ---------------------------------------------------------------------------
 
-/**
- * Result from decompress(). Contains decompressed data in both
- * structured and string form.
- * @example
- * ```ts
- * const result: DecompressResult = decompress(paktStr, 'json');
- * console.log(result.text);     // formatted JSON
- * console.log(result.data);     // parsed JS object
- * console.log(result.wasLossy); // false
- * ```
- */
-export interface DecompressResult {
-  /** Parsed structured data */
-  data: unknown;
-  /** Formatted output string in the requested format */
-  text: string;
-  /** Original format from @from header */
-  originalFormat: PaktFormat;
-  /** Whether lossy compression (L4) was applied */
-  wasLossy: boolean;
-  /** Recovered envelope preamble lines (e.g. HTTP headers), if present */
-  envelope?: string[];
-}
+export type { DecompressOptions, DecompressResult } from './types-decompress.js';
 
 // ---------------------------------------------------------------------------
-// Format detection
+// Format detection — see `./types-detect.ts`
 // ---------------------------------------------------------------------------
 
-/**
- * Result from detect(). Identifies the format of input text.
- * @example
- * ```ts
- * const r: DetectionResult = detect('{"key": "value"}');
- * // { format: 'json', confidence: 0.99, reason: 'Valid JSON parse' }
- * ```
- */
-/**
- * Information about a detected envelope wrapping the body content.
- * For example, an HTTP response with headers wrapping a JSON body.
- * @example
- * ```ts
- * const env: EnvelopeInfo = {
- *   type: 'http',
- *   preamble: ['HTTP/1.1 200 OK', 'Content-Type: application/json'],
- *   bodyOffset: 52,
- * };
- * ```
- */
-export interface EnvelopeInfo {
-  /** Type of envelope detected */
-  type: 'http';
-  /** The preamble lines (status line, headers) before the body */
-  preamble: string[];
-  /** Character offset where the body starts in the original input */
-  bodyOffset: number;
-}
-
-export interface DetectionResult {
-  /** Detected format */
-  format: PaktFormat;
-  /** Confidence score (0 = none, 1 = certain) */
-  confidence: number;
-  /** Human-readable reasoning */
-  reason: string;
-  /** If present, the input has an envelope (e.g. HTTP headers) wrapping the body */
-  envelope?: EnvelopeInfo;
-}
+export type { DetectionResult, EnvelopeInfo } from './types-detect.js';
 
 // ---------------------------------------------------------------------------
 // Savings report — see `./types-savings.ts`

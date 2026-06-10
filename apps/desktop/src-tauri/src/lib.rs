@@ -6,11 +6,15 @@
 //! - **tray** — system tray icon and context menu
 //! - **clipboard** — read, write, and watch the system clipboard
 //! - **hotkeys** — global keyboard shortcuts
-//! - **history** — SQLite-backed clipboard transformation history
+//! - **history** — SQLite schema migrations for the clipboard history
+//!   database (data access happens in the frontend via the SQL plugin)
+//! - **stats** — read-only access to PAKT's `~/.pakt/stats/` telemetry
+//!   files (JSONL parsing happens in the frontend)
 
 mod clipboard;
 mod history;
 mod hotkeys;
+mod stats;
 mod tray;
 
 use tauri::{
@@ -124,11 +128,7 @@ pub fn run() {
             clipboard::write_clipboard,
             clipboard::start_clipboard_watch,
             clipboard::stop_clipboard_watch,
-            history::add_history_entry,
-            history::get_history,
-            history::search_history,
-            history::clear_history,
-            history::delete_history_entry,
+            stats::read_pakt_stats,
         ])
         // --- App Setup ---
         .setup(|app| {

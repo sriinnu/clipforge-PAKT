@@ -20,7 +20,7 @@
 
 ---
 
-PAKT (Pipe-Aligned Kompact Text) converts JSON, YAML, CSV, and markdown documents with embedded structured blocks into a compact pipe-delimited format that reduces LLM token counts by **30-50%** on structured payloads while preserving data fidelity across its core `L1-L3` layers. An optional budgeted `L4` layer trades fidelity for additional savings only when explicitly requested.
+PAKT (Pipe-Aligned Kompact Text) converts JSON, YAML, CSV, and markdown documents with embedded structured blocks into a compact pipe-delimited format that reduces LLM token counts on structured payloads while preserving data fidelity across its core `L1-L3` layers. Savings are content-dependent: 27-33% on JSON records, 57% on duplicate log lines, 38-69% on repetitive text; small deeply-nested objects can expand (use `pakt inspect` first). An optional budgeted `L4` layer trades fidelity for additional savings only when explicitly requested.
 
 ```
 JSON (28 tokens)                    PAKT (15 tokens)
@@ -169,6 +169,67 @@ console.log(result.reversible); // false
 console.log(result.compressed); // includes @compress semantic + @warning lossy
 ```
 
+### Dictionary placement (0.11)
+
+```typescript
+import { compress, decompress } from '@sriinnu/pakt';
+
+// Separate the @dict block for system-prompt placement
+const result = compress(payload, { dictPlacement: 'system' });
+console.log(result.compressed);   // body only, no @dict block
+console.log(result.dictBlock);    // '@dict\n  $a: ...\n@end\n' — pin to system prompt
+
+// Decompress with an externally-supplied dict (inline dict wins on conflict)
+const restored = decompress(result.compressed, 'json', { dict: result.dictBlock });
+console.log(restored.text);
+```
+
+CLI: `pakt compress data.json --dict-placement system --dict-out dict.pakt`; `pakt decompress body.pakt --dict dict.pakt`
+
+MCP: pass `dictPlacement: 'system'` on the `pakt_compress` tool.
+
+---
+
+### Provider cache adapters (0.11)
+
+Pure, model-free helpers for wiring PAKT output into provider SDK message shapes:
+
+```typescript
+import { buildAnthropicCacheHints, buildOpenAICacheHints } from '@sriinnu/pakt';
+
+// Anthropic — produces cache_control fragments (4-breakpoint budget)
+const hints = buildAnthropicCacheHints(compressResult, { minPrefixTokens: 2048 });
+// hints.messages — array of { role, content: [{ type, text, cache_control }] }
+
+// OpenAI — produces prompt_cache_key from stable-prefix SHA-256
+const oaiHints = buildOpenAICacheHints(compressResult);
+// oaiHints.promptCacheKey — string to pass as extra_body.prompt_cache_key
+```
+
+---
+
+### Proxy tool-catalog modes (0.11)
+
+```bash
+pakt serve --stdio --tools slim     # slim upstream tool schemas before the LLM sees them
+pakt serve --stdio --tools search   # expose search_tools / get_tool_schema / call_tool facade
+```
+
+`--tools slim` applies lossless-in-spirit description caps and schema simplification; measured byte savings are logged. `--tools search` is a 3-tool facade where `search_tools` and `get_tool_schema` are answered locally; `call_tool` forwards but returns a documented structured error if the target schema was not pre-fetched — it is not yet a full transparent rewrite path.
+
+---
+
+### `pakt stats --json` (0.11)
+
+```bash
+pakt stats --json                   # aggregate stats as JSON (schemaVersion: 1)
+pakt stats data.json --json         # single-file stats as JSON
+```
+
+Emits a single JSON object to stdout with no ANSI or decorative text. Shape is stable; `schemaVersion` will increment only on breaking changes.
+
+---
+
 ### Prompt cache integration (0.10)
 
 When the LLM provider supports prefix caching (Anthropic `cache_control`, AWS Bedrock `cachePoint` 1h TTL, OpenAI auto-prefix-cache, Google context caching), pass a `target` and PAKT will tell you exactly where the cacheable prefix ends:
@@ -273,24 +334,34 @@ registerPaktTools(server);
 ```bash
 npm install -g @sriinnu/pakt
 
-pakt compress data.json                       # compress to PAKT
-pakt compress data.json --semantic-budget 120  # opt into lossy L4
-pakt decompress data.pakt --to json           # decompress
-cat data.json | pakt auto                     # auto-detect + compress or decompress
-pakt inspect data.json --model gpt-4o         # inspect before packing
-pakt savings data.json --model gpt-4o         # token savings report
-pakt stats                                    # aggregate session stats
-pakt stats --today                            # filter to today
-pakt serve --stdio                            # start MCP server
+pakt compress data.json                                         # compress to PAKT
+pakt compress data.json --semantic-budget 120                   # opt into lossy L4
+pakt compress data.json --dict-placement system --dict-out dict.pakt  # separate dict block
+pakt decompress data.pakt --to json                             # decompress
+pakt decompress body.pakt --dict dict.pakt --to json            # decompress with external dict
+cat data.json | pakt auto                                       # auto-detect + compress or decompress
+pakt inspect data.json --model gpt-4o                           # inspect before packing
+pakt savings data.json --model gpt-4o                           # token savings report
+pakt stats                                                      # aggregate session stats
+pakt stats --json                                               # stats as JSON (schemaVersion: 1)
+pakt stats --today                                              # filter to today
+pakt serve --stdio                                              # start MCP server
+pakt serve --stdio --tools slim                                 # slim upstream tool schemas
+pakt serve --stdio --tools search                               # 3-tool catalog facade
 ```
 
 ---
 
 ## Key Features
 
-- **5-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), opt-in budgeted Semantic (L4), Content-aware abbreviations (L5)
+- **5-layer compression pipeline** -- Structural (L1), Dictionary (L2), Tokenizer-Aware (L3), opt-in budgeted Semantic (L4), Content-aware abbreviations (L5); plus experimental opt-in L3.5 meta-token layer
 - **Delta encoding** -- Adjacent rows sharing values replaced with `~` sentinels, plus `+N` / `-N` numeric deltas for monotonic columns (ids, timestamps, counters), saving 20-40% on repetitive tabular data
-- **Prefix-stable `@dict` for prompt caching (0.10)** -- `RollingDictionary` pins seeded expansions to fixed alias slots across turns so the cacheable prefix stays byte-identical. New `target` option returns a `cacheBreakpoint` hint (byte offset + recommended TTL) for Anthropic, AWS Bedrock (1h TTL), OpenAI, and Google
+- **Prefix-stable `@dict` for prompt caching (0.10/0.11)** -- `RollingDictionary` pins seeded expansions to fixed alias slots across turns so the cacheable prefix stays byte-identical. `target` option returns a `cacheBreakpoint` hint (byte offset + recommended TTL) for Anthropic, AWS Bedrock (1h TTL), OpenAI, and Google. `@cache prefix-end` directive emitted for precise marker placement (0.11)
+- **Dictionary placement (0.11)** -- `dictPlacement: 'system'` separates the `@dict` block onto `result.dictBlock` for system-prompt pinning; `decompress(body, { dict })` accepts an externally-supplied dict
+- **Provider cache adapters (0.11)** -- `buildAnthropicCacheHints` and `buildOpenAICacheHints` produce the correct SDK fragment shapes for Anthropic `cache_control` (4-breakpoint budget, min-prefix gating) and OpenAI `prompt_cache_key` (stable-prefix SHA-256). Pure functions, no SDK coupling
+- **Proxy tool-catalog modes (0.11)** -- `--tools slim` compresses upstream tool schemas before the LLM sees them; `--tools search` exposes a 3-tool facade for catalog-first workflows
+- **`pakt stats --json` (0.11)** -- `--json` flag fully implemented; emits `schemaVersion: 1` JSON to stdout in both single-file and aggregate modes
+- **Compaction-safe context engine (0.11)** -- Provider compaction blocks treated as opaque/immutable across all context-engine passes; `providerCompactionThresholdTokens` config; engine refactored to focused submodules
 - **Context engine (0.10)** -- `createContextEngine()` unifies tool-result compression, dedup, fact extraction, and back-to-front tool-result aging that snaps to user-message boundaries
 - **Tokenizer-family aware** -- `getTokenizerFamily(model)` / `countTokens(text, model)` align the L3 merge-savings gate and downstream token counts with the target model (`o200k_base`, `cl100k_base`, fallback documented for Claude / Llama)
 - **10 MB input cap** -- `compress()` throws a typed error for oversize inputs with an allocation-free byte counter so the check does not materialise the input

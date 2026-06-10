@@ -1,5 +1,4 @@
 import {
-  type CacheTarget,
   DEFAULT_SEMANTIC_BUDGET,
   PAKT_LAYER_PROFILES,
   type PaktLayerProfileId,
@@ -13,6 +12,7 @@ import {
   getSettings,
   saveSettings,
 } from '../shared/storage';
+import { SiteAllowlist } from './SiteAllowlist';
 import { FONT_PRESETS, type FontPreset } from './fonts';
 
 function Toggle({
@@ -173,27 +173,13 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
 
       <div style={sectionStyle}>
         <span style={sectionTitleStyle}>Site allowlist</span>
-        <label style={selectLabelStyle}>
-          <span style={settingLabelStyle}>
-            One hostname per line. Leave empty to act on every site the manifest matches.
-          </span>
-          <textarea
-            value={settings.siteWhitelist.join('\n')}
-            onChange={(event) =>
-              update({
-                siteWhitelist: event.target.value
-                  .split('\n')
-                  .map((line) => line.trim())
-                  .filter((line) => line.length > 0),
-              })
-            }
-            placeholder={'chatgpt.com\nclaude.ai\nmail.google.com'}
-            rows={4}
-            style={{ ...selectStyle, fontFamily: 'var(--cf-font-mono)' }}
-          />
-        </label>
+        <SiteAllowlist
+          hosts={settings.siteWhitelist}
+          onChange={(hosts) => update({ siteWhitelist: hosts })}
+        />
         <span style={settingDescStyle}>
-          Paste interception and the floating compress button only run on sites in this list.
+          Paste interception and the floating compress button only run on sites in this list. Leave
+          it empty to act on every supported site.
         </span>
       </div>
 
