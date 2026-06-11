@@ -117,25 +117,58 @@ export function openAiProvider({ model, apiKey, baseUrl = 'https://api.openai.co
 /**
  * Task ids the mock provider answers WRONG on purpose, proving the scorer can
  * fail a mismatch (mock runs should report exactly these as incorrect).
+ *
+ * Deliberately wrong ids per suite:
+ *   stress suite:        users-03      (one JSON + one PAKT wrong → bothWrong)
+ *   comprehension suite: su-05 (json), sc-09 (pakt)
+ *     → su-05 wrong on both formats  → bothWrong (excluded from effect)
+ *     → sc-09 wrong on PAKT only     → jsonOnly (+1 to jsonOnly, effect = -1)
+ * These deliberate failures prove:
+ *   1. The scorer actually fails mismatches.
+ *   2. The matched-pair table correctly classifies bothWrong vs jsonOnly/paktOnly.
  */
-export const MOCK_WRONG_IDS = new Set(['users-03']);
+export const MOCK_WRONG_IDS = new Set(['users-03', 'su-05']);
+
+/**
+ * Task ids the mock provider answers wrong ONLY for the PAKT format.
+ * Used to inject a jsonOnly cell (JSON right, PAKT wrong) into the matched-pair
+ * table so the sc-09 cell is exercised in comprehension mock runs.
+ */
+export const MOCK_PAKT_WRONG_IDS = new Set(['sc-09']);
 
 /**
  * Mock echo provider: returns the ground-truth answer with cosmetic noise
  * (casing, trailing period, quoting) to exercise normalization — except for
- * MOCK_WRONG_IDS, where it returns a deliberately wrong answer. Network-free;
- * proves pipeline mechanics and scoring without spending tokens.
+ * MOCK_WRONG_IDS (wrong on ALL formats) and MOCK_PAKT_WRONG_IDS (wrong only on
+ * pakt format). Network-free; proves pipeline mechanics and scoring without
+ * spending tokens.
+ *
+ * Comprehension suite mock expectations (36 tasks × 2 formats = 72 records):
+ *   su-05: wrong on BOTH formats  → bothWrong cell (excluded from format effect)
+ *   sc-09: wrong on PAKT only     → jsonOnly cell (format effect = -1)
+ *   all others (34 tasks): both correct → bothRight
+ *   Overall: 69/72 correct on comprehension suite mock run.
+ *   Matched-pair: bothRight=34, bothWrong=1, jsonOnly=1, paktOnly=0, Δ=-1.
+ *
  * @returns {{name: string, model: string, ask: (prompt: string, ctx: {task: import('./tasks.mjs').EvalTask, index: number}) => Promise<{text: string, usage: {input: number, output: number}}>}}
  */
 export function mockProvider() {
   return {
     name: 'mock',
     model: 'mock-echo',
+    /**
+     * @param {string} _prompt
+     * @param {{task: import('./tasks.mjs').EvalTask, index: number, format: "json"|"pakt"}} ctx
+     */
     async ask(_prompt, ctx) {
-      const { task, index } = ctx;
+      const { task, index, format } = ctx;
       let text;
       if (MOCK_WRONG_IDS.has(task.id)) {
+        // Wrong on ALL formats.
         text = 'deliberately-wrong-answer';
+      } else if (MOCK_PAKT_WRONG_IDS.has(task.id) && format === 'pakt') {
+        // Wrong on PAKT only → exercises the jsonOnly cell in matched-pair table.
+        text = 'deliberately-wrong-pakt-answer';
       } else {
         const base = String(task.expected);
         const variant = index % 3;

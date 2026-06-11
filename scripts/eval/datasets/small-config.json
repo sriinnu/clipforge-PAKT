@@ -1,0 +1,39 @@
+{
+  "environment": "production",
+  "services": {
+    "gateway": {
+      "port": 9000,
+      "timeout_ms": 8000,
+      "retries": 3,
+      "tls": true
+    },
+    "inventory": {
+      "port": 9001,
+      "timeout_ms": 1500,
+      "retries": 0,
+      "tls": false
+    },
+    "mailer": {
+      "port": 9002,
+      "timeout_ms": 12000,
+      "retries": 5,
+      "tls": true
+    },
+    "cron-runner": {
+      "port": 9003,
+      "timeout_ms": 60000,
+      "retries": 1,
+      "tls": false
+    }
+  },
+  "feature_flags": {
+    "dark_mode": true,
+    "beta_checkout": false,
+    "new_search": true
+  },
+  "limits": {
+    "max_upload_mb": 25,
+    "session_ttl_minutes": 90,
+    "rate_limit_rps": 400
+  }
+}

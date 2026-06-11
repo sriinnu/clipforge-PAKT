@@ -1,0 +1,66 @@
+[
+  {
+    "id": "evt-001",
+    "ts": "2026-06-10T07:12:04Z",
+    "level": "INFO",
+    "service": "gateway",
+    "message": "server started",
+    "latency_ms": 0
+  },
+  {
+    "id": "evt-002",
+    "ts": "2026-06-10T08:03:17Z",
+    "level": "INFO",
+    "service": "inventory",
+    "message": "stock sync complete",
+    "latency_ms": 243
+  },
+  {
+    "id": "evt-003",
+    "ts": "2026-06-10T08:55:42Z",
+    "level": "WARN",
+    "service": "mailer",
+    "message": "smtp pool exhausted",
+    "latency_ms": 1820
+  },
+  {
+    "id": "evt-004",
+    "ts": "2026-06-10T09:31:08Z",
+    "level": "ERROR",
+    "service": "inventory",
+    "message": "database write timeout",
+    "latency_ms": 5001
+  },
+  {
+    "id": "evt-005",
+    "ts": "2026-06-10T10:14:55Z",
+    "level": "INFO",
+    "service": "cron-runner",
+    "message": "daily report dispatched",
+    "latency_ms": 374
+  },
+  {
+    "id": "evt-006",
+    "ts": "2026-06-10T11:47:29Z",
+    "level": "ERROR",
+    "service": "gateway",
+    "message": "upstream tls handshake failed",
+    "latency_ms": 3200
+  },
+  {
+    "id": "evt-007",
+    "ts": "2026-06-10T13:22:11Z",
+    "level": "WARN",
+    "service": "cron-runner",
+    "message": "job exceeded time limit",
+    "latency_ms": 890
+  },
+  {
+    "id": "evt-008",
+    "ts": "2026-06-10T15:09:37Z",
+    "level": "INFO",
+    "service": "mailer",
+    "message": "digest batch sent",
+    "latency_ms": 156
+  }
+]

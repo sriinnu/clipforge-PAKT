@@ -3,7 +3,8 @@
 Answers the adoption-critical question for PAKT: **do LLMs read PAKT-compressed
 payloads as accurately as the original JSON?** The harness runs the same
 questions against the same data rendered two ways — minified JSON vs PAKT
-(`compress()`, standard profile) — and compares accuracy and token counts.
+(`compress()`, standard profile) — and compares accuracy using a **matched-pair
+design** that isolates format-reading ability from retrieval/arithmetic noise.
 
 It either produces real, reviewable evidence or nothing at all. It never
 fabricates results.
@@ -12,6 +13,45 @@ fabricates results.
 > is executed and reviewed.** Anything in `results/` produced with `--mock` is
 > pipeline verification, not model evidence — `latest.md` labels mock runs
 > explicitly.
+
+## Suites
+
+### Comprehension suite (default)
+
+Small payloads (6–8 rows fully visible in-context), retrieval-light questions
+keyed by UNIQUE attributes. This is the **clean format-effect signal**.
+
+| Dataset | Rows | Task count | Question types |
+|---|---|---|---|
+| `small-users.json` | 7 | 12 | extraction, relational, boolean, count |
+| `small-config.json` | ~30 lines | 12 | extraction, relational, boolean, count |
+| `small-events.json` | 8 | 12 | extraction, relational, boolean, count |
+
+36 tasks × 2 formats = 72 requests per model per run.
+
+**Why this is the right measurement:** every question is answerable by careful
+reading of a small, fully-visible payload. Format is the only variable. Failures
+isolate format-reading ability, not LLM retrieval capacity.
+
+**Matched-pair methodology:** see below.
+
+### Stress suite
+
+Original 50/80-row datasets with cross-row reasoning and aggregation tasks.
+Kept for regression coverage and because it answers a different question:
+"can the model navigate a large PAKT payload?" — not the same as format legibility.
+
+| Dataset | Rows | Task count | Question types |
+|---|---|---|---|
+| `tabular-users.json` | 50 | 11 | extraction, reasoning, aggregation |
+| `nested-config.json` | ~160 lines | 11 | extraction, reasoning, aggregation |
+| `logs.json` | 80 | 11 | extraction, reasoning, aggregation |
+
+33 tasks × 2 formats = 66 requests per model per run.
+
+**Caveat:** format-confounded by retrieval difficulty. A 50-row count question
+is hard regardless of format. Accuracy differences here reflect LLM limitations,
+not PAKT legibility. Use the comprehension suite for the format-effect signal.
 
 ## How to run
 
@@ -22,155 +62,154 @@ fabricates results.
 node scripts/eval/run.mjs
 
 # 2. Mock run — network-free echo model, proves pipeline + scoring end-to-end:
-node scripts/eval/run.mjs --mock
+node scripts/eval/run.mjs --mock                           # comprehension suite (default)
+node scripts/eval/run.mjs --mock --suite stress            # stress suite only
+node scripts/eval/run.mjs --mock --suite all               # both suites
 
 # 3. Live run — Anthropic API (default model claude-fable-5):
 ANTHROPIC_API_KEY=sk-ant-... node scripts/eval/run.mjs
 ANTHROPIC_API_KEY=sk-ant-... node scripts/eval/run.mjs --model claude-haiku-4-5
 
-# 4. Live run — any OpenAI-compatible endpoint (runs alongside Anthropic if both keys set):
+# 4. Live run — any OpenAI-compatible endpoint:
 OPENAI_API_KEY=... node scripts/eval/run.mjs --openai-model gpt-4o-mini
-OPENAI_API_KEY=... OPENAI_BASE_URL=https://my-gateway/v1 node scripts/eval/run.mjs --openai-model my-model
 
 # 5. CLI mode — no API key needed, uses your Claude Code / Codex subscription:
 node scripts/eval/run.mjs --provider cli --cli claude
-node scripts/eval/run.mjs --provider cli --cli claude --model claude-sonnet-4-5
-node scripts/eval/run.mjs --provider cli --cli claude --dataset users --max-tasks 1  # single-task smoke
-node scripts/eval/run.mjs --provider cli --cli codex   # see codex note below
+node scripts/eval/run.mjs --provider cli --cli claude --suite comprehension
+node scripts/eval/run.mjs --provider cli --cli claude --dataset small-users --max-tasks 1
 ```
-
-Note: the harness is plain ESM `.mjs` with strict JSDoc types (this monorepo
-does not ship `tsx`, so there is no `run.ts` variant — `node scripts/eval/run.mjs`
-is the single entry point).
 
 ### Flags
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--mock` | off | Use the network-free echo model (see below) |
+| `--suite` | `comprehension` | Suite to run: `comprehension`, `stress`, or `all` |
 | `--provider` | auto | Force a provider: `anthropic`, `openai`, or `cli` |
-| `--cli` | `claude` | Which CLI binary to use when `--provider cli`: `claude` or `codex` |
-| `--model` | `claude-fable-5` | Model id passed to the Anthropic API or CLI `--model` flag |
+| `--cli` | `claude` | Which CLI binary when `--provider cli`: `claude` or `codex` |
+| `--model` | `claude-fable-5` | Model id for the Anthropic API or CLI `--model` flag |
 | `--openai-model` | — | Model for the OpenAI-compatible endpoint (required to enable it) |
 | `--openai-base-url` | `https://api.openai.com/v1` | Override endpoint (or `OPENAI_BASE_URL`) |
-| `--dataset` | all | Comma-separated subset: `users,config,logs` |
+| `--dataset` | all | Comma-separated subset (e.g. `small-users,small-events`) |
 | `--max-tasks` | all | Cap tasks per dataset (cheap smoke runs) |
 
 ### Env vars
 
-- `ANTHROPIC_API_KEY` — enables the Anthropic API provider (raw `fetch` to
-  `/v1/messages`, `anthropic-version: 2023-06-01`, `max_tokens: 1024`).
-- `OPENAI_API_KEY` / `OPENAI_BASE_URL` — enables any OpenAI-compatible
-  `/chat/completions` endpoint.
+- `ANTHROPIC_API_KEY` — enables the Anthropic API provider.
+- `OPENAI_API_KEY` / `OPENAI_BASE_URL` — enables any OpenAI-compatible endpoint.
 - **Key-gated:** with no keys and no `--mock` and no `--provider cli`, the
   runner prints a notice and exits 0.
 
-## CLI mode — zero-key, subscription-based evals
+## Matched-pair methodology
 
-`--provider cli` spawns `claude` or `codex` as a subprocess per question —
-no API key is required. Auth comes from your existing Claude Code login (`claude
-/login`) or Codex auth session. This makes the eval free for subscribers on a
-per-token billing basis.
+### Why matched pairs?
 
-### Why use CLI mode?
+A naive comparison — "JSON accuracy: 72%, PAKT accuracy: 69%" — conflates two
+things: format effect and task difficulty. If both formats fail question X, that
+tells you nothing about PAKT; it tells you the question was hard. Matched pairs
+exclude that noise.
 
-- **No API key**: you don't need to create or hand off an API key.
-- **Realistic deployment**: Claude Code agents encounter PAKT through the same
-  CLI harness your real tools run through. CLI-mode accuracy answers the
-  question "does PAKT work in actual agentic deployments?" — which is a
-  different (and arguably more practical) question than raw-API accuracy.
-- **Both modes are valid**: run CLI mode for the deployment signal; run API
-  mode for the base-model signal. Both are honest; the report labels them
-  clearly.
+### How it works
 
-### Cost note
+For each QUESTION, we compare the outcomes on both formats side by side:
 
-The `claude` CLI outputs a `total_cost_usd` field. For subscription users this
-is an **API-equivalent estimate only — you are not billed per token** under a
-subscription plan. The harness intentionally ignores CLI-reported token counts
-for this reason and also because each `claude -p` call carries ~25K tokens of
-Claude Code system-prompt + tool-description overhead unrelated to the PAKT
-payload. Token savings in the report always come from the harness's LOCAL
-`compress()` call, independent of which provider answers the comprehension
-questions.
+| Cell | JSON | PAKT | Meaning |
+|---|---|---|---|
+| `bothRight` | correct | correct | Format irrelevant — shared success |
+| `bothWrong` | wrong | wrong | Task-difficulty noise — **excluded** from effect |
+| `jsonOnly` | correct | wrong | Format hurt PAKT |
+| `paktOnly` | wrong | correct | Format helped PAKT |
 
-### Methodology caveat
+**FORMAT EFFECT = paktOnly − jsonOnly**
+- Positive → PAKT outperforms JSON on questions where they diverge.
+- Negative → PAKT underperforms JSON on divergent questions.
+- ≈ 0 → format is comprehension-neutral.
 
-CLI-mode accuracy reflects the **agent harness around the model**, not a bare
-endpoint. The model receives the eval prompt plus ~25K tokens of Claude Code
-system context it would see in any real task. This is the realistic deployment
-environment for PAKT in agentic pipelines. The report labels CLI results with
-`(via Claude Code CLI)` or `(via Codex CLI)` in the model column so there is
-no ambiguity.
+For the comprehension suite (~36 questions), an effect of |Δ| ≤ 2 is within
+expected small-sample noise. The report prints a plain-language verdict line.
 
-### Codex
+### Why the comprehension suite is the right input
 
-The codex provider path (`--provider cli --cli codex`) is implemented with
-defensive output parsing (tries JSON first; falls back to last-line plain text)
-but **was not tested in this environment** — codex was present at PATH but its
-interactive auth was not confirmed at build time. Verify with:
+The matched-pair metric needs format to be the only variable. The stress suite
+tasks involve counting across 50 rows and cross-row scans — those fail for both
+formats disproportionately (`bothWrong` soaks up the signal). The comprehension
+suite is designed so every question is answerable by careful reading of a small
+visible payload, keeping `bothWrong` low and `jsonOnly`/`paktOnly` interpretable.
 
-```sh
-codex exec "Reply with exactly: PONG"
-# check whether output is plain text or JSON, then review parseCodexOutput()
-# in providers.mjs and update if needed
-```
+### What the stress suite measures
 
-## What gets measured
-
-- **Datasets** (`datasets/`, fixed and committed — generated once by
-  `datasets/generate.mjs` with a seeded PRNG, never regenerated at runtime;
-  synthetic data, no real PII):
-  - `tabular-users.json` — 50 user records, 8 mixed-type columns
-  - `nested-config.json` — ~160-line nested service config
-  - `logs.json` — 80 structured log entries with repeated keys/values
-- **Tasks** (`tasks.mjs`) — 11 per dataset across extraction, QA/reasoning,
-  and aggregation. Ground truths are computed from the data at load time, so
-  they cannot drift.
-- **Scoring** — exact match after normalization (trim, case, quotes, trailing
-  punctuation); numeric answers parsed with 0.05 absolute tolerance; a narrow
-  containment fallback accepts terse-but-wrapped answers ("the billing
-  service") while rejecting long sentences.
-- **Output** — `results/<timestamp>.json` (full records) and
-  `results/latest.md` (per-model accuracy table by dataset x category, JSON vs
-  PAKT columns, payload token counts, cost estimate).
+A different (valid) question: "can the model navigate a large PAKT payload for
+retrieval/aggregation?" The stress suite is format-confounded — the difficulty
+gradient dominates any format signal. Run it for regression coverage and large-
+payload stress, not for the clean format-comprehension answer.
 
 ## Mock mode
 
 `--mock` uses an echo model that returns the ground-truth answer with cosmetic
-noise (casing, quotes, padding) to exercise normalization — **except**
-`users-03`, where it deliberately answers wrong. A correct mock run therefore
-scores exactly 64/66, proving both that the pipeline wires payload → prompt →
-answer → score, and that the scorer actually fails mismatches.
+noise (casing, quotes, padding) to exercise normalization — except for
+deliberately wrong IDs that prove the scorer fails mismatches:
 
-## Cost estimate per full live run
+**Comprehension suite mock expectations (72 records):**
+- `su-05` (small-users relational): wrong on BOTH formats → `bothWrong` cell
+- `sc-09` (small-config boolean): wrong on PAKT only → `jsonOnly` cell
+- All other 34 tasks: both correct → `bothRight`
+- Overall: **69/72** correct; matched-pair: bothRight=34, bothWrong=1,
+  jsonOnly=1, paktOnly=0, Δ=**-1** → "within noise" verdict.
 
-Measured payload tokens (PAKT's local tokenizer estimate):
+**Stress suite mock expectations (66 records):**
+- `users-03`: wrong on both formats → 64/66 correct.
+
+This proves both that the pipeline wires payload → prompt → answer → score, and
+that the scorer and matched-pair classifier actually fail mismatches correctly.
+
+## CLI mode — zero-key, subscription-based evals
+
+`--provider cli` spawns `claude` or `codex` as a subprocess per question —
+no API key is required. Auth comes from your existing Claude Code login.
+
+Token savings in the report always come from the harness's LOCAL `compress()`
+call, independent of which provider answers the comprehension questions. CLI-
+reported token counts are ignored because each `claude -p` call carries ~25K
+tokens of Claude Code system-prompt overhead unrelated to the PAKT payload.
+
+## Cost estimate
+
+**Comprehension suite** — 36 tasks × 2 formats = 72 requests:
 
 | Dataset | JSON (minified) | PAKT | Savings |
 |---|---|---|---|
-| users | 2,491 | 1,765 | 29.1% |
-| config | 592 | 740 | **-25.0%** (small nested configs can expand) |
-| logs | 3,842 | 1,800 | 53.1% |
+| small-users | ~290 tok | ~230 tok | ~22% |
+| small-config | ~140 tok | ~180 tok | ~-28% (small nested configs can expand) |
+| small-events | ~350 tok | ~205 tok | ~41% |
 
-One full run = 33 tasks x 2 formats = 66 requests, each carrying its dataset
-payload (~129K input tokens total) plus short answers (~4K output tokens).
+~22K input tokens, **~$0.33 per model per run** at Fable 5 pricing. Less than
+¼ of the stress-suite cost.
 
-At Claude Fable 5 pricing ($10/MTok input, $50/MTok output):
-**~$1.40 per model per full run** (~$1.29 input + ~$0.10 output). Cheaper
-models (e.g. Haiku 4.5 at $1/$5) come to ~$0.14. The runner recomputes this
-estimate from actual token counts on every run and writes it to `latest.md`.
+**Stress suite** — 33 tasks × 2 formats = 66 requests:
 
-For CLI mode, the cost estimate is still computed from LOCAL token counts at
-Fable 5 pricing — it represents what an equivalent API run would cost, not
-actual subscription charges.
+| Dataset | JSON (minified) | PAKT | Savings |
+|---|---|---|---|
+| users | 2,491 tok | 1,765 tok | 29.1% |
+| config | 592 tok | 740 tok | −25.0% (small nested config) |
+| logs | 3,842 tok | 1,800 tok | 53.1% |
+
+~129K input tokens, **~$1.40 per model per run** at Fable 5 pricing.
+
+The runner recomputes both estimates from actual token counts on every run and
+writes them to `latest.md`.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `run.mjs` | Entry point: key-gating, payload rendering (JSON + PAKT), orchestration |
-| `tasks.mjs` | Task definitions, ground-truth computation, normalization + scoring |
+| `run.mjs` | Entry point: key-gating, `--suite` flag, payload rendering (JSON + PAKT), orchestration |
+| `tasks.mjs` | `buildComprehensionSuites()` + `buildSuites()` (stress), ground-truth computation, scoring |
 | `providers.mjs` | Anthropic + OpenAI-compatible raw-fetch providers, mock echo model, CLI provider |
-| `report.mjs` | Writes `results/<timestamp>.json` + `results/latest.md` |
-| `datasets/generate.mjs` | One-off seeded generator (provenance only; not used at runtime) |
+| `report.mjs` | Matched-pair analysis + accuracy tables + token stats → `results/<timestamp>.json` + `results/latest.md` |
+| `datasets/generate.mjs` | One-off seeded generator for the stress datasets (provenance only; not used at runtime) |
+| `datasets/small-users.json` | 7-user comprehension dataset (synthetic, no real PII) |
+| `datasets/small-config.json` | Compact 4-service config comprehension dataset |
+| `datasets/small-events.json` | 8-entry structured log comprehension dataset |
+| `datasets/tabular-users.json` | 50-user stress dataset |
+| `datasets/nested-config.json` | ~160-line nested config stress dataset |
+| `datasets/logs.json` | 80-entry log stress dataset |
