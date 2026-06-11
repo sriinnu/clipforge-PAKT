@@ -11,15 +11,29 @@
  *   node scripts/eval/run.mjs [--mock] [--model claude-fable-5]
  *                             [--openai-model gpt-4o-mini] [--dataset users]
  *                             [--max-tasks N]
+ *                             [--provider cli --cli claude [--model <alias>]]
+ *                             [--provider cli --cli codex  [--model <alias>]]
  *
  * Env: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENAI_BASE_URL.
- * KEY-GATED: with no keys and no --mock, prints a notice and exits 0.
+ * KEY-GATED: with no keys, no --mock, and no --provider cli, prints a notice
+ * and exits 0.
  * It never fabricates results.
+ *
+ * CLI mode (--provider cli):
+ *   Uses the user's local Claude Code or Codex subscription — no API key
+ *   needed. Token savings in the report are always from the LOCAL compress()
+ *   call (harness-side), not from CLI-reported usage, because each `claude -p`
+ *   call carries ~25K tokens of CLI system-prompt overhead unrelated to PAKT.
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSuites, scoreAnswer } from './tasks.mjs';
-import { anthropicProvider, openAiProvider, mockProvider } from './providers.mjs';
+import {
+  anthropicProvider,
+  openAiProvider,
+  mockProvider,
+  cliProvider,
+} from './providers.mjs';
 import { writeReport, estimateRunCost } from './report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -77,29 +91,61 @@ function buildPrompt(payload, question) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const mock = args.mock === true;
+  const providerFlag = typeof args.provider === 'string' ? args.provider : null;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
 
   /** @type {ReturnType<typeof mockProvider>[]} */
   const providers = [];
+
   if (mock) {
     providers.push(mockProvider());
-  } else {
-    if (anthropicKey) {
-      providers.push(anthropicProvider({ model: String(args.model ?? 'claude-fable-5'), apiKey: anthropicKey }));
+  } else if (providerFlag === 'cli') {
+    // ── CLI mode: no API key required ──────────────────────────────────────
+    const cliName = typeof args.cli === 'string' ? args.cli : 'claude';
+    if (cliName !== 'claude' && cliName !== 'codex') {
+      console.error(`--cli must be 'claude' or 'codex', got: ${cliName}`);
+      process.exit(1);
     }
-    if (openAiKey && args['openai-model']) {
-      providers.push(openAiProvider({
-        model: String(args['openai-model']),
-        apiKey: openAiKey,
-        baseUrl: process.env.OPENAI_BASE_URL || (typeof args['openai-base-url'] === 'string' ? args['openai-base-url'] : undefined),
-      }));
+    const model = typeof args.model === 'string' ? args.model : undefined;
+    console.log(
+      `[cli] Using ${cliName} CLI${model ? ` (model: ${model})` : ' (default model)'}` +
+      ` — no API key required, auth via local ${cliName === 'claude' ? 'Claude Code' : 'Codex'} subscription.`,
+    );
+    if (cliName === 'codex') {
+      console.log(
+        '[cli] NOTE: codex provider is UNTESTED in this environment — ' +
+        'output parsing is defensive but unverified. See providers.mjs for details.',
+      );
+    }
+    providers.push(cliProvider({ cli: cliName, model }));
+  } else {
+    // ── API mode: key-gated ────────────────────────────────────────────────
+    if (providerFlag && providerFlag !== 'anthropic' && providerFlag !== 'openai') {
+      console.error(`Unknown --provider: ${providerFlag}. Use anthropic, openai, cli, or omit for auto-detect.`);
+      process.exit(1);
+    }
+    if (!providerFlag || providerFlag === 'anthropic') {
+      if (anthropicKey) {
+        providers.push(anthropicProvider({ model: String(args.model ?? 'claude-fable-5'), apiKey: anthropicKey }));
+      }
+    }
+    if (!providerFlag || providerFlag === 'openai') {
+      if (openAiKey && args['openai-model']) {
+        providers.push(openAiProvider({
+          model: String(args['openai-model']),
+          apiKey: openAiKey,
+          baseUrl: process.env.OPENAI_BASE_URL || (typeof args['openai-base-url'] === 'string' ? args['openai-base-url'] : undefined),
+        }));
+      }
     }
   }
+
   if (providers.length === 0) {
     console.log('No API keys found (ANTHROPIC_API_KEY / OPENAI_API_KEY) and --mock not set.');
     console.log('Nothing was run and no results were written — this harness never fabricates results.');
-    console.log('Set a key for a live run, or use `node scripts/eval/run.mjs --mock` to verify the pipeline.');
+    console.log('Set a key for a live run, use `--provider cli --cli claude` for a subscription-based run,');
+    console.log('or use `node scripts/eval/run.mjs --mock` to verify the pipeline.');
     process.exit(0);
   }
 
@@ -152,7 +198,11 @@ async function main() {
           });
           console.log(`  ${task.id} [${format}] ${correct ? 'PASS' : 'FAIL'} (expected: ${task.expected}, got: ${got || '<empty>'})`);
           index++;
-          if (!mock) await new Promise((r) => setTimeout(r, 300)); // gentle pacing for live APIs
+          // Pace: skip for mock (instant); use longer delay for CLI calls (slow).
+          if (!mock) {
+            const delay = providerFlag === 'cli' ? 1000 : 300;
+            await new Promise((r) => setTimeout(r, delay));
+          }
         }
       }
     }

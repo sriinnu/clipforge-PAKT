@@ -14,7 +14,7 @@ export const PRICING = { inputPerMTok: 10, outputPerMTok: 50 };
 
 /**
  * @typedef {Object} EvalRecord
- * @property {string} provider  Provider name (anthropic | openai | mock).
+ * @property {string} provider  Provider name (anthropic | openai | mock | cli).
  * @property {string} model
  * @property {string} dataset
  * @property {string} category
@@ -25,7 +25,7 @@ export const PRICING = { inputPerMTok: 10, outputPerMTok: 50 };
  * @property {string} got        Normalized model answer.
  * @property {string} raw        Raw model answer.
  * @property {boolean} correct
- * @property {{input: number, output: number}} usage  Provider-reported tokens (0 for mock).
+ * @property {{input: number, output: number}} usage  Provider-reported tokens (0 for mock/cli).
  */
 
 /**
@@ -50,6 +50,16 @@ export function estimateRunCost(payloadTokens, taskCount) {
 const pct = (ok, total) => (total === 0 ? '—' : `${((100 * ok) / total).toFixed(1)}% (${ok}/${total})`);
 
 /**
+ * Returns true when a model string comes from the CLI provider.
+ * CLI models embed " (via Claude Code CLI)" or " (via Codex CLI)".
+ * @param {string} model
+ * @returns {boolean}
+ */
+function isCliModel(model) {
+  return model.includes('(via Claude Code CLI)') || model.includes('(via Codex CLI)');
+}
+
+/**
  * Aggregates records into per-model, per-(dataset x category) accuracy rows.
  * @param {EvalRecord[]} records
  * @returns {Map<string, Map<string, {json: [number, number], pakt: [number, number]}>>}
@@ -70,6 +80,15 @@ function aggregate(records) {
 }
 
 /**
+ * Returns true when any record in the run used the CLI provider.
+ * @param {EvalRecord[]} records
+ * @returns {boolean}
+ */
+function hasCliRecords(records) {
+  return records.some((r) => r.provider === 'cli');
+}
+
+/**
  * Renders the markdown report for a run.
  * @param {{startedAt: string, mock: boolean, records: EvalRecord[], tokenStats: {dataset: string, jsonTokens: number, paktTokens: number, savingsPct: number}[], cost: {inputTokens: number, estUsd: number}}} run
  * @returns {string}
@@ -82,8 +101,23 @@ export function renderMarkdown(run) {
   lines.push(`- Mode: ${run.mock ? '**MOCK (echo model — NOT model evidence; pipeline verification only)**' : 'live API'}`);
   lines.push(`- Records: ${run.records.length}`);
   lines.push('');
+
   for (const [modelKey, rows] of aggregate(run.records)) {
+    // Identify whether this model key belongs to the CLI provider so we can
+    // label it distinctly — CLI accuracy reflects the agent harness, not a
+    // raw endpoint.
+    const modelName = modelKey.split(':').slice(1).join(':');
+    const cli = isCliModel(modelName);
+
     lines.push(`## Model: \`${modelKey}\``);
+    if (cli) {
+      lines.push('');
+      lines.push(
+        '> **CLI mode** — accuracy here reflects the full Claude Code / Codex agent harness' +
+        ' around the model, not a bare API endpoint. This is the realistic deployment environment' +
+        ' for PAKT in agentic pipelines.',
+      );
+    }
     lines.push('');
     lines.push('| Dataset / Category | JSON accuracy | PAKT accuracy |');
     lines.push('|---|---|---|');
@@ -96,6 +130,7 @@ export function renderMarkdown(run) {
     lines.push(`| **overall** | **${pct(...tot.json)}** | **${pct(...tot.pakt)}** |`);
     lines.push('');
   }
+
   lines.push('## Payload token counts (local tokenizer estimate)');
   lines.push('');
   lines.push('| Dataset | JSON (minified) | PAKT | Savings |');
@@ -104,11 +139,39 @@ export function renderMarkdown(run) {
     lines.push(`| ${t.dataset} | ${t.jsonTokens} | ${t.paktTokens} | ${t.savingsPct.toFixed(1)}% |`);
   }
   lines.push('');
-  lines.push(`## Estimated cost per full live run (Fable 5: $${PRICING.inputPerMTok}/MTok in, $${PRICING.outputPerMTok}/MTok out)`);
+  lines.push(
+    `## Estimated cost per full live run ` +
+    `(Fable 5: $${PRICING.inputPerMTok}/MTok in, $${PRICING.outputPerMTok}/MTok out)`,
+  );
   lines.push('');
   lines.push(`- Estimated input tokens: ~${run.cost.inputTokens.toLocaleString('en-US')}`);
   lines.push(`- Estimated cost: ~$${run.cost.estUsd.toFixed(2)} per model`);
   lines.push('');
+
+  // CLI-mode accuracy methodology note — only shown when the run included CLI records.
+  if (hasCliRecords(run.records)) {
+    lines.push('---');
+    lines.push('');
+    lines.push('### CLI-mode methodology note');
+    lines.push('');
+    lines.push(
+      'Accuracy numbers for CLI providers (`claude` / `codex`) reflect the **agent harness**' +
+      ' around the model — system prompts, tool definitions, and any automatic context the CLI' +
+      ' injects. This differs from raw-API accuracy, where the model receives only the eval prompt.' +
+      ' Both measurements are legitimate: the CLI result answers "does PAKT work in the typical' +
+      ' agentic deployment?" while the API result answers "does the base model understand PAKT?"',
+    );
+    lines.push('');
+    lines.push(
+      '**Token savings** in this report come from the harness\'s LOCAL `compress()` call.' +
+      ' CLI-reported token usage is intentionally ignored: each `claude -p` call carries ~25K' +
+      ' tokens of Claude Code system-prompt overhead unrelated to the PAKT payload, and' +
+      ' `total_cost_usd` in the CLI output is denominated as an API-equivalent estimate —' +
+      ' subscription users are not billed per token.',
+    );
+    lines.push('');
+  }
+
   lines.push('> No results are published in the repo README until a real run is executed and reviewed.');
   lines.push('');
   return lines.join('\n');

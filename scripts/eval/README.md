@@ -24,13 +24,19 @@ node scripts/eval/run.mjs
 # 2. Mock run — network-free echo model, proves pipeline + scoring end-to-end:
 node scripts/eval/run.mjs --mock
 
-# 3. Live run — Anthropic (default model claude-fable-5):
+# 3. Live run — Anthropic API (default model claude-fable-5):
 ANTHROPIC_API_KEY=sk-ant-... node scripts/eval/run.mjs
 ANTHROPIC_API_KEY=sk-ant-... node scripts/eval/run.mjs --model claude-haiku-4-5
 
 # 4. Live run — any OpenAI-compatible endpoint (runs alongside Anthropic if both keys set):
 OPENAI_API_KEY=... node scripts/eval/run.mjs --openai-model gpt-4o-mini
 OPENAI_API_KEY=... OPENAI_BASE_URL=https://my-gateway/v1 node scripts/eval/run.mjs --openai-model my-model
+
+# 5. CLI mode — no API key needed, uses your Claude Code / Codex subscription:
+node scripts/eval/run.mjs --provider cli --cli claude
+node scripts/eval/run.mjs --provider cli --cli claude --model claude-sonnet-4-5
+node scripts/eval/run.mjs --provider cli --cli claude --dataset users --max-tasks 1  # single-task smoke
+node scripts/eval/run.mjs --provider cli --cli codex   # see codex note below
 ```
 
 Note: the harness is plain ESM `.mjs` with strict JSDoc types (this monorepo
@@ -42,7 +48,9 @@ is the single entry point).
 | Flag | Default | Meaning |
 |---|---|---|
 | `--mock` | off | Use the network-free echo model (see below) |
-| `--model` | `claude-fable-5` | Anthropic model id — default is `claude-fable-5` (June 2026); pass `--model claude-haiku-4-5` or any other id if your account lacks access |
+| `--provider` | auto | Force a provider: `anthropic`, `openai`, or `cli` |
+| `--cli` | `claude` | Which CLI binary to use when `--provider cli`: `claude` or `codex` |
+| `--model` | `claude-fable-5` | Model id passed to the Anthropic API or CLI `--model` flag |
 | `--openai-model` | — | Model for the OpenAI-compatible endpoint (required to enable it) |
 | `--openai-base-url` | `https://api.openai.com/v1` | Override endpoint (or `OPENAI_BASE_URL`) |
 | `--dataset` | all | Comma-separated subset: `users,config,logs` |
@@ -50,12 +58,63 @@ is the single entry point).
 
 ### Env vars
 
-- `ANTHROPIC_API_KEY` — enables the Anthropic provider (raw `fetch` to
+- `ANTHROPIC_API_KEY` — enables the Anthropic API provider (raw `fetch` to
   `/v1/messages`, `anthropic-version: 2023-06-01`, `max_tokens: 1024`).
 - `OPENAI_API_KEY` / `OPENAI_BASE_URL` — enables any OpenAI-compatible
   `/chat/completions` endpoint.
-- **Key-gated:** with no keys and no `--mock`, the runner prints a notice and
-  exits 0.
+- **Key-gated:** with no keys and no `--mock` and no `--provider cli`, the
+  runner prints a notice and exits 0.
+
+## CLI mode — zero-key, subscription-based evals
+
+`--provider cli` spawns `claude` or `codex` as a subprocess per question —
+no API key is required. Auth comes from your existing Claude Code login (`claude
+/login`) or Codex auth session. This makes the eval free for subscribers on a
+per-token billing basis.
+
+### Why use CLI mode?
+
+- **No API key**: you don't need to create or hand off an API key.
+- **Realistic deployment**: Claude Code agents encounter PAKT through the same
+  CLI harness your real tools run through. CLI-mode accuracy answers the
+  question "does PAKT work in actual agentic deployments?" — which is a
+  different (and arguably more practical) question than raw-API accuracy.
+- **Both modes are valid**: run CLI mode for the deployment signal; run API
+  mode for the base-model signal. Both are honest; the report labels them
+  clearly.
+
+### Cost note
+
+The `claude` CLI outputs a `total_cost_usd` field. For subscription users this
+is an **API-equivalent estimate only — you are not billed per token** under a
+subscription plan. The harness intentionally ignores CLI-reported token counts
+for this reason and also because each `claude -p` call carries ~25K tokens of
+Claude Code system-prompt + tool-description overhead unrelated to the PAKT
+payload. Token savings in the report always come from the harness's LOCAL
+`compress()` call, independent of which provider answers the comprehension
+questions.
+
+### Methodology caveat
+
+CLI-mode accuracy reflects the **agent harness around the model**, not a bare
+endpoint. The model receives the eval prompt plus ~25K tokens of Claude Code
+system context it would see in any real task. This is the realistic deployment
+environment for PAKT in agentic pipelines. The report labels CLI results with
+`(via Claude Code CLI)` or `(via Codex CLI)` in the model column so there is
+no ambiguity.
+
+### Codex
+
+The codex provider path (`--provider cli --cli codex`) is implemented with
+defensive output parsing (tries JSON first; falls back to last-line plain text)
+but **was not tested in this environment** — codex was present at PATH but its
+interactive auth was not confirmed at build time. Verify with:
+
+```sh
+codex exec "Reply with exactly: PONG"
+# check whether output is plain text or JSON, then review parseCodexOutput()
+# in providers.mjs and update if needed
+```
 
 ## What gets measured
 
@@ -102,12 +161,16 @@ At Claude Fable 5 pricing ($10/MTok input, $50/MTok output):
 models (e.g. Haiku 4.5 at $1/$5) come to ~$0.14. The runner recomputes this
 estimate from actual token counts on every run and writes it to `latest.md`.
 
+For CLI mode, the cost estimate is still computed from LOCAL token counts at
+Fable 5 pricing — it represents what an equivalent API run would cost, not
+actual subscription charges.
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `run.mjs` | Entry point: key-gating, payload rendering (JSON + PAKT), orchestration |
 | `tasks.mjs` | Task definitions, ground-truth computation, normalization + scoring |
-| `providers.mjs` | Anthropic + OpenAI-compatible raw-fetch providers, mock echo model |
+| `providers.mjs` | Anthropic + OpenAI-compatible raw-fetch providers, mock echo model, CLI provider |
 | `report.mjs` | Writes `results/<timestamp>.json` + `results/latest.md` |
 | `datasets/generate.mjs` | One-off seeded generator (provenance only; not used at runtime) |
