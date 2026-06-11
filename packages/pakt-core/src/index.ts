@@ -284,6 +284,14 @@ export type {
 // ---------------------------------------------------------------------------
 
 export { ContextEngine, createContextEngine } from './context-engine/index.js';
+// Re-export opaque-block guards (append-only block — context engine consumers
+// need these to detect provider compaction blocks without importing internals).
+export {
+  isOpaqueBlock,
+  messageIsImmutable,
+  BUILTIN_OPAQUE_TYPES,
+} from './context-engine/index.js';
+export type { OpaqueContentBlock } from './context-engine/index.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,

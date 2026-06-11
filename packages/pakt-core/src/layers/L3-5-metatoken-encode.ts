@@ -92,9 +92,11 @@ export function buildCharOffsets(
       }
     }
     if (!found) {
-      // Fallback: single-char advance to prevent infinite loop
-      pos = Math.min(pos + 1, text.length);
-      offsets.push(pos);
+      // Could not align this token to a character boundary — the BPE encoding
+      // does not cleanly decompose for this input. Return null so the caller
+      // skips the entire candidate batch rather than proceeding with inaccurate
+      // offsets that could corrupt span boundaries.
+      return null;
     }
   }
 

@@ -77,6 +77,15 @@ pub fn read_pakt_stats(app: tauri::AppHandle) -> StatsSnapshot {
     let mut files = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
+
+        // Skip symlinks — follow them would open a TOCTOU window and could
+        // read files outside ~/.pakt/stats if the link is malicious or stale.
+        if let Ok(sym_meta) = fs::symlink_metadata(&path) {
+            if sym_meta.file_type().is_symlink() {
+                continue;
+            }
+        }
+
         if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
             continue;
         }

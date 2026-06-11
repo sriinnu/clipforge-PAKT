@@ -63,6 +63,73 @@ export interface ProxyOptions {
 }
 
 // ---------------------------------------------------------------------------
+// Quote-aware command tokenizer
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a shell-style command string into an argument array, respecting
+ * double-quoted and single-quoted substrings. Quoted segments may contain
+ * spaces without being split. Backslash-escape inside double quotes is
+ * supported for `\"` and `\\`.
+ *
+ * Examples:
+ *   `'npx my-server'`              → `['npx', 'my-server']`
+ *   `'cmd "path with spaces"'`     → `['cmd', 'path with spaces']`
+ *   `"cmd '/opt/my tool' --flag"`  → `['cmd', '/opt/my tool', '--flag']`
+ *
+ * @param cmd - Raw command string (e.g. from `--wrap "npx chitragupta"`).
+ * @returns Array of individual argument tokens.
+ */
+export function tokenizeCommand(cmd: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+  let i = 0;
+
+  while (i < cmd.length) {
+    const ch = cmd[i];
+
+    if (ch === '"') {
+      // Double-quoted region: consume until closing `"`, handle `\"` and `\\`.
+      i++;
+      while (i < cmd.length && cmd[i] !== '"') {
+        if (cmd[i] === '\\' && i + 1 < cmd.length) {
+          const next = cmd[i + 1];
+          if (next === '"' || next === '\\') {
+            current += next;
+            i += 2;
+            continue;
+          }
+        }
+        current += cmd[i];
+        i++;
+      }
+      i++; // skip closing `"`
+    } else if (ch === "'") {
+      // Single-quoted region: consume verbatim until closing `'` (no escaping).
+      i++;
+      while (i < cmd.length && cmd[i] !== "'") {
+        current += cmd[i];
+        i++;
+      }
+      i++; // skip closing `'`
+    } else if (ch === ' ' || ch === '\t') {
+      // Whitespace outside quotes: token boundary.
+      if (current.length > 0) {
+        tokens.push(current);
+        current = '';
+      }
+      i++;
+    } else {
+      current += ch;
+      i++;
+    }
+  }
+
+  if (current.length > 0) tokens.push(current);
+  return tokens;
+}
+
+// ---------------------------------------------------------------------------
 // Proxy
 // ---------------------------------------------------------------------------
 
@@ -91,7 +158,7 @@ export async function startProxy(wrapCommand: string, options: ProxyOptions = {}
   });
 
   // --- 1. Spawn the wrapped server ---
-  const parts = wrapCommand.split(/\s+/);
+  const parts = tokenizeCommand(wrapCommand);
   const cmd = parts[0];
   const args = parts.slice(1);
 
@@ -321,6 +388,11 @@ async function proxyToolCall(
           );
         }
       } else {
+        // Non-text block: coerce to empty text (behaviour unchanged).
+        // Emit one stderr warn per block type so the operator knows content was dropped.
+        process.stderr.write(
+          `pakt proxy: non-text content block type "${block.type}" from ${toolName} coerced to empty text\n`,
+        );
         compressed.push({ type: 'text', text: String(block.text ?? '') });
       }
     }

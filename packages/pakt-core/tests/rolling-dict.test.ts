@@ -80,7 +80,7 @@ describe('RollingDictionary', () => {
         { alias: '$a', expansion: 'developer', occurrences: 5, tokensSaved: 10 },
         { alias: '$b', expansion: 'production', occurrences: 4, tokensSaved: 8 },
       ];
-      rd.update(entries, seeds1);
+      rd.update(entries, seeds1, { piiSafe: true });
 
       // Second call: seed should now return the accumulated entries
       const seeds2 = rd.seed();
@@ -94,7 +94,7 @@ describe('RollingDictionary', () => {
       const entries: DictEntry[] = [
         { alias: '$a', expansion: 'singleton', occurrences: 1, tokensSaved: 0 },
       ];
-      rd.update(entries, seeds);
+      rd.update(entries, seeds, { piiSafe: true });
 
       const seeds2 = rd.seed();
       expect(seeds2.size).toBe(0);
@@ -105,14 +105,14 @@ describe('RollingDictionary', () => {
       const entries: DictEntry[] = [
         { alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 },
       ];
-      rd.update(entries, seeds1);
+      rd.update(entries, seeds1, { piiSafe: true });
 
       // Second update with same expansion — should not create a duplicate
       const seeds2 = rd.seed();
       const entries2: DictEntry[] = [
         { alias: '$a', expansion: 'developer', occurrences: 4, tokensSaved: 8 },
       ];
-      rd.update(entries2, seeds2);
+      rd.update(entries2, seeds2, { piiSafe: true });
 
       // Should still be just 1 entry
       expect(rd.getAllEntries().size).toBe(1);
@@ -143,6 +143,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
         seeds1,
+        { piiSafe: true },
       );
       // Entry has lastUsedAtTurn = 1
 
@@ -167,16 +168,17 @@ describe('RollingDictionary', () => {
       smallRd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 5, tokensSaved: 10 }],
         seeds1,
+        { piiSafe: true },
       );
       // developer.lastUsedAtTurn = 1
 
       // Advance turns without using the entry: turns 2, 3, 4
       smallRd.seed(); // turn 2
-      smallRd.update([], new Set());
+      smallRd.update([], new Set(), { piiSafe: true });
       smallRd.seed(); // turn 3
-      smallRd.update([], new Set());
+      smallRd.update([], new Set(), { piiSafe: true });
       smallRd.seed(); // turn 4
-      smallRd.update([], new Set());
+      smallRd.update([], new Set(), { piiSafe: true });
 
       // Turn 5: cutoff = 5 - 3 = 2; entry at turn 1 < 2, pruned
       const seeds5 = smallRd.seed();
@@ -192,6 +194,7 @@ describe('RollingDictionary', () => {
       smallRd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
         seeds1,
+        { piiSafe: true },
       );
 
       // Turn 2: seed returns developer, simulate it being used
@@ -201,14 +204,15 @@ describe('RollingDictionary', () => {
       smallRd.update(
         [{ alias: '$ra', expansion: 'developer', occurrences: 2, tokensSaved: 4 }],
         seeds2,
+        { piiSafe: true },
       );
       // developer.lastUsedAtTurn is now 2
 
       // Turns 3, 4
       smallRd.seed(); // turn 3
-      smallRd.update([], new Set());
+      smallRd.update([], new Set(), { piiSafe: true });
       smallRd.seed(); // turn 4
-      smallRd.update([], new Set());
+      smallRd.update([], new Set(), { piiSafe: true });
 
       // Turn 5: cutoff = 5 - 3 = 2; entry at turn 2 is NOT < 2, so kept
       const seeds5 = smallRd.seed();
@@ -234,6 +238,7 @@ describe('RollingDictionary', () => {
           { alias: '$d', expansion: 'ddd_expansion_longer', occurrences: 8, tokensSaved: 16 },
         ],
         seeds,
+        { piiSafe: true },
       );
 
       // Should have trimmed to 3 entries
@@ -265,6 +270,7 @@ describe('RollingDictionary', () => {
           { alias: '$b', expansion: 'low_val', occurrences: 2, tokensSaved: 2 },
         ],
         seeds1,
+        { piiSafe: true },
       );
       expect(tinyRd.getAllEntries().size).toBe(2);
 
@@ -277,6 +283,7 @@ describe('RollingDictionary', () => {
           { alias: '$c', expansion: 'another_entry_here', occurrences: 3, tokensSaved: 6 },
         ],
         seeds2,
+        { piiSafe: true },
       );
 
       // Should be 3 entries, pruned to 2
@@ -309,7 +316,7 @@ describe('RollingDictionary', () => {
           tokensSaved: 6,
         });
       }
-      rd26.update(entries, seeds1);
+      rd26.update(entries, seeds1, { piiSafe: true });
 
       const seeds2 = rd26.seed();
       // seed() now returns Set<string> of expansion values, not Map with $ra aliases
@@ -332,7 +339,7 @@ describe('RollingDictionary', () => {
           tokensSaved: 6,
         });
       }
-      rdBig.update(entries, seeds1);
+      rdBig.update(entries, seeds1, { piiSafe: true });
 
       const seeds2 = rdBig.seed();
       // Capped at 52 — same as L2 alias limit
@@ -357,6 +364,7 @@ describe('RollingDictionary', () => {
           { alias: '$c', expansion: 'machine_learning', occurrences: 3, tokensSaved: 6 },
         ],
         seeds1,
+        { piiSafe: true },
       );
 
       const order1 = [...rdStable.seed()];
@@ -367,10 +375,12 @@ describe('RollingDictionary', () => {
       rdStable.update(
         [{ alias: '$c', expansion: 'machine_learning', occurrences: 9, tokensSaved: 18 }],
         new Set(['machine_learning']),
+        { piiSafe: true },
       );
       rdStable.update(
         [{ alias: '$c', expansion: 'machine_learning', occurrences: 9, tokensSaved: 18 }],
         new Set(['machine_learning']),
+        { piiSafe: true },
       );
 
       const order2 = [...rdStable.seed()];
@@ -388,6 +398,7 @@ describe('RollingDictionary', () => {
           { alias: '$b', expansion: 'engineer', occurrences: 3, tokensSaved: 6 },
         ],
         seeds1,
+        { piiSafe: true },
       );
 
       const seedsT2 = rdAppend.seed();
@@ -397,6 +408,7 @@ describe('RollingDictionary', () => {
       rdAppend.update(
         [{ alias: '$c', expansion: 'architect', occurrences: 3, tokensSaved: 6 }],
         seedsT2,
+        { piiSafe: true },
       );
 
       const orderT3 = [...rdAppend.seed()];
@@ -412,7 +424,7 @@ describe('RollingDictionary', () => {
       const entries: DictEntry[] = [
         { alias: '$a', expansion: 'infrastructure_engineer_role', occurrences: 5, tokensSaved: 10 },
       ];
-      rdCheck.update(entries, seeds1);
+      rdCheck.update(entries, seeds1, { piiSafe: true });
 
       const seeds2 = rdCheck.seed();
       // Seeds are expansion strings — L2 will assign its own aliases
@@ -443,6 +455,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 5, tokensSaved: 10 }],
         seeds1,
+        { piiSafe: true },
       );
 
       const stats = rd.getStats();
@@ -456,6 +469,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 5, tokensSaved: 10 }],
         seeds1,
+        { piiSafe: true },
       );
 
       // Turn 2: seed and use
@@ -464,6 +478,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$ra', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
         seeds2,
+        { piiSafe: true },
       );
 
       const stats = rd.getStats();
@@ -476,6 +491,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 5, tokensSaved: 10 }],
         seeds1,
+        { piiSafe: true },
       );
       // usageCount = 1, estimatedSeedSavings = 0
 
@@ -484,6 +500,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$ra', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
         seeds2,
+        { piiSafe: true },
       );
       // usageCount = 2, tokensPerOcc for "developer" = max(1, ceil(9/4) - 1) = max(1, 2) = 2
       // estimatedSeedSavings = (2 - 1) * 2 = 2
@@ -507,6 +524,7 @@ describe('RollingDictionary', () => {
           { alias: '$b', expansion: 'production', occurrences: 3, tokensSaved: 6 },
         ],
         seeds1,
+        { piiSafe: true },
       );
 
       // Verify non-empty
@@ -541,6 +559,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 5, tokensSaved: 10 }],
         seeds1,
+        { piiSafe: true },
       );
 
       const entry1 = rd.getAllEntries().get('developer');
@@ -552,6 +571,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$ra', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
         seeds2,
+        { piiSafe: true },
       );
 
       const entry2 = rd.getAllEntries().get('developer');
@@ -565,6 +585,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
         seeds1,
+        { piiSafe: true },
       );
 
       // Turn 2: seed but entry has 0 occurrences in the result
@@ -572,6 +593,7 @@ describe('RollingDictionary', () => {
       rd.update(
         [{ alias: '$ra', expansion: 'developer', occurrences: 0, tokensSaved: 0 }],
         seeds2,
+        { piiSafe: true },
       );
 
       const entry = rd.getAllEntries().get('developer');

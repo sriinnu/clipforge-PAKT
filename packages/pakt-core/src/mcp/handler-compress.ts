@@ -107,7 +107,10 @@ function compressStructured(
     ...(seededExpansions ? { seedAliases: seededExpansions } : {}),
   });
   if (seededExpansions) {
-    rollingDict.update(result.dictionary, seededExpansions);
+    // piiSafe: true — rolling dict is only seeded when PII mode is inactive
+    // (see useRolling guard in handleCompress). The invariant is documented in
+    // RollingDictionary.update().
+    rollingDict.update(result.dictionary, seededExpansions, { piiSafe: true });
   }
   return result;
 }

@@ -18,9 +18,10 @@ to install the engine (``npm i -g @sriinnu/pakt``, Node.js >= 22).
 
 I/O behavior mirrors the CLI exactly (see ``packages/pakt-core/src/cli.ts``):
 input is piped via stdin, results arrive on stdout, and stat lines arrive on
-stderr. No subcommand emits JSON in 0.10.x — structured numbers are parsed
-from the stable text layout. For natively-structured results use
-:class:`pakt_client.mcp.PaktMcp` instead.
+stderr. ``pakt stats --json`` is implemented from 0.11.0; earlier builds
+(0.10.x) silently ignored the flag and printed the same ``Key: value`` text.
+:class:`PaktCli` therefore parses the text layout for backward compatibility.
+For natively-structured results use :class:`pakt_client.mcp.PaktMcp` instead.
 """
 
 from __future__ import annotations
@@ -339,10 +340,11 @@ class PaktCli:
         """Single-shot compression stats for a payload (``pakt stats <input>``).
 
         Only the single-shot mode is reachable from a subprocess: the CLI's
-        persistent mode requires a TTY stdin, and its advertised ``--json``
-        flag is not implemented in 0.10.0 (verified) — so the structured
-        result is parsed from the ``Key: value`` text. For session-level
-        stats use :meth:`pakt_client.mcp.PaktMcp.stats`.
+        persistent mode requires a TTY stdin. The ``--json`` flag is fully
+        implemented from **0.11.0**; this method still parses the ``Key:
+        value`` text path for backward compatibility with 0.10.x installs —
+        a future version may prefer the JSON output. For session-level stats
+        use :meth:`pakt_client.mcp.PaktMcp.stats`.
         """
         text, _ = _coerce_text(data)
         args = self._build_compress_args("stats", model=model)

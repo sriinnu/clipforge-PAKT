@@ -68,7 +68,9 @@ Otherwise `PaktNotFoundError` is raised with install instructions.
 
 ### Honest caveat: text parsing
 
-The pakt CLI 0.10.x emits **human-readable text, not JSON** — verified against `cli-commands.ts` and the built CLI. (The `stats --json` flag listed in `pakt --help` is not implemented in 0.10.0; it prints the same `Key: value` text.) `inspect()`, `stats()`, and `detect()` therefore parse the stable `Key: value` layout, and `compress()`/`auto()` parse the fixed stderr stat lines. If the layout ever changes, you get a loud `PaktParseError` carrying the raw output — never silently wrong numbers. For natively structured results, use MCP mode.
+The pakt CLI 0.10.x emits **human-readable text, not JSON** for most commands — verified against `cli-commands.ts` and the built CLI. `inspect()`, `stats()`, and `detect()` therefore parse the stable `Key: value` layout, and `compress()`/`auto()` parse the fixed stderr stat lines. If the layout ever changes, you get a loud `PaktParseError` carrying the raw output — never silently wrong numbers. For natively structured results, use MCP mode.
+
+> **`stats --json` status:** The flag is fully implemented from **0.11.0** and emits a `schemaVersion: 1` JSON object to stdout. `PaktCli.stats()` still parses the `Key: value` text path for backward compatibility with 0.10.x installs. A future version may prefer the `--json` output directly.
 
 ## MCP mode (experimental)
 

@@ -368,7 +368,11 @@ function splitAtByteOffset(
 
     if (accumulated + charBytes > byteOffset) break;
     accumulated += charBytes;
-    charIdx += c >= 0xd800 && c <= 0xdbff && charIdx + 1 < s.length ? 2 : 1;
+    // Advance 2 code units only for a valid surrogate pair (high + low).
+    // An unpaired high surrogate (no low surrogate follows) is a lone code
+    // unit — advance 1, mirroring how utf8ByteLength counts it (3 bytes, U+FFFD).
+    const nextUnit = charIdx + 1 < s.length ? s.charCodeAt(charIdx + 1) : 0;
+    charIdx += c >= 0xd800 && c <= 0xdbff && nextUnit >= 0xdc00 && nextUnit <= 0xdfff ? 2 : 1;
   }
 
   return {

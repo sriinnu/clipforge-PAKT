@@ -71,8 +71,35 @@ function stripNullsShallow(obj: Record<string, unknown>): Record<string, unknown
 }
 
 /**
+ * Strip `additionalProperties: false` and `type: 'object'` from a schema
+ * object in-place. These are the default/implied values and add no information
+ * when forwarded one-way to the provider.
+ *
+ * NOTE: `additionalProperties: 0` and `additionalProperties: false` are both
+ * stripped. All other falsy or zero values (e.g. `minLength: 0`) are intentionally
+ * preserved — a property carrying an explicit `0` or `false` for a non-structural
+ * field means something to the schema validator.
+ *
+ * @param schema - Schema object to mutate.
+ */
+function stripRedundantSchemaFields(schema: Record<string, unknown>): void {
+  // Drop additionalProperties:false — it is the default assumption and adds no
+  // information in a one-way (send-only, never-echo) tool definition.
+  if (schema['additionalProperties'] === false) {
+    delete schema['additionalProperties'];
+  }
+  // Drop type:"object" at this schema level — the object shape is already
+  // implied by the presence of a `properties` map.
+  if (schema['type'] === 'object') {
+    delete schema['type'];
+  }
+}
+
+/**
  * Slim a single JSON Schema property entry.
- * Strips nulls and drops empty `description` fields.
+ * Strips nulls, drops empty `description` fields, and removes redundant schema
+ * annotations (`additionalProperties: false`, `type: 'object'`) from this level
+ * AND any nested `properties` objects.
  *
  * @param prop - The property definition to slim.
  * @param cap - Description character cap.
@@ -80,6 +107,9 @@ function stripNullsShallow(obj: Record<string, unknown>): Record<string, unknown
  */
 function slimProperty(prop: ToolSchemaProperty, cap: number): ToolSchemaProperty {
   const stripped = stripNullsShallow(prop as Record<string, unknown>) as ToolSchemaProperty;
+
+  // Strip redundant schema-level flags at this property level too.
+  stripRedundantSchemaFields(stripped as unknown as Record<string, unknown>);
 
   if (typeof stripped.description === 'string' && stripped.description.length > 0) {
     stripped.description = truncateAtSentence(stripped.description, cap);
@@ -115,15 +145,10 @@ function slimProperty(prop: ToolSchemaProperty, cap: number): ToolSchemaProperty
 function slimInputSchema(schema: ToolInputSchema, cap: number): ToolInputSchema {
   const stripped = stripNullsShallow(schema as Record<string, unknown>) as ToolInputSchema;
 
-  // Drop the redundant type:"object" — the provider already knows tool inputs are objects.
-  if (stripped.type === 'object') {
-    delete stripped.type;
-  }
-
-  // Drop additionalProperties:false — it's the default and adds nothing.
-  if (stripped.additionalProperties === false) {
-    delete stripped.additionalProperties;
-  }
+  // Strip redundant top-level schema fields (type:"object", additionalProperties:false).
+  // The same stripping happens at nested property levels via slimProperty →
+  // stripRedundantSchemaFields, so both top-level and nested objects are cleaned.
+  stripRedundantSchemaFields(stripped as unknown as Record<string, unknown>);
 
   // Slim individual property entries.
   if (stripped.properties && typeof stripped.properties === 'object') {

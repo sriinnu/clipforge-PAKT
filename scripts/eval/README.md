@@ -42,7 +42,7 @@ is the single entry point).
 | Flag | Default | Meaning |
 |---|---|---|
 | `--mock` | off | Use the network-free echo model (see below) |
-| `--model` | `claude-fable-5` | Anthropic model id |
+| `--model` | `claude-fable-5` | Anthropic model id — default is `claude-fable-5` (June 2026); pass `--model claude-haiku-4-5` or any other id if your account lacks access |
 | `--openai-model` | — | Model for the OpenAI-compatible endpoint (required to enable it) |
 | `--openai-base-url` | `https://api.openai.com/v1` | Override endpoint (or `OPENAI_BASE_URL`) |
 | `--dataset` | all | Comma-separated subset: `users,config,logs` |

@@ -134,13 +134,30 @@ export class RollingDictionary {
   /**
    * Update the rolling dictionary with results from a compression call.
    *
-   * Merges newly discovered L2 entries and updates usage stats for
-   * entries that were seeded and actually appeared in the input.
+   * ### PII safety invariant
+   * Callers **must** set `piiSafe: true` only when the payload was compressed
+   * without PII content, or after PII has been redacted. Passing `false`
+   * (the default) causes the update to be silently skipped so that sensitive
+   * values discovered in PII payloads can never be seeded into the cross-call
+   * rolling state.
+   *
+   * In `handler-compress.ts` the rolling dictionary is skipped entirely when
+   * PII mode is active — `update` is therefore only called with `piiSafe: true`
+   * in that path. Direct callers outside `handler-compress` must honour the same
+   * invariant.
    *
    * @param dictEntries - DictEntry[] from the compression result
    * @param seededExpansions - The seed set returned by seed() for this call
+   * @param opts - Safety options: `{ piiSafe }`. Defaults to `{ piiSafe: false }`.
    */
-  update(dictEntries: DictEntry[], seededExpansions: Set<string>): void {
+  update(
+    dictEntries: DictEntry[],
+    seededExpansions: Set<string>,
+    opts: { piiSafe: boolean } = { piiSafe: false },
+  ): void {
+    // Refuse to seed PII-tainted content into the cross-call rolling state.
+    if (!opts.piiSafe) return;
+
     // Track which seeds were actually used
     for (const expansion of seededExpansions) {
       const entry = this.entries.get(expansion);

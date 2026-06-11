@@ -15,7 +15,7 @@
  * ### Lossless-by-construction gate
  * `verifyBodyRoundtrip` expands all placeholders and compares against the original
  * body before committing. On mismatch the rewrite is abandoned and
- * `_verifyGateAbandonCount` is incremented. Overhead: one linear body scan.
+ * `getVerifyGateAbandonCount()` tracks the tally. Overhead: one linear body scan.
  *
  * ### Decompression
  * No new logic needed. `${letter}` is expanded by `decompressL2 → cloneScalar` Mode 3.
@@ -30,6 +30,10 @@ import {
   encodeForModel,
   getEncoderForModel,
 } from './L3-5-metatoken-encode.js';
+import {
+  replaceSpanInBody,
+  verifyBodyRoundtrip,
+} from './L3-5-metatoken-rewrite.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -57,13 +61,6 @@ const SPAN_INVALID_RE = /[\n\r$|{}]/;
 const SPAN_STRUCTURAL_START_RE = /^ {2,}|^:/;
 /** Spans must not be blank or end with `: ` (key-colon suffix). */
 const SPAN_STRUCTURAL_END_RE = /:\s*$|^\s*$/;
-
-/**
- * Matches a PAKT key-value line (possibly indented): `  key: value`.
- * Capture groups: [1] = indent+key+colon-space prefix, [2] = value text.
- * The value may be a double-quoted string (starting with `"`) or a bare token.
- */
-const KV_LINE_RE = /^([ \t]*(?:[^:\n\r]+): )(.*\S.*)$/;
 
 // -- Types -------------------------------------------------------------------
 
@@ -114,118 +111,24 @@ function aliasForIndex(index: number): string {
   return `$a${String.fromCharCode(97 + (index - 26))}`;
 }
 
-/**
- * Escape `s` for embedding inside a PAKT `"..."` value (no surrounding quotes).
- * Handles: `\`, `"`, `\n`, `\t`, `\r`.
- */
-function escapeForQuotedValue(s: string): string {
-  return s
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n')
-    .replace(/\t/g, '\\t')
-    .replace(/\r/g, '\\r');
-}
+// replaceSpanInBody and verifyBodyRoundtrip are imported from L3-5-metatoken-rewrite.ts
+
+/** Module-private counter for rewrites abandoned by the lossless-verification gate. */
+let _verifyGateAbandonCountInternal = 0;
 
 /**
- * Replace `span` with `placeholder` in the body, quoting affected values.
- *
- * The PAKT tokenizer treats `{` as a structural delimiter. Bare unquoted values
- * containing `${b}` (e.g. `AASn${b}`) would be tokenised as `AASn` + BRACE_OPEN
- * + KEY(`b`) + BRACE_CLOSE, corrupting the document. This function is line-aware:
- * - Already-quoted values: replace inside the inner string (no rewrapping needed).
- * - Bare values: if the result contains `${`, wrap the entire value in `"..."`.
- * - Non-key-value lines (tabular, comment): skip conservatively if result has `${`.
- *
- * @param bodyText - PAKT body text (everything after @end)
- * @param span - Literal text span to replace
- * @param placeholder - Replacement string (e.g. `${b}`)
- * @returns Updated body text with properly quoted values
+ * Return the number of rewrites abandoned by the lossless-by-construction gate.
+ * Exported for observability in tests only. Never read in production code paths.
+ * @internal @test-only
  */
-function replaceSpanInBody(
-  bodyText: string,
-  span: string,
-  placeholder: string,
-): string {
-  if (!bodyText.includes(span)) return bodyText;
-
-  const outputLines: string[] = [];
-  for (const line of bodyText.split('\n')) {
-    if (!line.includes(span)) {
-      outputLines.push(line);
-      continue;
-    }
-
-    const kvMatch = KV_LINE_RE.exec(line);
-    if (!kvMatch) {
-      // Not a key-value line (tabular row, comment, etc.).
-      // Conservative: skip lines where we can't safely quote the replacement.
-      const replaced = line.split(span).join(placeholder);
-      if (replaced.includes('${')) {
-        // Unsafe — leave line unchanged to avoid parse corruption.
-        outputLines.push(line);
-      } else {
-        outputLines.push(replaced);
-      }
-      continue;
-    }
-
-    // kvMatch[1] = "  key: " prefix, kvMatch[2] = value text
-    const prefix = kvMatch[1] ?? '';
-    const valueText = kvMatch[2] ?? '';
-
-    if (valueText.startsWith('"') && valueText.endsWith('"') && valueText.length >= 2) {
-      // Already quoted: replace inside the quoted content.
-      // The inner text (without surrounding quotes) has PAKT escape sequences.
-      const inner = valueText.slice(1, -1); // strip outer quotes
-      if (!inner.includes(span)) {
-        outputLines.push(line);
-        continue;
-      }
-      const newInner = inner.split(span).join(escapeForQuotedValue(placeholder));
-      outputLines.push(`${prefix}"${newInner}"`);
-    } else {
-      // Bare (unquoted) value: replace and re-quote if the result contains `${`.
-      const newValue = valueText.split(span).join(placeholder);
-      if (newValue.includes('${')) {
-        // Must quote: `${` is invalid in an unquoted PAKT value.
-        outputLines.push(`${prefix}"${escapeForQuotedValue(newValue)}"`);
-      } else {
-        outputLines.push(`${prefix}${newValue}`);
-      }
-    }
-  }
-
-  return outputLines.join('\n');
-}
+export function getVerifyGateAbandonCount(): number { return _verifyGateAbandonCountInternal; }
 
 /**
- * Lossless-by-construction gate: expand all `${letter}` placeholders in
- * `rewrittenBody` via `aliasMap` and compare against `originalBody`.
- * Returns `true` iff they match exactly. On `false` the caller abandons the
- * entire rewrite. Overhead: one linear body scan — negligible for < 10 KB.
- *
- * @param rewrittenBody - Body after span→placeholder substitutions
- * @param originalBody - Body before any L3.5 rewrites
- * @param aliasMap - letter → span (e.g. `"b"` → `"_suffix"`)
+ * Reset the lossless-gate abandon counter to zero.
+ * For test isolation — call in `beforeEach` / `afterEach`.
+ * @internal @test-only
  */
-function verifyBodyRoundtrip(
-  rewrittenBody: string,
-  originalBody: string,
-  aliasMap: ReadonlyMap<string, string>,
-): boolean {
-  // Expand all ${letter} placeholders in rewrittenBody using aliasMap
-  const expanded = rewrittenBody.replace(/\$\{([a-z]{1,2})\}/g, (_match, name: string) => {
-    const exp = aliasMap.get(name);
-    return exp !== undefined ? exp : _match;
-  });
-  return expanded === originalBody;
-}
-
-/** Number of rewrites abandoned by the verification gate (debug observable). */
-export let _verifyGateAbandonCount = 0;
-/** Reset gate abandon counter (for tests). @internal */
-export function _resetVerifyGateAbandonCount(): void { _verifyGateAbandonCount = 0; }
+export function resetVerifyGateAbandonCount(): void { _verifyGateAbandonCountInternal = 0; }
 
 // -- Dict parsing ------------------------------------------------------------
 
@@ -417,7 +320,7 @@ export function applyMetatokenCompression(
   // Lossless-by-construction safety gate: verify roundtrip before committing.
   // Expand all ${letter} placeholders in updatedBody and compare to original bodyText.
   if (!verifyBodyRoundtrip(updatedBody, bodyText, aliasLetterMap)) {
-    _verifyGateAbandonCount++;
+    _verifyGateAbandonCountInternal++;
     return noOp;
   }
 

@@ -2,6 +2,8 @@
 
 Release-facing fixture snapshot for `@sriinnu/pakt@0.8.0`.
 
+> **Note:** This snapshot predates 0.11. The L3.5 meta-token layer is not included; the numbers below remain the valid lossless L1–L3 baseline.
+
 ## Method
 
 - Generated with `scripts/release/generate-benchmark-snapshot.mjs`

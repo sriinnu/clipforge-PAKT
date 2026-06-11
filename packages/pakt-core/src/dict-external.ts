@@ -52,22 +52,44 @@ function chomp(line: string): string {
 /**
  * Walk the header region of a PAKT string and return the index of the
  * first body line. Header region = leading known headers, blank lines,
- * and one `@dict ... @end` block. Returns `lines.length` when the whole
- * input is header-only.
+ * and one `@dict ... @end` block.
+ *
+ * ### @cache placement rule
+ * `@cache` is only valid in the header region at the single position where
+ * `injectCacheDirective` places it — immediately after the `@dict ... @end`
+ * block. At most one `@cache` line is absorbed from the header; any further
+ * `@cache` lines (or a `@cache` line that appears *before* `@dict`) fall
+ * through to the body-start check and stop the header scan. This prevents a
+ * body line that legitimately starts with `@cache` from being classified as
+ * a header and silently stripped by `stripCacheDirectives`.
+ *
+ * @param lines - Split lines of the PAKT string (not chomped).
+ * @returns Index of the first body line, or `lines.length` when header-only.
  */
 function findBodyStart(lines: string[]): number {
   let inDict = false;
+  let dictSeen = false;   // true after the @dict...@end block has been closed
+  let cacheSeen = false;  // true after the single valid @cache header is consumed
   for (let i = 0; i < lines.length; i++) {
     const line = chomp(lines[i] ?? '');
     if (inDict) {
-      if (line === '@end') inDict = false;
+      if (line === '@end') { inDict = false; dictSeen = true; }
       continue;
     }
     if (line === '@dict' || line.startsWith('@dict ')) {
       inDict = true;
       continue;
     }
-    if (line === '' || isHeaderLine(line)) continue;
+    if (line === '') continue;
+    // @cache is only a valid header line in the one spot injectCacheDirective
+    // places it — after @dict...@end, and only once. Before @dict or after the
+    // first @cache header, treat it as body.
+    if (line.startsWith('@cache') && dictSeen && !cacheSeen) {
+      cacheSeen = true;
+      continue;
+    }
+    // Other known headers (except @cache after dict) are always absorbed.
+    if (isHeaderLine(line) && !line.startsWith('@cache')) continue;
     return i;
   }
   return lines.length;

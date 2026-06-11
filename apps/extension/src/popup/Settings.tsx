@@ -14,13 +14,38 @@ import {
 } from '../shared/storage';
 import { SiteAllowlist } from './SiteAllowlist';
 import { FONT_PRESETS, type FontPreset } from './fonts';
+import {
+  containerStyle,
+  fontBtnBaseStyle,
+  fontListStyle,
+  fontPreviewStyle,
+  infoStyle,
+  sectionStyle,
+  sectionTitleStyle,
+  segmentBtnStyle,
+  segmentedContainerStyle,
+  selectLabelStyle,
+  selectStyle,
+  settingDescStyle,
+  settingLabelStyle,
+  settingRowStyle,
+  settingTextStyle,
+} from './settings-styles';
 
+/**
+ * Accessible on/off toggle rendered as a `role="switch"` button.
+ * Callers must supply an `aria-label` so screen readers announce
+ * which setting this switch controls.
+ */
 function Toggle({
   value,
   onChange,
+  'aria-label': ariaLabel,
 }: {
   value: boolean;
   onChange: (v: boolean) => void;
+  /** Screen-reader label identifying the setting this toggle controls. */
+  'aria-label': string;
 }) {
   return (
     <button
@@ -39,6 +64,7 @@ function Toggle({
       onClick={() => onChange(!value)}
       role="switch"
       aria-checked={value}
+      aria-label={ariaLabel}
     >
       <div
         style={{
@@ -154,7 +180,11 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
               Compress the active tab&rsquo;s clipboard text the moment the popup opens
             </span>
           </div>
-          <Toggle value={settings.autoCompress} onChange={(v) => update({ autoCompress: v })} />
+          <Toggle
+            value={settings.autoCompress}
+            onChange={(v) => update({ autoCompress: v })}
+            aria-label="Auto-compress on popup open"
+          />
         </div>
         <div style={settingRowStyle}>
           <div style={settingTextStyle}>
@@ -167,6 +197,7 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
           <Toggle
             value={settings.autoCompressOnPaste}
             onChange={(v) => update({ autoCompressOnPaste: v })}
+            aria-label="Auto-compress on paste"
           />
         </div>
       </div>
@@ -318,7 +349,7 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
 
       <div style={sectionStyle}>
         <span style={sectionTitleStyle}>Font</span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={fontListStyle}>
           {Array.from(Object.entries(FONT_PRESETS)).map(([key, cfg]) => {
             const isActive = settings.fontPreset === key;
             return (
@@ -327,36 +358,16 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
                 key={key}
                 onClick={() => update({ fontPreset: key as FontPreset })}
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  padding: '8px 10px',
-                  borderRadius: 'var(--cf-radius-md)',
+                  ...fontBtnBaseStyle,
                   border: `1.5px solid ${isActive ? 'var(--cf-accent)' : 'var(--cf-border)'}`,
                   background: isActive ? 'var(--cf-accent-glow)' : 'var(--cf-surface)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'var(--cf-transition)',
                 }}
               >
-                <span
-                  style={{
-                    fontFamily: cfg.ui,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: isActive ? 'var(--cf-accent)' : 'var(--cf-text)',
-                  }}
-                >
+                <span style={{ fontFamily: cfg.ui, fontSize: 13, fontWeight: 500,
+                  color: isActive ? 'var(--cf-accent)' : 'var(--cf-text)' }}>
                   {cfg.label}
                 </span>
-                <span
-                  style={{
-                    fontFamily: cfg.mono,
-                    fontSize: 11,
-                    color: 'var(--cf-text-muted)',
-                    letterSpacing: '-0.2px',
-                  }}
-                >
+                <span style={{ ...fontPreviewStyle, fontFamily: cfg.mono }}>
                   {'The quick brown fox → 0.42'}
                 </span>
               </button>
@@ -376,98 +387,3 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
   );
 }
 
-const containerStyle: React.CSSProperties = {
-  padding: '12px 14px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 16,
-  overflowY: 'auto',
-  maxHeight: '460px',
-};
-
-const sectionStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8,
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  color: 'var(--cf-text-dim)',
-  textTransform: 'uppercase',
-  letterSpacing: 0.5,
-};
-
-const settingRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '10px 12px',
-  backgroundColor: 'var(--cf-surface)',
-  borderRadius: 'var(--cf-radius-md)',
-  gap: 12,
-};
-
-const settingTextStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 2,
-  flex: 1,
-};
-
-const settingLabelStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: 'var(--cf-text)',
-  fontWeight: 500,
-};
-
-const settingDescStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: 'var(--cf-text-dim)',
-  lineHeight: 1.4,
-};
-
-const segmentedContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  backgroundColor: 'var(--cf-surface)',
-  borderRadius: 'var(--cf-radius-md)',
-  padding: 3,
-  gap: 2,
-};
-
-const segmentBtnStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '7px 8px',
-  borderRadius: 'var(--cf-radius-sm)',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: 12,
-  transition: 'all 0.2s ease',
-  fontFamily: 'var(--cf-font)',
-};
-
-const selectLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 8,
-};
-
-const selectStyle: React.CSSProperties = {
-  width: '100%',
-  borderRadius: 'var(--cf-radius-md)',
-  border: '1px solid var(--cf-border)',
-  backgroundColor: 'var(--cf-surface)',
-  color: 'var(--cf-text)',
-  padding: '9px 10px',
-  fontSize: 12,
-};
-
-const infoStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: 'var(--cf-text-dim)',
-  padding: '10px 12px',
-  backgroundColor: 'var(--cf-surface)',
-  borderRadius: 'var(--cf-radius-md)',
-  lineHeight: 1.5,
-};

@@ -55,8 +55,8 @@ function scoreEntry(entry: CatalogEntry, queryTokens: string[]): number {
     // Name match is weighted 3×, description 1×.
     // Only match when a catalog token contains the query token (prefix/exact),
     // never the reverse — prevents short stop-words from scoring everything.
-    const nameHits = nameTokens.filter((t) => t === qt || t.startsWith(qt) || qt.startsWith(t) && qt.length >= 4).length;
-    const descHits = descTokens.filter((t) => t === qt || t.startsWith(qt) || qt.startsWith(t) && qt.length >= 4).length;
+    const nameHits = nameTokens.filter((t) => t === qt || t.startsWith(qt) || (qt.startsWith(t) && qt.length >= 4)).length;
+    const descHits = descTokens.filter((t) => t === qt || t.startsWith(qt) || (qt.startsWith(t) && qt.length >= 4)).length;
     score += nameHits * 3 + descHits;
   }
   return score;

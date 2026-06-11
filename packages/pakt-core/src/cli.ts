@@ -33,6 +33,9 @@ import {
   cmdStats,
   cmdTokens,
 } from './cli-commands.js';
+// TODO(deferred): refactor wrapServer → startProxy unification once cli-serve.ts
+// proxy code is migrated into cli-proxy.ts (P0-1 deferred refactor).
+import { startProxy } from './cli-proxy.js';
 import { startServe } from './cli-serve.js';
 import { VERSION } from './index.js';
 import type { PaktLayers } from './types.js';
@@ -61,9 +64,10 @@ Usage:
   pakt auto [file] [options]        Auto-detect and compress or decompress
   pakt serve --stdio [--agent-name <name>]
                                     Start MCP server over stdio
-  pakt serve --stdio --wrap "<command>"
+  pakt proxy --wrap "<cmd>" --stdio [--tools slim|search|full] [--agent <name>]
                                     Proxy mode: wrap another MCP server,
-                                    auto-compress all its tool results
+                                    auto-compress all its tool results, and
+                                    optionally optimise its tool catalog
   pakt detect [file]                Detect input format
   pakt inspect [file] [options]     Inspect whether to compress, decompress, or leave as-is
   pakt tokens [file] [options]      Count tokens in input
@@ -102,6 +106,10 @@ Options:
   --model <model>    Model for token counting (gpt-4o|claude-sonnet|claude-opus|claude-haiku|gpt-4o-mini)
   --agent-name <name>
                      Name this agent session (used with serve)
+  --wrap "<cmd>"     proxy: command to wrap as a child MCP server
+  --tools <mode>     proxy: tool-catalog mode — full (default) | slim | search
+                       slim:   strip schema boilerplate + cap descriptions
+                       search: expose only search_tools / get_tool_schema / call_tool
 
 Input:
   If no file argument is given, reads from stdin (pipe mode).
@@ -120,6 +128,9 @@ Examples:
   pakt savings data.json --model gpt-4o
   cat data.json | pakt auto
   printf '%s\n' '@from json' 'name: Alice' | pakt auto
+  pakt proxy --wrap "npx my-mcp-server" --tools slim
+  pakt proxy --wrap "npx my-mcp-server" --tools search
+  pakt proxy --wrap "npx my-mcp-server" --tools full
 `;
 
 // ---------------------------------------------------------------------------
@@ -289,6 +300,24 @@ async function main(): Promise<void> {
         passthrough: args.options.get('passthrough')?.split(','),
       });
       return; // serve keeps the stdio transport open
+    case 'proxy': {
+      const wrapCmd = args.options.get('wrap');
+      if (!wrapCmd) {
+        process.stderr.write('Error: "pakt proxy" requires --wrap "<command>"\n\n');
+        process.stdout.write(HELP);
+        process.exit(1);
+      }
+      const rawToolsMode = args.options.get('tools') ?? 'full';
+      const toolsMode =
+        rawToolsMode === 'slim' || rawToolsMode === 'search' || rawToolsMode === 'full'
+          ? rawToolsMode
+          : 'full';
+      await startProxy(wrapCmd, {
+        toolsMode,
+        passthroughTools: args.options.get('passthrough')?.split(','),
+      });
+      return; // proxy keeps the stdio transport open
+    }
     case 'detect':
       cmdDetect(args, readInput);
       break;

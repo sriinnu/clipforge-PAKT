@@ -240,7 +240,7 @@ Both are model-free, pure functions — no SDK coupling.
 
 ### Proxy Tool-Catalog Modes (0.11)
 
-`pakt serve --tools slim` applies lossless-in-spirit one-way schema slimming + description caps to every upstream tool before the LLM sees it (measured byte savings logged). `pakt serve --tools search` exposes a 3-tool facade: `search_tools` / `get_tool_schema` answered locally; `call_tool` forwards the call but returns a structured error if the upstream tool schema was not fetched first — it is not yet a full transparent rewrite path.
+`pakt proxy --wrap "<server-cmd>" --tools slim` applies lossless-in-spirit one-way schema slimming + description caps to every upstream tool before the LLM sees it (measured byte savings logged). `pakt proxy --wrap "<server-cmd>" --tools search` exposes a 3-tool facade: `search_tools` / `get_tool_schema` answered locally; `call_tool` forwards the call but returns a structured error if the upstream tool schema was not fetched first — it is not yet a full transparent rewrite path.
 
 ### Compaction-Cooperative Context Engine (0.11)
 
@@ -377,7 +377,7 @@ console.log(savings.breakdown);
 - **Cache synergy (0.11)** -- Rolling dictionary wired into `pakt_compress` for cross-turn alias reuse; `@cache prefix-end` directive emitted after `@dict` so consumers know exactly where to place provider cache markers; byte-stability verified by test suite.
 - **Dictionary-as-system-prompt (0.11)** -- `dictPlacement: 'system'` separates the `@dict` block onto `result.dictBlock` for pinning to the system prompt (where provider caching is most effective). `decompress(body, { dict })` accepts an external dict. CLI: `--dict-placement system`.
 - **Provider cache adapters (0.11)** -- `buildAnthropicCacheHints` and `buildOpenAICacheHints` are pure, model-free functions that produce the correct SDK fragment shapes for Anthropic `cache_control` (4-breakpoint budget, min-prefix gating) and OpenAI `prompt_cache_key` (stable-prefix SHA-256).
-- **Proxy tool-catalog modes (0.11)** -- `--tools slim` applies lossless-in-spirit schema compression to upstream tool definitions; `--tools search` exposes a 3-tool facade (search/schema answered locally; call forwarded with a documented limitation: not yet a full transparent rewrite path).
+- **Proxy tool-catalog modes (0.11)** -- `pakt proxy --wrap "<server-cmd>" --tools slim` applies lossless-in-spirit schema compression to upstream tool definitions; `--tools search` exposes a 3-tool facade (search/schema answered locally; call forwarded with a documented limitation: not yet a full transparent rewrite path).
 - **Compaction-safe context engine (0.11)** -- Provider compaction blocks treated as opaque/immutable across all context-engine passes. New `providerCompactionThresholdTokens` config; `headroomTokens` surfaced in savings output.
 - **`pakt stats --json` (0.11)** -- `--json` flag fully implemented, emits `schemaVersion: 1` JSON to stdout in both single-file and aggregate modes.
 - **Opt-in L3.5 meta-token layer (0.11, experimental)** -- Cross-word-boundary BPE span aliasing; off in all profiles by default; only writes rewrites that strictly reduce token count; ~3-4% additional savings on repetitive fixture data.

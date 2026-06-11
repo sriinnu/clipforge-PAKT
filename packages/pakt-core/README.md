@@ -180,7 +180,7 @@ console.log(result.compressed);   // body only, no @dict block
 console.log(result.dictBlock);    // '@dict\n  $a: ...\n@end\n' — pin to system prompt
 
 // Decompress with an externally-supplied dict (inline dict wins on conflict)
-const restored = decompress(result.compressed, 'json', { dict: result.dictBlock });
+const restored = decompress(result.compressed, { to: 'json', dict: result.dictBlock });
 console.log(restored.text);
 ```
 
@@ -199,11 +199,17 @@ import { buildAnthropicCacheHints, buildOpenAICacheHints } from '@sriinnu/pakt';
 
 // Anthropic — produces cache_control fragments (4-breakpoint budget)
 const hints = buildAnthropicCacheHints(compressResult, { minPrefixTokens: 2048 });
-// hints.messages — array of { role, content: [{ type, text, cache_control }] }
+// hints.systemBlocks   — content block array for the `system` param (dict-block path)
+// hints.prefixBlock    — cacheable prefix block with cache_control (inline-breakpoint path)
+// hints.suffixBlock    — remainder block without cache_control
+// hints.breakpointsUsed — number of cache_control breakpoints consumed (budget: 4)
+// hints.reason         — explanation when no hints were emitted
 
 // OpenAI — produces prompt_cache_key from stable-prefix SHA-256
 const oaiHints = buildOpenAICacheHints(compressResult);
-// oaiHints.promptCacheKey — string to pass as extra_body.prompt_cache_key
+// oaiHints.prompt_cache_key     — 16-char hex key to pass as extra_body.prompt_cache_key
+// oaiHints.promptPrefixStable   — true when prefix is byte-stable across turns
+// oaiHints.estimatedPrefixTokens — estimated token count of the stable prefix
 ```
 
 ---
@@ -211,11 +217,12 @@ const oaiHints = buildOpenAICacheHints(compressResult);
 ### Proxy tool-catalog modes (0.11)
 
 ```bash
-pakt serve --stdio --tools slim     # slim upstream tool schemas before the LLM sees them
-pakt serve --stdio --tools search   # expose search_tools / get_tool_schema / call_tool facade
+pakt proxy --wrap "npx my-mcp-server" --tools slim   # slim upstream tool schemas before the LLM sees them
+pakt proxy --wrap "npx my-mcp-server" --tools search # expose search_tools / get_tool_schema / call_tool facade
+pakt proxy --wrap "npx my-mcp-server" --tools full   # verbatim re-registration (default)
 ```
 
-`--tools slim` applies lossless-in-spirit description caps and schema simplification; measured byte savings are logged. `--tools search` is a 3-tool facade where `search_tools` and `get_tool_schema` are answered locally; `call_tool` forwards but returns a documented structured error if the target schema was not pre-fetched — it is not yet a full transparent rewrite path.
+`--tools slim` applies lossless-in-spirit description caps and schema simplification; measured byte savings are logged. `--tools search` is a 3-tool facade where `search_tools` and `get_tool_schema` are answered locally; `call_tool` returns a documented structured error — it is not yet a full transparent rewrite path.
 
 ---
 
