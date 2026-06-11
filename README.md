@@ -256,11 +256,21 @@ The `--json` flag on `pakt stats` is now fully implemented. It emits a single JS
 
 ### Python Client — `pakt-client` (0.11)
 
-New package at `packages/pakt-python` — a thin Python wrapper over the PAKT CLI and MCP stdio server. Published to PyPI as `pakt-client`. Zero runtime dependencies beyond the stdlib; Python ≥ 3.10; requires Node ≥ 22 at runtime (calls the PAKT CLI / MCP server as a subprocess). This is a wrapper, not a port — compression logic lives in the Node core. 25 tests across CLI-arg, discovery, parsing, and integration suites.
+New package at `packages/pakt-python` — a thin Python wrapper over the PAKT CLI and MCP stdio server, intended for PyPI as `pakt-client` (not yet published). Zero runtime dependencies beyond the stdlib; Python ≥ 3.10; requires Node ≥ 22 at runtime (calls the PAKT CLI / MCP server as a subprocess). This is a wrapper, not a port — compression logic lives in the Node core. 25 tests across CLI-arg, discovery, parsing, and integration suites.
 
 ### Comprehension Eval Harness (0.11)
 
-`scripts/eval/` is a key-gated eval harness for measuring whether models answer questions correctly from PAKT-compressed vs raw payloads. `--mock` is fully wired and verified. Full runs cost approximately **~$1.40 / model** at Fable 5 pricing (or ~$0.14 with Haiku 4.5). **No live model runs have been executed yet** — no model-comprehension accuracy numbers exist. Measured token savings on the eval fixtures: tabular users 29%, logs 53%, nested config −25% (PAKT expanded it). This finding confirms that small deeply-nested config objects can regress — use `pakt_inspect` before committing.
+`scripts/eval/` measures whether models read PAKT-compressed payloads as accurately as raw JSON — because lossless on bytes does not guarantee lossless in the model's head. It uses **matched-pair scoring**: every question is asked of both formats and classified both-right / both-wrong / JSON-only / PAKT-only; both-wrong pairs are excluded as task-difficulty noise, and a two-sided exact sign test over the discordant pairs gates the verdict (only `p < 0.05` claims a format effect).
+
+**Result** — comprehension suite, 36 questions × 4 runs = 144 paired observations, via the Claude Code CLI:
+
+| | JSON | PAKT |
+|---|------|------|
+| Pooled accuracy | 73.6% | 70.8% |
+
+The formats agreed on 124/144 questions; of the 20 where they diverged, PAKT was correct on 8 and JSON on 12 — a two-sided sign test gives **p = 0.50**, indistinguishable from chance. **PAKT is comprehension-neutral versus minified JSON: no statistically significant penalty.** Accuracy is measured *through the Claude Code agent harness* (the realistic setting for PAKT) without a thinking budget, which is why absolute numbers sit near ~72% — the ~21% both-wrong rate reflects task hardness and affects both formats equally.
+
+Reproduce with `node scripts/eval/run.mjs --provider cli --cli claude` (uses your Claude Code / Codex subscription — no API key) or `--provider anthropic` with `ANTHROPIC_API_KEY` for a raw-model run. A separate 50-row `stress` suite exists but conflates format-reading with retrieval/arithmetic over large tables; see `scripts/eval/README.md` for why it answers a different question.
 
 ### New Brand Assets (0.11)
 
