@@ -10,7 +10,8 @@ and shell workflows.
 
 PAKT (Pipe-Aligned Kompact Text) compresses JSON, YAML, CSV, and Markdown into a
 compact pipe-delimited format that uses **typically 30-50% fewer tokens** on the
-payloads it is designed for. The MCP layer exists so agents can use PAKT as a
+payloads it is designed for (content-dependent — small non-repetitive nested
+objects can expand; that's why the inspect-first flow below exists). The MCP layer exists so agents can use PAKT as a
 workflow primitive instead of a manual pre/post-processing step: inspect first,
 compress only when it helps, then decompress only when a consumer needs the
 original shape.

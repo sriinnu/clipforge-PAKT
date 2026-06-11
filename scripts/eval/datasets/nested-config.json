@@ -1,0 +1,162 @@
+{
+  "environment": "staging",
+  "region": "eu-central-1",
+  "version": "2.14.3",
+  "global": {
+    "log_format": "json",
+    "tracing": {
+      "enabled": true,
+      "sampler": "parentbased_traceidratio",
+      "ratio": 0.25
+    },
+    "metrics": {
+      "enabled": true,
+      "exporter": "prometheus",
+      "port": 9090
+    },
+    "tls": {
+      "min_version": "1.2",
+      "cert_rotation_days": 30
+    }
+  },
+  "services": {
+    "api-gateway": {
+      "replicas": 4,
+      "port": 8080,
+      "timeout_ms": 15000,
+      "log_level": "info",
+      "retries": {
+        "enabled": true,
+        "max_attempts": 3,
+        "backoff_ms": 200
+      },
+      "rate_limit": {
+        "enabled": true,
+        "requests_per_minute": 1200,
+        "burst": 200
+      },
+      "features": {
+        "request_logging": true,
+        "cors": true,
+        "compression": true
+      }
+    },
+    "auth": {
+      "replicas": 3,
+      "port": 8081,
+      "timeout_ms": 5000,
+      "log_level": "warn",
+      "retries": {
+        "enabled": true,
+        "max_attempts": 2,
+        "backoff_ms": 100
+      },
+      "rate_limit": {
+        "enabled": true,
+        "requests_per_minute": 600,
+        "burst": 100
+      },
+      "database": {
+        "engine": "postgres",
+        "pool": {
+          "min": 2,
+          "max": 20
+        },
+        "statement_timeout_ms": 3000
+      },
+      "token": {
+        "issuer": "northwindlabs",
+        "access_ttl_minutes": 15,
+        "refresh_ttl_hours": 72
+      }
+    },
+    "billing": {
+      "replicas": 2,
+      "port": 8082,
+      "timeout_ms": 30000,
+      "log_level": "info",
+      "retries": {
+        "enabled": true,
+        "max_attempts": 5,
+        "backoff_ms": 500
+      },
+      "rate_limit": {
+        "enabled": false
+      },
+      "database": {
+        "engine": "postgres",
+        "pool": {
+          "min": 1,
+          "max": 10
+        },
+        "statement_timeout_ms": 10000
+      },
+      "providers": {
+        "primary": "stripe",
+        "fallback": "adyen",
+        "reconcile_cron": "0 3 * * *"
+      }
+    },
+    "search": {
+      "replicas": 6,
+      "port": 8083,
+      "timeout_ms": 2500,
+      "log_level": "info",
+      "retries": {
+        "enabled": false,
+        "reason": "idempotency not guaranteed"
+      },
+      "rate_limit": {
+        "enabled": true,
+        "requests_per_minute": 3000,
+        "burst": 500
+      },
+      "index": {
+        "engine": "opensearch",
+        "shards": 12,
+        "refresh_interval_s": 5
+      },
+      "cache": {
+        "enabled": true,
+        "ttl_seconds": 120,
+        "max_entries": 50000
+      }
+    },
+    "notifications": {
+      "replicas": 2,
+      "port": 8084,
+      "timeout_ms": 10000,
+      "log_level": "debug",
+      "retries": {
+        "enabled": true,
+        "max_attempts": 4,
+        "backoff_ms": 1000
+      },
+      "rate_limit": {
+        "enabled": true,
+        "requests_per_minute": 300,
+        "burst": 50
+      },
+      "channels": {
+        "email": {
+          "enabled": true,
+          "provider": "ses",
+          "from": "no-reply@northwindlabs.dev"
+        },
+        "sms": {
+          "enabled": false,
+          "provider": "twilio"
+        },
+        "push": {
+          "enabled": true,
+          "provider": "fcm"
+        }
+      },
+      "queue": {
+        "engine": "sqs",
+        "visibility_timeout_s": 60,
+        "dlq_after_attempts": 6
+      }
+    }
+  }
+}

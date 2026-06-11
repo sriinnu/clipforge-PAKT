@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!--
+    PAKT icon mark: two chevrons pressing inward onto a single bright pipe.
+    Story: everything compresses into the pipe - fewer tokens, same meaning.
+    This file is the master mark; raster icons are generated from the same
+    geometry (see apps/extension/scripts/generate-icons.mjs, which thickens
+    strokes and drops the ghost chevrons at small sizes).
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151938" />
+      <stop offset="1" stop-color="#0a0c1f" />
+    </linearGradient>
+    <linearGradient id="pipe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c7d2fe" />
+      <stop offset="0.5" stop-color="#818cf8" />
+      <stop offset="1" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="chevL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f46e5" />
+      <stop offset="1" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="chevR" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#7c3aed" />
+      <stop offset="1" stop-color="#a78bfa" />
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#818cf8" stop-opacity="0.3" />
+      <stop offset="1" stop-color="#818cf8" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14.5" fill="url(#tile)" />
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.75" fill="none" stroke="#818cf8" stroke-opacity="0.14" stroke-width="1.5" />
+  <ellipse cx="32" cy="32" rx="21" ry="23" fill="url(#halo)" />
+
+  <!-- Ghost chevrons: outer pressure, fade out at small raster sizes -->
+  <path d="M 6,24.5 L 11,32 L 6,39.5" fill="none" stroke="#6366f1" stroke-opacity="0.35" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 58,24.5 L 53,32 L 58,39.5" fill="none" stroke="#8b5cf6" stroke-opacity="0.35" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Main chevrons pressing into the pipe -->
+  <path d="M 16,18.5 L 24.8,32 L 16,45.5" fill="none" stroke="url(#chevL)" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 48,18.5 L 39.2,32 L 48,45.5" fill="none" stroke="url(#chevR)" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- The pipe: PAKT's core syntax, the survivor of compression -->
+  <rect x="29.7" y="14" width="4.6" height="36" rx="2.3" fill="url(#pipe)" />
+</svg>

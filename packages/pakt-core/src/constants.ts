@@ -46,16 +46,20 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
  */
 export const DEFAULT_MAX_INPUT_BYTES = 10_000_000;
 
-/* `target` stays out of defaults — it's a user opt-in for cache_control
-   hints. When unset, `compress()` skips the breakpoint computation
-   entirely so direct library consumers who don't care pay nothing. */
-export const DEFAULT_OPTIONS: Required<Omit<PaktOptions, 'target'>> = {
+/* `target`, `cacheDirective`, and `dictPlacement` stay out of defaults —
+   they're user opt-ins for cache_control hints / prompt-cache packing.
+   When unset, `compress()` skips the cache-pack post-pass entirely so
+   direct library consumers who don't care pay nothing. */
+export const DEFAULT_OPTIONS: Required<
+  Omit<PaktOptions, 'target' | 'cacheDirective' | 'dictPlacement'>
+> = {
   layers: {
     structural: true,
     dictionary: true,
     tokenizerAware: false,
     semantic: false,
     contentAware: false,
+    metatoken: false,
   },
   fromFormat: 'json',
   targetModel: 'gpt-4o',
@@ -85,4 +89,5 @@ export const DEFAULT_LAYERS: PaktLayers = {
   tokenizerAware: false,
   semantic: false,
   contentAware: false,
+  metatoken: false,
 };

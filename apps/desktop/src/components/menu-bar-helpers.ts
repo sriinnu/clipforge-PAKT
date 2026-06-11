@@ -96,6 +96,17 @@ export function deriveCopyBadge(
   return outputHasError ? 'Needs review' : 'Ready';
 }
 
+/**
+ * Label for the "Copy output" button itself — flips to a transient
+ * confirmation while the copy-state chip is active, then resets after
+ * `COPY_STATE_RESET_MS` (the parent owns the timer).
+ */
+export function deriveCopyButtonLabel(copyState: 'idle' | 'success' | 'error'): string {
+  if (copyState === 'success') return 'Copied';
+  if (copyState === 'error') return 'Copy failed';
+  return 'Copy output';
+}
+
 /** Detect macOS for hotkey display only — DOM-side, no Tauri call. */
 export function isMacOSPlatform(): boolean {
   if (typeof navigator === 'undefined') return false;

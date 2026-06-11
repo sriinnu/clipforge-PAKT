@@ -1,45 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" width="280" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 64" width="180" height="64">
+  <!--
+    PAKT logo lockup: chevron-pipe mark + hand-drawn monoline wordmark.
+    The wordmark is vector paths (not <text>) so it renders identically
+    everywhere - no font dependency. The K's arms deliberately echo the
+    chevron mark; the A is the chevron rotated upward.
+  -->
   <defs>
-    <linearGradient id="pg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="50%" stop-color="#818cf8" />
-      <stop offset="100%" stop-color="#8b5cf6" />
+    <linearGradient id="pipe" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c7d2fe" />
+      <stop offset="0.5" stop-color="#818cf8" />
+      <stop offset="1" stop-color="#8b5cf6" />
     </linearGradient>
-    <linearGradient id="pipe" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.9" />
+    <linearGradient id="chevL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f46e5" />
+      <stop offset="1" stop-color="#818cf8" />
     </linearGradient>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#6366f1" stop-opacity="0" />
-      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.15" />
-      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+    <linearGradient id="chevR" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#7c3aed" />
+      <stop offset="1" stop-color="#a78bfa" />
     </linearGradient>
+    <linearGradient id="word" x1="76" y1="0" x2="168" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366f1" />
+      <stop offset="1" stop-color="#8b5cf6" />
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#818cf8" stop-opacity="0.18" />
+      <stop offset="1" stop-color="#818cf8" stop-opacity="0" />
+    </radialGradient>
   </defs>
 
-  <!-- Subtle glow behind the icon -->
-  <ellipse cx="30" cy="32" rx="26" ry="24" fill="url(#glow)" />
+  <!-- Mark (tile-less; reads on light and dark backgrounds) -->
+  <ellipse cx="32" cy="32" rx="22" ry="23" fill="url(#halo)" />
+  <path d="M 6,24.5 L 11,32 L 6,39.5" fill="none" stroke="#6366f1" stroke-opacity="0.35" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 58,24.5 L 53,32 L 58,39.5" fill="none" stroke="#8b5cf6" stroke-opacity="0.35" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 16,18.5 L 24.8,32 L 16,45.5" fill="none" stroke="url(#chevL)" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 48,18.5 L 39.2,32 L 48,45.5" fill="none" stroke="url(#chevR)" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="29.7" y="14" width="4.6" height="36" rx="2.3" fill="url(#pipe)" />
 
-  <!-- Compression funnel: wide input → narrow output -->
-  <!-- Left side: expanded data (braces) -->
-  <path d="M 8,12 C 14,12 16,20 16,24" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5" />
-  <path d="M 8,52 C 14,52 16,44 16,40" stroke="#6366f1" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5" />
-
-  <!-- Center: three pipe lines (the PAKT format) -->
-  <line x1="20" y1="24" x2="44" y2="28" stroke="url(#pipe)" stroke-width="2.5" stroke-linecap="round" />
-  <line x1="18" y1="32" x2="46" y2="32" stroke="url(#pipe)" stroke-width="2.5" stroke-linecap="round" />
-  <line x1="20" y1="40" x2="44" y2="36" stroke="url(#pipe)" stroke-width="2.5" stroke-linecap="round" />
-
-  <!-- Right side: compressed output (tight) -->
-  <path d="M 46,28 C 50,30 50,34 46,36" stroke="#8b5cf6" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7" />
-
-  <!-- Pipe separator dots between the lines -->
-  <circle cx="32" cy="26" r="1.5" fill="#818cf8" opacity="0.7" />
-  <circle cx="32" cy="32" r="1.5" fill="#818cf8" opacity="0.9" />
-  <circle cx="32" cy="38" r="1.5" fill="#818cf8" opacity="0.7" />
-
-  <!-- PAKT wordmark -->
-  <text x="60" y="43" font-family="'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace" font-size="34" font-weight="800" fill="url(#pg)" letter-spacing="4">PAKT</text>
-
-  <!-- Tagline -->
-  <text x="62" y="56" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="9" fill="#6366f1" opacity="0.6" letter-spacing="1.5">COMPRESS ENGINE</text>
+  <!-- Wordmark: P A K T, monoline, round caps, condensed -->
+  <g fill="none" stroke="url(#word)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- P -->
+    <path d="M 76,47 V 17 h 8.2 a 8.6,8.6 0 0 1 0,17.2 H 76" />
+    <!-- A: the chevron pointed upward -->
+    <path d="M 101,47 L 109,17 L 117,47" />
+    <path d="M 104.4,37.5 H 113.6" />
+    <!-- K: arms echo the right chevron of the mark -->
+    <path d="M 126.5,17 V 47" />
+    <path d="M 139.5,17 L 127.5,32 L 139.5,47" />
+    <!-- T -->
+    <path d="M 147.5,17 H 165.5" />
+    <path d="M 156.5,17 V 47" />
+  </g>
 </svg>

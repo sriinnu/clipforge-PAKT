@@ -13,7 +13,7 @@ import { decompress } from '../decompress.js';
 import { detect } from '../detect.js';
 import { compressMixed } from '../mixed/index.js';
 import { countTokens } from '../tokens/index.js';
-import type { PaktFormat, PaktResult } from '../types.js';
+import type { PaktFormat, PaktOptions, PaktResult } from '../types.js';
 import { validate } from '../utils/validate.js';
 import {
   PaktToolInputError,
@@ -22,17 +22,29 @@ import {
   extractPIIFields,
   extractPIIInputs,
   summarizeValidationFailure,
+  validateCacheTarget,
+  validateDictPlacement,
   validateFormat,
   validateSemanticBudget,
 } from './handler-validation.js';
+import { rollingDict } from './rolling-dict.js';
 import type { PaktCompressArgs, PaktCompressResult } from './types.js';
 
 /** Maximum input size for explicit compression (1MB). */
 const MAX_COMPRESS_INPUT_SIZE = 1024 * 1024;
 
+/** Optional contract fields spread onto a compress result when present. */
+interface CompressResultExtras {
+  piiCounts?: string;
+  piiMapping?: string;
+  dictBlock?: string;
+  cacheByteOffset?: number;
+}
+
 /**
  * Shape a successful compression run into the {@link PaktCompressResult}
- * contract. PII fields are spread on only when present.
+ * contract. Optional fields (PII, dictBlock, cacheByteOffset) are spread
+ * on only when present.
  */
 function toCompressResult(
   compressed: string,
@@ -41,7 +53,7 @@ function toCompressResult(
   originalTokens: number,
   compressedTokens: number,
   reversible: boolean,
-  piiFields: { piiCounts?: string; piiMapping?: string } = {},
+  extras: CompressResultExtras = {},
 ): PaktCompressResult {
   const base: PaktCompressResult = {
     compressed,
@@ -52,9 +64,55 @@ function toCompressResult(
     savedTokens: originalTokens - compressedTokens,
     reversible,
   };
-  if (piiFields.piiCounts !== undefined) base.piiCounts = piiFields.piiCounts;
-  if (piiFields.piiMapping !== undefined) base.piiMapping = piiFields.piiMapping;
+  if (extras.piiCounts !== undefined) base.piiCounts = extras.piiCounts;
+  if (extras.piiMapping !== undefined) base.piiMapping = extras.piiMapping;
+  if (extras.dictBlock !== undefined) base.dictBlock = extras.dictBlock;
+  if (extras.cacheByteOffset !== undefined) base.cacheByteOffset = extras.cacheByteOffset;
   return base;
+}
+
+/**
+ * Collect the optional contract fields from a finished {@link PaktResult}:
+ * PII metadata plus the cache-synergy extras (dictBlock from
+ * `dictPlacement: 'system'`, cacheByteOffset from `cacheTarget`).
+ */
+function extractResultExtras(result: PaktResult): CompressResultExtras {
+  const extras: CompressResultExtras = { ...extractPIIFields(result) };
+  if (result.dictBlock !== undefined) extras.dictBlock = result.dictBlock;
+  if (result.cacheBreakpoint) extras.cacheByteOffset = result.cacheBreakpoint.byteOffset;
+  return extras;
+}
+
+/**
+ * Run `compress()` on a structured payload (JSON/YAML/CSV) with optional
+ * per-session rolling-dictionary seeding.
+ *
+ * When `useRolling` is true, expansions discovered in prior turns are
+ * seeded into L2 (pinning them to their existing `$a`, `$b`, ... slots in
+ * deterministic append-only order — see `RollingDictionary.seed`) and the
+ * newly discovered entries are merged back afterwards. This keeps the
+ * `@dict` prefix byte-stable across MCP calls, which is the precondition
+ * for provider prompt-cache hits.
+ */
+function compressStructured(
+  text: string,
+  options: Partial<PaktOptions>,
+  fromFormat: PaktFormat,
+  useRolling: boolean,
+): PaktResult {
+  const seededExpansions = useRolling ? rollingDict.seed() : undefined;
+  const result = compress(text, {
+    ...options,
+    fromFormat,
+    ...(seededExpansions ? { seedAliases: seededExpansions } : {}),
+  });
+  if (seededExpansions) {
+    // piiSafe: true — rolling dict is only seeded when PII mode is inactive
+    // (see useRolling guard in handleCompress). The invariant is documented in
+    // RollingDictionary.update().
+    rollingDict.update(result.dictionary, seededExpansions, { piiSafe: true });
+  }
+  return result;
 }
 
 /**
@@ -103,6 +161,12 @@ function paktPassthroughResult(text: string): PaktCompressResult {
  *  - no format: detect, then PAKT → passthrough; structured → core compress;
  *    everything else → mixed-content pipeline
  *
+ * Structured inputs participate in the per-session rolling dictionary by
+ * default (same process-level singleton `pakt_auto` uses), so the `@dict`
+ * prefix stays byte-stable across turns. Opt out with `statelessDict`.
+ * The rolling dictionary is skipped when PII handling is active —
+ * redacted/flagged payloads must not seed cross-call state.
+ *
  * @throws {@link PaktToolInputError} for validation failures
  */
 export function handleCompress(args: PaktCompressArgs): PaktCompressResult {
@@ -116,13 +180,24 @@ export function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   const format = validateFormat(args.format);
   const semanticBudget = validateSemanticBudget(args.semanticBudget);
   const piiInputs = extractPIIInputs(args as unknown as Record<string, unknown>);
+  const dictPlacement = validateDictPlacement(args.dictPlacement);
+  const cacheTarget = validateCacheTarget(args.cacheTarget);
+
   const options = buildCompressionOptions(format, semanticBudget, piiInputs);
+  if (dictPlacement !== undefined) options.dictPlacement = dictPlacement;
+  if (cacheTarget !== undefined) options.target = cacheTarget;
+
+  const piiActive = piiInputs.mode !== undefined && piiInputs.mode !== 'off';
+  const useRolling = args.statelessDict !== true && !piiActive;
 
   // --- explicit format path ---
   if (format) {
     if (format === 'pakt') return paktPassthroughResult(args.text);
 
-    const result = compress(args.text, options);
+    const structured = format === 'json' || format === 'yaml' || format === 'csv';
+    const result = structured
+      ? compressStructured(args.text, options, format, useRolling)
+      : compress(args.text, options);
     return toCompressResult(
       result.compressed,
       result.savings.totalPercent,
@@ -130,7 +205,7 @@ export function handleCompress(args: PaktCompressArgs): PaktCompressResult {
       result.originalTokens,
       result.compressedTokens,
       result.reversible,
-      extractPIIFields(result),
+      extractResultExtras(result),
     );
   }
 
@@ -139,7 +214,7 @@ export function handleCompress(args: PaktCompressArgs): PaktCompressResult {
   if (detected.format === 'pakt') return paktPassthroughResult(args.text);
 
   if (detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv') {
-    const result = compress(args.text, { ...options, fromFormat: detected.format });
+    const result = compressStructured(args.text, options, detected.format, useRolling);
     return toCompressResult(
       result.compressed,
       result.savings.totalPercent,
@@ -147,13 +222,15 @@ export function handleCompress(args: PaktCompressArgs): PaktCompressResult {
       result.originalTokens,
       result.compressedTokens,
       result.reversible,
-      extractPIIFields(result),
+      extractResultExtras(result),
     );
   }
 
   /* mixed-content path: compressMixed wraps compress() internally, so
      PII options threaded through `options` reach the inner pipeline and
-     any counts/mapping show up on the mixed result. */
+     any counts/mapping show up on the mixed result. The rolling dict and
+     dictPlacement don't apply here — embedded blocks keep their own
+     inline dictionaries. */
   const mixedResult = compressMixed(args.text, options);
   return toCompressResult(
     mixedResult.compressed,

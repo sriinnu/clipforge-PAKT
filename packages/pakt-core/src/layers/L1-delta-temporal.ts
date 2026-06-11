@@ -44,9 +44,11 @@ import { createPosition } from '../parser/ast-helpers.js';
 import type {
   ScalarNode,
   SourcePosition,
+  StringScalar,
   TabularArrayNode,
   TabularRowNode,
 } from '../parser/ast.js';
+import { parseDeltaSentinel } from './delta-shared.js';
 import { type ColumnShape, type ParsedISO, formatEpochToISO, parseISO } from './iso-format.js';
 
 // ---------------------------------------------------------------------------
@@ -74,17 +76,29 @@ const POS: SourcePosition = createPosition(0, 0, 0);
 // ---------------------------------------------------------------------------
 
 /**
+ * A scalar node holding a temporal-delta sentinel: an *unquoted* string
+ * scalar whose value matches `T+N` / `T-N`. Target type of the
+ * {@link isTemporalDeltaSentinel} predicate.
+ *
+ * The `quoted: false` refinement matters: plain `StringScalar` is not
+ * assignable to this type, so the predicate's negative branch does NOT
+ * narrow `StringScalar` away. The decoder pre-checks
+ * `scalarType === 'string'` and still needs to treat non-sentinel cells
+ * as concrete ISO strings in its else-branch.
+ */
+export type TemporalDeltaSentinelScalar = StringScalar & { quoted: false };
+
+/**
  * Check if a scalar node is an unquoted temporal-delta sentinel.
  *
- * Intentionally a plain boolean — *not* a type predicate. The decoder's
- * else-branch needs to reason about `cell.scalarType === 'string'` for
- * concrete ISO values, which TypeScript would incorrectly rule out if
- * the positive branch narrowed away every `StringScalar`.
+ * A proper type predicate, symmetric with `isNumericDeltaSentinel` in
+ * the numeric codec. Narrows to {@link TemporalDeltaSentinelScalar}
+ * rather than plain `StringScalar` — see that type's docs for why.
  *
  * @param node - Scalar node to inspect
  * @returns True if the node is `T+N` / `T-N` unquoted
  */
-export function isTemporalDeltaSentinel(node: ScalarNode): boolean {
+export function isTemporalDeltaSentinel(node: ScalarNode): node is TemporalDeltaSentinelScalar {
   return (
     node.scalarType === 'string' && node.quoted === false && TEMPORAL_SENTINEL_RE.test(node.value)
   );
@@ -258,13 +272,6 @@ export function temporalDeltaEncodeTabular(node: TabularArrayNode): TabularArray
 // Decoding
 // ---------------------------------------------------------------------------
 
-/** Parse a `T+60` / `T-1` sentinel string to its signed integer value. */
-function parseSentinel(value: string): number {
-  const sign = value.charAt(1) === '-' ? -1 : 1;
-  const mag = Number.parseInt(value.slice(2), 10);
-  return sign * mag;
-}
-
 /**
  * Revert temporal-delta encoding on one tabular array. Walks each
  * column forward from row 0, resolving `T+N`/`T-N` sentinels by adding
@@ -314,7 +321,8 @@ export function temporalDeltaDecodeTabular(node: TabularArrayNode): {
           resolvedAll = false;
           continue;
         }
-        runningEpoch += parseSentinel(cell.value);
+        /* Sign character sits at index 1 (`T+60` / `T-1`). */
+        runningEpoch += parseDeltaSentinel(cell.value, 1);
         const iso = formatEpochToISO(runningEpoch, templateValue);
         row.values[f] = {
           type: 'scalar',

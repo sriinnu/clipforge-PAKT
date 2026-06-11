@@ -20,6 +20,15 @@ export const OUTPUT_FORMATS: { value: PaktFormat; label: string }[] = [
 /** Which sub-panel is currently visible (history / settings overlays). */
 export type Panel = 'main' | 'settings' | 'history';
 
+/** Primary tabs of the main view — telemetry HQ is the default on open. */
+export type MainTab = 'telemetry' | 'compress';
+
+/** Tab metadata for the toolbar's segmented tablist. */
+export const MAIN_TABS: { id: MainTab; label: string }[] = [
+  { id: 'telemetry', label: 'Telemetry' },
+  { id: 'compress', label: 'Compress' },
+];
+
 /** Kind of transform last performed; drives the active-output copy. */
 export type TransformAction = 'compress' | 'decompress' | null;
 

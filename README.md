@@ -7,7 +7,7 @@
 <p align="center">
   The only prompt compressor that's <b>lossless</b>, <b>model-free</b>, and <b>built for structured data</b>.<br/>
   No inference cost, no hallucinations, no byte-level tricks an LLM can't see -- just fewer tokens for the same payload.<br/>
-  <b>27-69% savings</b> on JSON / YAML / CSV / logs.
+  <b>27-69% savings</b> on tabular / log / repetitive data. Provider caching makes repeated context cheap; PAKT makes the rest cheap.
 </p>
 
 <p align="center">
@@ -36,7 +36,7 @@
 
 ## What is PAKT?
 
-**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. Structured payloads often see **30-50% token savings**, with higher gains on repetitive and tabular data, while preserving data fidelity across core lossless layers `L1-L3`. `L4` is separately opt-in, budgeted, and lossy.
+**PAKT** (Pipe-Aligned Kompact Text) is a lossless-first compression format that converts JSON, YAML, CSV, and mixed markdown content into a compact pipe-delimited syntax optimized for LLM token efficiency. Structured payloads often see **27-33% token savings** on JSON records, with higher gains on tabular and repetitive data (logs 57%, repetitive text 38-69%). Small, deeply-nested config objects can expand — run `pakt_inspect` or `pakt auto` first to confirm a payload is worth compressing before committing. Core lossless layers are `L1-L3`; `L4` is separately opt-in, budgeted, and lossy.
 
 LLMs charge by the token. Structured data wastes tokens on syntax: braces, quotes, repeated keys, whitespace. PAKT eliminates the waste.
 
@@ -53,8 +53,8 @@ ClipForge is the product suite built around PAKT. In this repository, that means
 
 - **[@sriinnu/pakt](./packages/pakt-core/)** -- The core library, CLI, and MCP server. This is the stable release surface for Node.js and TypeScript projects, plus agent hosts that need stdio tools for compress, auto, and inspect.
 - **[ClipForge Playground](./apps/playground/)** -- A lightweight local web UI for trying JSON, YAML, CSV, and mixed markdown compression before wiring PAKT into a real workflow. It is a browser lab, not a release integration. Hosted playground: [pakt-4f9.pages.dev](https://pakt-4f9.pages.dev/).
-- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri desktop shell for clipboard compression workflows. The current release validation is macOS menu bar first; Windows and Linux tray targets exist in source but are not part of the validated release path yet. The 0.9 frontend is hand-split into vendor / pakt-core / tauri-api / app chunks plus lazy-loaded Settings and History overlays so vendor code caches independently across releases.
-- **[ClipForge Browser Extension](./apps/extension/)** *(experimental)* -- A Chrome extension with a popup, a dedicated full-tab Options page, context-menu actions, and input helpers for supported web LLM UIs: ChatGPT, Claude, Gemini, Slack web, and Gmail. Includes opt-in auto-compress-on-paste with a per-host allowlist.
+- **[ClipForge Desktop](./apps/desktop/)** -- A Tauri desktop shell that is now primarily an **Agent Telemetry HQ**: the default tab is a live dashboard reading `~/.pakt/stats` JSONL files (today/7-day token savings, per-agent source table, latency percentiles, lossy share, sparklines). Clipboard compression is the second tab. History is backed by real SQLite via `tauri-plugin-sql` with automatic migration from legacy localStorage. macOS is the validated release path; Windows and Linux tray targets exist in source.
+- **[ClipForge Browser Extension](./apps/extension/)** *(experimental, not yet published)* -- A Chrome extension with a popup, a dedicated full-tab Options page, context-menu actions, and input helpers for supported web LLM UIs: ChatGPT, Claude, Gemini, Slack web, and Gmail. Includes opt-in auto-compress-on-paste with a per-host site-allowlist editor. Store listing, privacy policy, and submission checklist are complete but the extension has not yet been submitted or smoke-tested on live sites.
 
 The goal is simple: every token you send to an LLM should carry meaning, not syntax.
 
@@ -85,13 +85,17 @@ This is a [pnpm workspace](https://pnpm.io/workspaces) monorepo.
 clipforge-PAKT/
   packages/
     pakt-core/          Core compression engine, CLI, and MCP server
+    pakt-python/        Python client wrapper (pakt-client on PyPI)
   apps/
     playground/         Local web playground for trying PAKT inputs
     desktop/            ClipForge tray app (Tauri v2 + React)
     extension/          Experimental Chrome extension for supported LLM UIs
   docs/                 Format spec and guides
   assets/
-    pakt-logo.svg       Logo assets
+    pakt-logo.svg       Logo wordmark (vector, no font deps)
+    pakt-icon.svg       Chevron-pipe icon mark
+  scripts/
+    eval/               Comprehension eval harness (key-gated; --mock verified)
 ```
 
 ### Packages
@@ -99,6 +103,7 @@ clipforge-PAKT/
 | Package | npm | Description |
 |---------|-----|-------------|
 | [`@sriinnu/pakt`](./packages/pakt-core/) | [![npm](https://img.shields.io/npm/v/@sriinnu/pakt?color=6366f1&label=)](https://www.npmjs.com/package/@sriinnu/pakt) | PAKT compression engine -- the core library with API and CLI |
+| [`pakt-client`](./packages/pakt-python/) | *(pending PyPI publish)* | Thin Python wrapper over PAKT CLI + MCP stdio. Zero deps, Python ≥ 3.10, Node ≥ 22 at runtime. |
 
 ---
 
@@ -216,6 +221,68 @@ CLI/MCP note:
 - `semanticBudget` now cleanly opts into lossy `L4`; if you stay on `L1-L3`, the pipeline remains lossless.
 - `pakt serve --stdio` now uses the official MCP SDK stdio transport, and embedders can register the same tools programmatically via `registerPaktTools()`.
 
+### Cache Synergy Pack (0.11)
+
+`RollingDictionary` is now wired into `handleCompress` (the MCP `pakt_compress` tool), so cross-turn alias reuse is on by default for explicit compress calls. Opt out by passing `statelessDict: true`. After the `@dict ... @end` block, PAKT emits a `@cache prefix-end` directive when a `cacheTarget` or `cacheDirective: true` is set; `cache-breakpoint.ts`'s `findCacheDirectiveOffset` returns the exact byte offset for placing a provider `cache_control` / `cachePoint` marker. Byte stability across turns is verified by `tests/cache-stability.test.ts`.
+
+### Dictionary Placement (0.11)
+
+`compress()` now accepts `dictPlacement: 'inline' | 'system'`. When `'system'`, the result carries `result.dictBlock` — the `@dict ... @end` block separated out for placement in the system prompt where provider caching is most effective. `decompress(body, { dict })` merges an externally-supplied dict block back in (inline wins on conflict). CLI: `--dict-placement system --dict-out <file>` on compress; `--dict <file>` on decompress. MCP: `dictPlacement` parameter.
+
+### Provider Cache Adapters (0.11)
+
+New pure functions exported from `src/middleware/provider-adapter.ts`:
+
+- `buildAnthropicCacheHints(result, opts)` — produces `cache_control` message fragments for Anthropic's API (4-breakpoint budget, min-prefix gating at 2 048 / 4 096 tokens, TTL break-even math).
+- `buildOpenAICacheHints(result)` — produces `prompt_cache_key` from a SHA-256 of the stable prefix.
+
+Both are model-free, pure functions — no SDK coupling.
+
+### Proxy Tool-Catalog Modes (0.11)
+
+`pakt proxy --wrap "<server-cmd>" --tools slim` applies lossless-in-spirit one-way schema slimming + description caps to every upstream tool before the LLM sees it (measured byte savings logged). `pakt proxy --wrap "<server-cmd>" --tools search` exposes a 3-tool facade: `search_tools` / `get_tool_schema` answered locally; `call_tool` forwards the call but returns a structured error if the upstream tool schema was not fetched first — it is not yet a full transparent rewrite path.
+
+### Compaction-Cooperative Context Engine (0.11)
+
+Provider compaction blocks (e.g. `compact-2026-01-12` format) are now detected at ingestion and treated as opaque/immutable: they are skipped across dedup, aging, summarization, and fact-extraction passes. New config options: `providerCompactionThresholdTokens` and `headroomTokens` in the `savings` output. `engine.ts` was refactored from 592 → 384 LOC into focused submodules (`opaque-blocks.ts`, `tool-aging.ts`, `fact-extraction.ts`, `history-strategies.ts`).
+
+### `pakt stats --json` (0.11)
+
+The `--json` flag on `pakt stats` is now fully implemented. It emits a single JSON object with `schemaVersion: 1` to stdout (no ANSI, no decorative text) in both single-file and aggregate modes. The shape matches what `consumer-integration.md` §4 documents. Previously the flag was advertised but silently ignored.
+
+### L3.5 Meta-token Layer (0.11, opt-in, experimental)
+
+`src/layers/L3-5-metatoken.ts` adds a new opt-in layer that discovers recurring BPE token spans crossing word boundaries (the gap L2 substring mining misses), aliases them into the shared `@dict` block, and verifies per-span that token count strictly decreases before writing any rewrite. Decompression is handled by the existing `decompressL2` path — no new decompressor code. **Off in all built-in profiles by default.** Measured on bundled test fixtures (gpt-4o / o200k_base): ~3-4% additional savings on repetitive JSON/log payloads; 0% on non-repetitive data (safety gate fires). These are fixture-level measurements — actual savings are content-dependent.
+
+### Python Client — `pakt-client` (0.11)
+
+New package at `packages/pakt-python` — a thin Python wrapper over the PAKT CLI and MCP stdio server, intended for PyPI as `pakt-client` (not yet published). Zero runtime dependencies beyond the stdlib; Python ≥ 3.10; requires Node ≥ 22 at runtime (calls the PAKT CLI / MCP server as a subprocess). This is a wrapper, not a port — compression logic lives in the Node core. 25 tests across CLI-arg, discovery, parsing, and integration suites.
+
+### Comprehension Eval Harness (0.11)
+
+`scripts/eval/` measures whether models read PAKT-compressed payloads as accurately as raw JSON — because lossless on bytes does not guarantee lossless in the model's head. It uses **matched-pair scoring**: every question is asked of both formats and classified both-right / both-wrong / JSON-only / PAKT-only; both-wrong pairs are excluded as task-difficulty noise, and a two-sided exact sign test over the discordant pairs gates the verdict (only `p < 0.05` claims a format effect).
+
+**Result** — comprehension suite, 36 questions × 4 runs = 144 paired observations, via the Claude Code CLI:
+
+| | JSON | PAKT |
+|---|------|------|
+| Pooled accuracy | 73.6% | 70.8% |
+
+The formats agreed on 124/144 questions; of the 20 where they diverged, PAKT was correct on 8 and JSON on 12 — a two-sided sign test gives **p = 0.50**, indistinguishable from chance. **PAKT is comprehension-neutral versus minified JSON: no statistically significant penalty.** Accuracy is measured *through the Claude Code agent harness* (the realistic setting for PAKT) without a thinking budget, which is why absolute numbers sit near ~72% — the ~21% both-wrong rate reflects task hardness and affects both formats equally.
+
+Reproduce with `node scripts/eval/run.mjs --provider cli --cli claude` (uses your Claude Code / Codex subscription — no API key) or `--provider anthropic` with `ANTHROPIC_API_KEY` for a raw-model run. A separate 50-row `stress` suite exists but conflates format-reading with retrieval/arithmetic over large tables; see `scripts/eval/README.md` for why it answers a different question.
+
+### New Brand Assets (0.11)
+
+Chevron-pipe icon mark (`assets/pakt-icon.svg`), rewritten vector wordmark (`assets/pakt-logo.svg`, no font deps), full Tauri icon set, extension PNGs, playground favicon.
+
+### Research Docs (0.11)
+
+- `docs/research/2026-06-future-features.md` — ranked feature research
+- `docs/research/2026-06-polyglot-port-options.md` — port evaluation; recommendation is protocol surfaces now, Rust core + bindings when demand proves
+
+---
+
 ### Session Stats (0.6.2)
 
 Track token savings across sessions with persistent, multi-agent support.
@@ -317,7 +384,15 @@ console.log(savings.breakdown);
 - **MCP + CLI + library, zero model dependency** -- `pakt serve --stdio` exposes seven tools to agents: `pakt_compress`, `pakt_auto`, `pakt_inspect`, `pakt_stats`, `pakt_explain`, `pakt_savings`, `pakt_dashboard`. Same logic ships as a CLI and a typed TypeScript library.
 - **Prompt-cache aware (0.10)** -- `target: 'bedrock' | 'anthropic' | 'openai' | 'google'` returns a `cacheBreakpoint` hint with byte offset and recommended TTL. Combined with prefix-stable `@dict` (deterministic alias slots across turns), enables 90% input-token cost reduction on multi-turn agent loops via provider prompt caching.
 - **Latency + lossy observability (0.10)** -- `pakt_stats` and `pakt_dashboard` now surface P50/P95/P99 latency percentiles and lossy-call accounting (count + tokens) so you can see whether traffic is bleeding latency or running through L4/PII redaction.
-- **27-69% savings with public benchmarks** -- 27-33% on JSON payloads, 57% on duplicate log lines, 38-69% on repetitive text. Full reproducible numbers in [docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md).
+- **Cache synergy (0.11)** -- Rolling dictionary wired into `pakt_compress` for cross-turn alias reuse; `@cache prefix-end` directive emitted after `@dict` so consumers know exactly where to place provider cache markers; byte-stability verified by test suite.
+- **Dictionary-as-system-prompt (0.11)** -- `dictPlacement: 'system'` separates the `@dict` block onto `result.dictBlock` for pinning to the system prompt (where provider caching is most effective). `decompress(body, { dict })` accepts an external dict. CLI: `--dict-placement system`.
+- **Provider cache adapters (0.11)** -- `buildAnthropicCacheHints` and `buildOpenAICacheHints` are pure, model-free functions that produce the correct SDK fragment shapes for Anthropic `cache_control` (4-breakpoint budget, min-prefix gating) and OpenAI `prompt_cache_key` (stable-prefix SHA-256).
+- **Proxy tool-catalog modes (0.11)** -- `pakt proxy --wrap "<server-cmd>" --tools slim` applies lossless-in-spirit schema compression to upstream tool definitions; `--tools search` exposes a 3-tool facade (search/schema answered locally; call forwarded with a documented limitation: not yet a full transparent rewrite path).
+- **Compaction-safe context engine (0.11)** -- Provider compaction blocks treated as opaque/immutable across all context-engine passes. New `providerCompactionThresholdTokens` config; `headroomTokens` surfaced in savings output.
+- **`pakt stats --json` (0.11)** -- `--json` flag fully implemented, emits `schemaVersion: 1` JSON to stdout in both single-file and aggregate modes.
+- **Opt-in L3.5 meta-token layer (0.11, experimental)** -- Cross-word-boundary BPE span aliasing; off in all profiles by default; only writes rewrites that strictly reduce token count; ~3-4% additional savings on repetitive fixture data.
+- **Python client — `pakt-client` (0.11)** -- Thin Python wrapper over PAKT CLI + MCP stdio (`packages/pakt-python`), zero stdlib-only deps, Python ≥ 3.10, Node ≥ 22 at runtime.
+- **27-69% savings, content-dependent** -- 27-33% on JSON records, 57% on duplicate log lines, 38-69% on repetitive text. Small deeply-nested config objects can expand (measured: +25% on a ~160-line nested config). Use `pakt_inspect` or `pakt auto` first — they pass through payloads that don't compress. Full reproducible numbers in [docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHOT.md).
 
 ---
 

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pakt-client"
+version = "0.1.0"
+description = "Thin Python client for the PAKT CLI / MCP server (lossless prompt compression for LLM payloads). The compression engine runs in Node — this is a wrapper, not a port."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Srinivas Pendela" }]
+keywords = ["pakt", "compression", "llm", "tokens", "prompt", "mcp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries",
+]
+# Zero runtime dependencies by design: the CLI path uses stdlib subprocess/json
+# only, and the bundled MCP client speaks newline-delimited JSON-RPC 2.0 over
+# stdio with the stdlib as well (verified against pakt-core 0.10.0).
+dependencies = []
+
+[project.optional-dependencies]
+# Optional: the official MCP Python SDK, for users who prefer it over the
+# bundled stdlib JSON-RPC client (pakt_client.mcp does NOT require it).
+mcp = ["mcp>=1.0"]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/sriinnu/clipforge-PAKT"
+Repository = "https://github.com/sriinnu/clipforge-PAKT"
+Issues = "https://github.com/sriinnu/clipforge-PAKT/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pakt_client"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "integration: tests that require a runnable pakt CLI (Node.js)",
+]

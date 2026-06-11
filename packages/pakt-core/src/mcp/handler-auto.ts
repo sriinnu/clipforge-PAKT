@@ -245,7 +245,8 @@ export function handleAuto(args: PaktAutoArgs): PaktAutoResult {
       : compressMixed(args.text, compressionOptions);
 
   if (useRolling && seededExpansions && 'dictionary' in compressResult) {
-    rollingDict.update(compressResult.dictionary, seededExpansions);
+    // piiSafe: true — useRolling is false when piiActive, so PII content never seeds here.
+    rollingDict.update(compressResult.dictionary, seededExpansions, { piiSafe: true });
   }
 
   const savedTokens = compressResult.originalTokens - compressResult.compressedTokens;

@@ -25,6 +25,12 @@ export const RECOMMENDED_ACTION_VALUES = ['compress', 'decompress', 'leave-as-is
 /** Valid `piiMode` values across `pakt_compress` / `pakt_auto`. */
 export const PII_MODE_VALUES = ['off', 'flag', 'redact'] as const;
 
+/** Valid `dictPlacement` values for `pakt_compress`. */
+export const DICT_PLACEMENT_VALUES = ['inline', 'system'] as const;
+
+/** Valid `cacheTarget` values for `pakt_compress` (provider cache_control hints). */
+export const CACHE_TARGET_VALUES = ['anthropic', 'bedrock', 'openai', 'google'] as const;
+
 /* `piiKinds` is carried across the wire as a comma-separated string
    (e.g. "email,ipv4") for schema simplicity — the handler layer
    validates each kind before turning it into an array. The canonical

@@ -9,8 +9,17 @@
  */
 
 import { PAKT_FORMAT_VALUES, isPaktFormat } from '../formats.js';
-import type { PIIKind, PIIMode, PaktFormat, PaktOptions, PaktResult } from '../types.js';
+import type {
+  CacheTarget,
+  DictPlacement,
+  PIIKind,
+  PIIMode,
+  PaktFormat,
+  PaktOptions,
+  PaktResult,
+} from '../types.js';
 import type { validate } from '../utils/validate.js';
+import { CACHE_TARGET_VALUES, DICT_PLACEMENT_VALUES } from './contract-builder.js';
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -64,6 +73,33 @@ export function validateSemanticBudget(value: unknown): number | undefined {
     throw new PaktToolInputError('semanticBudget must be a positive integer');
   }
   return value;
+}
+
+/**
+ * Validate the optional `dictPlacement` argument (`inline` | `system`).
+ * Returns `undefined` when omitted; throws on unknown values.
+ */
+export function validateDictPlacement(value: unknown): DictPlacement | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string' || !DICT_PLACEMENT_VALUES.includes(value as DictPlacement)) {
+    throw new PaktToolInputError(
+      `dictPlacement must be one of: ${DICT_PLACEMENT_VALUES.join(', ')}`,
+    );
+  }
+  return value as DictPlacement;
+}
+
+/**
+ * Validate the optional `cacheTarget` argument (provider id for
+ * cache_control breakpoint hints). Returns `undefined` when omitted;
+ * throws on unknown providers.
+ */
+export function validateCacheTarget(value: unknown): CacheTarget | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string' || !CACHE_TARGET_VALUES.includes(value as CacheTarget)) {
+    throw new PaktToolInputError(`cacheTarget must be one of: ${CACHE_TARGET_VALUES.join(', ')}`);
+  }
+  return value as CacheTarget;
 }
 
 // ---------------------------------------------------------------------------

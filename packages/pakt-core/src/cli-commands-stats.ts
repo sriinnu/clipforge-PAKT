@@ -9,6 +9,10 @@
  *    print stats for it
  *  - **persistent** (no file + interactive terminal): aggregate persisted
  *    records from `~/.pakt/stats/` across all agents/sessions
+ *
+ * When `--json` is present, either mode emits a single JSON object to stdout
+ * (no decorative text, no ANSI) with `schemaVersion: 1`. The text path is
+ * byte-identical to its prior behaviour.
  */
 
 import type { ParsedArgs } from './cli-commands-shared.js';
@@ -22,6 +26,76 @@ import {
 } from './mcp/session-stats.js';
 import { compressMixed } from './mixed/index.js';
 import { compactSessions, getActiveSessions, readAllRecords, resetAll } from './stats/persister.js';
+
+// ---------------------------------------------------------------------------
+// JSON output schema
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape emitted by `pakt stats --json`.
+ * All camelCase field names are stable across patch versions.
+ * `schemaVersion` will be bumped on breaking changes only.
+ */
+export interface StatsJsonOutput {
+  /** Schema version — currently 1. Bumped only on breaking changes. */
+  schemaVersion: 1;
+  /** Time scope label: "all time", "today", "last 7 days", or "single-shot". */
+  scope: string;
+  /** Model used for cost estimation. */
+  model: string;
+  /** Human-readable session / query duration (e.g. "14m 32s"). */
+  sessionDuration: string;
+  /** Total compression/decompression/inspect calls in scope. */
+  totalCalls: number;
+  /** Breakdown of call counts by action type. */
+  callsByAction: { compress: number; decompress: number; inspect: number };
+  /** Sum of input token counts across all calls. */
+  totalInputTokens: number;
+  /** Sum of output token counts across all calls. */
+  totalOutputTokens: number;
+  /** Total tokens saved (inputTokens − outputTokens) across all calls. */
+  totalSavedTokens: number;
+  /** Weighted average savings percentage (0–100). */
+  overallSavingsPercent: number;
+  /** Per-format breakdown of calls and token counts. */
+  byFormat: Record<
+    string,
+    {
+      calls: number;
+      inputTokens: number;
+      outputTokens: number;
+      savedTokens: number;
+      avgSavingsPercent: number;
+    }
+  >;
+  /** Format with the highest call count (null when no calls). */
+  topFormat: { format: string; calls: number; avgSavingsPercent: number } | null;
+  /** Estimated cost saved based on the model's per-million-token pricing. */
+  estimatedCostSaved: { input: number; output: number; currency: string } | null;
+  /** ISO-8601 timestamp of the most recent call (null when no calls). */
+  lastCallAt: string | null;
+  /**
+   * Currently-active sessions visible in the stats directory.
+   * Empty array in single-shot mode or when no active sessions exist.
+   */
+  activeSessions: Array<{
+    sessionId: string;
+    agent: string;
+    pid: number;
+    startedAt: number;
+    recordCount: number;
+  }>;
+  /**
+   * Tool-call latency percentiles in ms. Null when no records carry timing.
+   * Only populated when durationMs was recorded (MCP server mode).
+   */
+  latencyMs: { p50: number; p95: number; p99: number; avg: number; samples: number } | null;
+  /**
+   * Lossy-call accounting (L4 semantic / PII redact calls).
+   * Non-reversible results are not byte-identical round-trips.
+   */
+  lossy: { count: number; inputTokens: number };
+}
 
 // ---------------------------------------------------------------------------
 // Cost / format helpers shared by both modes
@@ -38,11 +112,50 @@ function printCostSaved(stats: SessionStatsResult): void {
   );
 }
 
+/**
+ * Emit a single JSON object to stdout for machine-readable consumption.
+ * No decorative text, no ANSI escape codes. Terminates with a newline.
+ *
+ * @param stats - Aggregated session stats result.
+ * @param meta  - Extra contextual fields (scope, model, agent label).
+ * @param activeSessions - Active sessions to include in the output.
+ */
+function printStatsJson(
+  stats: SessionStatsResult,
+  meta: { scope: string; model: string },
+  activeSessions: ReturnType<typeof getActiveSessions>,
+): void {
+  const output: StatsJsonOutput = {
+    schemaVersion: 1,
+    scope: meta.scope,
+    model: meta.model,
+    sessionDuration: stats.sessionDuration,
+    totalCalls: stats.totalCalls,
+    callsByAction: stats.callsByAction,
+    totalInputTokens: stats.totalInputTokens,
+    totalOutputTokens: stats.totalOutputTokens,
+    totalSavedTokens: stats.totalSavedTokens,
+    overallSavingsPercent: stats.overallSavingsPercent,
+    byFormat: stats.byFormat,
+    topFormat: stats.topFormat,
+    estimatedCostSaved: stats.estimatedCostSaved,
+    lastCallAt: stats.lastCallAt,
+    activeSessions,
+    latencyMs: stats.latencyMs,
+    lossy: stats.lossy,
+  };
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
 // ---------------------------------------------------------------------------
 // Single-shot mode
 // ---------------------------------------------------------------------------
 
-/** Compress one input and print its stats. */
+/**
+ * Compress one input and print its stats.
+ * When `--json` is present the output is a single JSON object; otherwise
+ * the human-readable `Key: value` layout is preserved byte-for-byte.
+ */
 function cmdStatsSingleShot(
   args: ParsedArgs,
   readInput: (file: string | undefined) => string,
@@ -77,6 +190,11 @@ function cmdStatsSingleShot(
   });
 
   const stats = getSessionStats(model);
+
+  if (args.flags.has('json')) {
+    printStatsJson(stats, { scope: 'single-shot', model }, []);
+    return;
+  }
 
   process.stdout.write(`Format:            ${detected.format}\n`);
   process.stdout.write(`Model:             ${model}\n`);
@@ -145,7 +263,12 @@ function printStatsReport(
   }
 }
 
-/** Persistent stats: read from ~/.pakt/stats/ and aggregate. */
+/**
+ * Persistent stats: read from `~/.pakt/stats/` and aggregate.
+ * When `--json` is set, emit a JSON object even when no records exist
+ * (zeroed aggregates) — matching how the text path says "No stats yet"
+ * but returning a parseable structure instead of an error.
+ */
 function cmdStatsPersistent(args: ParsedArgs, model: string): void {
   if (args.flags.has('reset')) {
     resetAll();
@@ -161,12 +284,21 @@ function cmdStatsPersistent(args: ParsedArgs, model: string): void {
     return;
   }
 
+  const jsonMode = args.flags.has('json');
   const { since, label } = resolveTimeRange(args.flags);
   const agent = args.options.get('agent');
   const activeOnly = args.flags.has('active');
   const records = readAllRecords({ since, agent, activeOnly });
+  const activeSessions = getActiveSessions();
 
   if (records.length === 0) {
+    if (jsonMode) {
+      // Emit a valid zeroed JSON object — not an error — so callers can
+      // always `JSON.parse()` the output unconditionally.
+      const emptyStats = new SessionStats();
+      printStatsJson(emptyStats.getStats(model), { scope: label, model }, activeSessions);
+      return;
+    }
     process.stdout.write('No stats recorded yet.\n');
     if (!activeOnly) {
       process.stdout.write('Run pakt compress or use the MCP server to start tracking.\n');
@@ -177,6 +309,11 @@ function cmdStatsPersistent(args: ParsedArgs, model: string): void {
   const tempStats = new SessionStats();
   for (const record of records) {
     tempStats.record(record);
+  }
+
+  if (jsonMode) {
+    printStatsJson(tempStats.getStats(model), { scope: label, model }, activeSessions);
+    return;
   }
 
   printStatsReport(tempStats.getStats(model), { scope: label, model, agent });

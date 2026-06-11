@@ -8,6 +8,7 @@
  * requested format.
  */
 
+import { mergeExternalDict, stripCacheDirectives } from './dict-external.js';
 import {
   decompressL2,
   decompressText,
@@ -17,7 +18,7 @@ import {
 import type { CommentNode, DocumentNode } from './parser/ast.js';
 import { parse } from './parser/index.js';
 import { bodyToValue, toCsv, toJson, toMarkdown, toText, toYaml } from './reverse/index.js';
-import type { DecompressResult, PaktFormat } from './types.js';
+import type { DecompressOptions, DecompressResult, PaktFormat } from './types.js';
 
 /**
  * Decompress a PAKT string back to the original or requested format.
@@ -38,9 +39,17 @@ import type { DecompressResult, PaktFormat } from './types.js';
  * header is used (e.g., if the PAKT string says `@from json`, the
  * output will be JSON).
  *
+ * A `@cache prefix-end` directive in the header region (emitted by
+ * `compress()` when a cache target is set) is treated as a no-op header
+ * and stripped before parsing, so round-trips are unaffected.
+ *
  * @param pakt - The PAKT-formatted string to decompress
- * @param outputFormat - Desired output format. Defaults to the original
- *   format declared in the `@from` header.
+ * @param outputFormatOrOptions - Desired output format (defaults to the
+ *   original format declared in the `@from` header), or a
+ *   {@link DecompressOptions} bag. Pass `{ dict }` to merge an external
+ *   dictionary block produced by `compress()` with
+ *   `dictPlacement: 'system'` — inline `@dict` entries win on alias
+ *   conflicts (see {@link DecompressOptions.dict}).
  * @returns Decompressed data and formatted text.
  *   On error, returns the raw PAKT string as text with format 'text' (graceful degradation).
  *
@@ -77,11 +86,30 @@ import type { DecompressResult, PaktFormat } from './types.js';
  * //     role: dev
  * ```
  */
-export function decompress(pakt: string, outputFormat?: PaktFormat): DecompressResult {
+export function decompress(
+  pakt: string,
+  outputFormatOrOptions?: PaktFormat | DecompressOptions,
+): DecompressResult {
   // Graceful degradation: wrap the entire pipeline in try-catch so that
   // on ANY error we return the raw PAKT string as text instead of crashing.
   try {
-    return decompressPipeline(pakt, outputFormat);
+    // Normalize the legacy positional format argument into an options bag.
+    const options: DecompressOptions =
+      typeof outputFormatOrOptions === 'string'
+        ? { to: outputFormatOrOptions }
+        : (outputFormatOrOptions ?? {});
+
+    /* The @cache directive is a pure no-op header: strip it from the
+       header region before anything else so the parser, the text-path
+       decompressor, and the @from signature check all see canonical
+       PAKT. Then merge any external dictionary so alias expansion works
+       on bodies produced with dictPlacement: 'system'. */
+    let input = stripCacheDirectives(pakt);
+    if (options.dict !== undefined && options.dict.length > 0) {
+      input = mergeExternalDict(input, options.dict);
+    }
+
+    return decompressPipeline(input, options.to);
   } catch {
     return {
       data: pakt,
