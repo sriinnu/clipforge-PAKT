@@ -316,6 +316,19 @@ input:focus-visible {
   transform: none;
 }
 
+/* Transient copy-confirmation states on the "Copy output" button. */
+.desktop-primary-button.is-copy-success {
+  border-color: rgba(53, 211, 154, 0.4);
+  background: linear-gradient(180deg, rgba(53, 211, 154, 0.85), rgba(34, 168, 120, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 14px 26px rgba(53, 211, 154, 0.2);
+}
+
+.desktop-primary-button.is-copy-error {
+  border-color: rgba(255, 121, 121, 0.4);
+  background: linear-gradient(180deg, rgba(255, 121, 121, 0.85), rgba(214, 84, 84, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 14px 26px rgba(255, 121, 121, 0.2);
+}
+
 .desktop-content {
   position: relative;
   z-index: 2;
@@ -326,6 +339,17 @@ input:focus-visible {
   gap: 14px;
   overflow-y: auto;
   padding: 16px 18px 18px;
+}
+
+/* Wrapper for the active primary tab (telemetry / compress). Mirrors the
+   column-gap layout .desktop-content gave its direct children before the
+   tab split, so both tabs keep identical spacing. */
+.desktop-tabpanel {
+  display: flex;
+  flex: 1;
+  min-height: min-content;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .desktop-summary-card,

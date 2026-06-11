@@ -13,6 +13,7 @@ import {
   markL5,
   revertL3,
 } from './layers/index.js';
+import { applyMetatokenCompression } from './layers/L3-5-metatoken.js';
 import { compressMixed } from './mixed/index.js';
 import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
@@ -57,6 +58,7 @@ export function mergeLayers(partial?: Partial<PaktLayers>): PaktLayers {
     tokenizerAware: partial.tokenizerAware ?? DEFAULT_LAYERS.tokenizerAware,
     semantic: partial.semantic ?? DEFAULT_LAYERS.semantic,
     contentAware: partial.contentAware ?? DEFAULT_LAYERS.contentAware,
+    metatoken: partial.metatoken ?? DEFAULT_LAYERS.metatoken,
   };
 }
 
@@ -265,6 +267,43 @@ export function applyTokenizerLayer(
   }
 
   return { compressed: transformed, doc: l3Doc, saved };
+}
+
+/**
+ * Apply the L3.5 meta-token layer (opt-in, off by default).
+ *
+ * Operates on the serialized PAKT string after L2/L3. Finds recurring
+ * BPE token n-grams that cross word boundaries, appends aliases to the
+ * existing @dict block (append-only for cache stability), and rewrites
+ * occurrences in the body with `${letter}` inline aliases the existing
+ * decompressor handles. Requires L2 dictionary to be active (needs a
+ * @dict block in the output). Lossless and reversible.
+ *
+ * @param compressed - Serialized PAKT after L2/L3
+ * @param enabled - Whether the metatoken layer is on
+ * @param targetModel - Tokenizer-family hint for real token counting
+ * @returns Layer application — doc reference is unchanged (text-level op),
+ *   saved contains real token delta
+ */
+export function applyMetatokenLayer(
+  doc: PaktDocument,
+  compressed: string,
+  enabled: boolean,
+  targetModel: string,
+): LayerApplication {
+  if (!enabled) {
+    return { compressed, doc, saved: 0 };
+  }
+
+  const result = applyMetatokenCompression(compressed, targetModel);
+  if (result.savedTokens <= 0) {
+    return { compressed, doc, saved: 0 };
+  }
+
+  // L3.5 is a string-level transform: the doc reference stays the same
+  // (the @dict block in the serialized string is updated, but we don't
+  // need to re-parse the doc for decompression — aliases live in the text).
+  return { compressed: result.pakt, doc, saved: result.savedTokens };
 }
 
 /**

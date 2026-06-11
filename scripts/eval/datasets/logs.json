@@ -1,0 +1,722 @@
+[
+  {
+    "ts": "2026-06-09T08:00:27Z",
+    "level": "INFO",
+    "service": "notifications",
+    "message": "invoice generated",
+    "status": 200,
+    "latency_ms": 98,
+    "request_id": "req-1000"
+  },
+  {
+    "ts": "2026-06-09T08:07:30Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "cache hit",
+    "status": 201,
+    "latency_ms": 700,
+    "request_id": "req-1001"
+  },
+  {
+    "ts": "2026-06-09T08:15:21Z",
+    "level": "ERROR",
+    "service": "billing",
+    "message": "payment provider error",
+    "status": 503,
+    "latency_ms": 1373,
+    "request_id": "req-1002"
+  },
+  {
+    "ts": "2026-06-09T08:22:53Z",
+    "level": "ERROR",
+    "service": "billing",
+    "message": "payment provider error",
+    "status": 502,
+    "latency_ms": 1664,
+    "request_id": "req-1003"
+  },
+  {
+    "ts": "2026-06-09T08:30:07Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "cache hit",
+    "status": 200,
+    "latency_ms": 230,
+    "request_id": "req-1004"
+  },
+  {
+    "ts": "2026-06-09T08:37:52Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 417,
+    "request_id": "req-1005"
+  },
+  {
+    "ts": "2026-06-09T08:45:26Z",
+    "level": "WARN",
+    "service": "auth",
+    "message": "stale cache entry",
+    "status": 200,
+    "latency_ms": 496,
+    "request_id": "req-1006"
+  },
+  {
+    "ts": "2026-06-09T08:52:24Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 187,
+    "request_id": "req-1007"
+  },
+  {
+    "ts": "2026-06-09T09:00:01Z",
+    "level": "ERROR",
+    "service": "billing",
+    "message": "index write failed",
+    "status": 500,
+    "latency_ms": 1308,
+    "request_id": "req-1008"
+  },
+  {
+    "ts": "2026-06-09T09:07:49Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 263,
+    "request_id": "req-1009"
+  },
+  {
+    "ts": "2026-06-09T09:15:29Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "invoice generated",
+    "status": 200,
+    "latency_ms": 226,
+    "request_id": "req-1010"
+  },
+  {
+    "ts": "2026-06-09T09:22:44Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "invoice generated",
+    "status": 200,
+    "latency_ms": 183,
+    "request_id": "req-1011"
+  },
+  {
+    "ts": "2026-06-09T09:29:53Z",
+    "level": "INFO",
+    "service": "notifications",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 56,
+    "request_id": "req-1012"
+  },
+  {
+    "ts": "2026-06-09T09:37:29Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 495,
+    "request_id": "req-1013"
+  },
+  {
+    "ts": "2026-06-09T09:45:09Z",
+    "level": "WARN",
+    "service": "notifications",
+    "message": "retry scheduled",
+    "status": 429,
+    "latency_ms": 533,
+    "request_id": "req-1014"
+  },
+  {
+    "ts": "2026-06-09T09:52:37Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "invoice generated",
+    "status": 201,
+    "latency_ms": 553,
+    "request_id": "req-1015"
+  },
+  {
+    "ts": "2026-06-09T10:00:15Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "invoice generated",
+    "status": 201,
+    "latency_ms": 22,
+    "request_id": "req-1016"
+  },
+  {
+    "ts": "2026-06-09T10:07:20Z",
+    "level": "ERROR",
+    "service": "billing",
+    "message": "upstream timeout",
+    "status": 500,
+    "latency_ms": 1677,
+    "request_id": "req-1017"
+  },
+  {
+    "ts": "2026-06-09T10:15:13Z",
+    "level": "WARN",
+    "service": "auth",
+    "message": "slow query detected",
+    "status": 429,
+    "latency_ms": 234,
+    "request_id": "req-1018"
+  },
+  {
+    "ts": "2026-06-09T10:22:48Z",
+    "level": "WARN",
+    "service": "search",
+    "message": "slow query detected",
+    "status": 200,
+    "latency_ms": 468,
+    "request_id": "req-1019"
+  },
+  {
+    "ts": "2026-06-09T10:30:10Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "invoice generated",
+    "status": 200,
+    "latency_ms": 665,
+    "request_id": "req-1020"
+  },
+  {
+    "ts": "2026-06-09T10:37:18Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 324,
+    "request_id": "req-1021"
+  },
+  {
+    "ts": "2026-06-09T10:44:46Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "invoice generated",
+    "status": 200,
+    "latency_ms": 674,
+    "request_id": "req-1022"
+  },
+  {
+    "ts": "2026-06-09T10:52:27Z",
+    "level": "WARN",
+    "service": "notifications",
+    "message": "retry scheduled",
+    "status": 429,
+    "latency_ms": 339,
+    "request_id": "req-1023"
+  },
+  {
+    "ts": "2026-06-09T11:00:11Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "cache hit",
+    "status": 201,
+    "latency_ms": 233,
+    "request_id": "req-1024"
+  },
+  {
+    "ts": "2026-06-09T11:07:26Z",
+    "level": "DEBUG",
+    "service": "auth",
+    "message": "feature flag evaluated",
+    "status": 201,
+    "latency_ms": 602,
+    "request_id": "req-1025"
+  },
+  {
+    "ts": "2026-06-09T11:15:05Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 179,
+    "request_id": "req-1026"
+  },
+  {
+    "ts": "2026-06-09T11:22:15Z",
+    "level": "ERROR",
+    "service": "billing",
+    "message": "payment provider error",
+    "status": 502,
+    "latency_ms": 2873,
+    "request_id": "req-1027"
+  },
+  {
+    "ts": "2026-06-09T11:30:00Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "request completed",
+    "status": 201,
+    "latency_ms": 108,
+    "request_id": "req-1028"
+  },
+  {
+    "ts": "2026-06-09T11:37:44Z",
+    "level": "ERROR",
+    "service": "billing",
+    "message": "index write failed",
+    "status": 503,
+    "latency_ms": 1122,
+    "request_id": "req-1029"
+  },
+  {
+    "ts": "2026-06-09T11:45:08Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 603,
+    "request_id": "req-1030"
+  },
+  {
+    "ts": "2026-06-09T11:52:41Z",
+    "level": "DEBUG",
+    "service": "search",
+    "message": "feature flag evaluated",
+    "status": 200,
+    "latency_ms": 271,
+    "request_id": "req-1031"
+  },
+  {
+    "ts": "2026-06-09T12:00:11Z",
+    "level": "ERROR",
+    "service": "auth",
+    "message": "payment provider error",
+    "status": 503,
+    "latency_ms": 1620,
+    "request_id": "req-1032"
+  },
+  {
+    "ts": "2026-06-09T12:07:21Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 516,
+    "request_id": "req-1033"
+  },
+  {
+    "ts": "2026-06-09T12:14:41Z",
+    "level": "WARN",
+    "service": "notifications",
+    "message": "slow query detected",
+    "status": 200,
+    "latency_ms": 290,
+    "request_id": "req-1034"
+  },
+  {
+    "ts": "2026-06-09T12:22:36Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 491,
+    "request_id": "req-1035"
+  },
+  {
+    "ts": "2026-06-09T12:29:37Z",
+    "level": "ERROR",
+    "service": "notifications",
+    "message": "database connection refused",
+    "status": 503,
+    "latency_ms": 1171,
+    "request_id": "req-1036"
+  },
+  {
+    "ts": "2026-06-09T12:37:38Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 259,
+    "request_id": "req-1037"
+  },
+  {
+    "ts": "2026-06-09T12:44:58Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 35,
+    "request_id": "req-1038"
+  },
+  {
+    "ts": "2026-06-09T12:52:16Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 737,
+    "request_id": "req-1039"
+  },
+  {
+    "ts": "2026-06-09T13:00:10Z",
+    "level": "ERROR",
+    "service": "search",
+    "message": "index write failed",
+    "status": 500,
+    "latency_ms": 1087,
+    "request_id": "req-1040"
+  },
+  {
+    "ts": "2026-06-09T13:07:28Z",
+    "level": "INFO",
+    "service": "notifications",
+    "message": "cache hit",
+    "status": 201,
+    "latency_ms": 553,
+    "request_id": "req-1041"
+  },
+  {
+    "ts": "2026-06-09T13:15:08Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 85,
+    "request_id": "req-1042"
+  },
+  {
+    "ts": "2026-06-09T13:21:59Z",
+    "level": "ERROR",
+    "service": "search",
+    "message": "database connection refused",
+    "status": 500,
+    "latency_ms": 1533,
+    "request_id": "req-1043"
+  },
+  {
+    "ts": "2026-06-09T13:29:34Z",
+    "level": "WARN",
+    "service": "auth",
+    "message": "retry scheduled",
+    "status": 429,
+    "latency_ms": 321,
+    "request_id": "req-1044"
+  },
+  {
+    "ts": "2026-06-09T13:36:56Z",
+    "level": "ERROR",
+    "service": "api-gateway",
+    "message": "payment provider error",
+    "status": 502,
+    "latency_ms": 1255,
+    "request_id": "req-1045"
+  },
+  {
+    "ts": "2026-06-09T13:44:30Z",
+    "level": "WARN",
+    "service": "billing",
+    "message": "rate limit near threshold",
+    "status": 200,
+    "latency_ms": 415,
+    "request_id": "req-1046"
+  },
+  {
+    "ts": "2026-06-09T13:52:11Z",
+    "level": "INFO",
+    "service": "notifications",
+    "message": "cache hit",
+    "status": 200,
+    "latency_ms": 49,
+    "request_id": "req-1047"
+  },
+  {
+    "ts": "2026-06-09T14:00:02Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "invoice generated",
+    "status": 200,
+    "latency_ms": 61,
+    "request_id": "req-1048"
+  },
+  {
+    "ts": "2026-06-09T14:07:06Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 202,
+    "request_id": "req-1049"
+  },
+  {
+    "ts": "2026-06-09T14:14:44Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 300,
+    "request_id": "req-1050"
+  },
+  {
+    "ts": "2026-06-09T14:21:52Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 290,
+    "request_id": "req-1051"
+  },
+  {
+    "ts": "2026-06-09T14:29:58Z",
+    "level": "ERROR",
+    "service": "api-gateway",
+    "message": "database connection refused",
+    "status": 503,
+    "latency_ms": 1866,
+    "request_id": "req-1052"
+  },
+  {
+    "ts": "2026-06-09T14:37:10Z",
+    "level": "INFO",
+    "service": "notifications",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 257,
+    "request_id": "req-1053"
+  },
+  {
+    "ts": "2026-06-09T14:44:31Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "cache hit",
+    "status": 200,
+    "latency_ms": 744,
+    "request_id": "req-1054"
+  },
+  {
+    "ts": "2026-06-09T14:52:07Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "request completed",
+    "status": 201,
+    "latency_ms": 352,
+    "request_id": "req-1055"
+  },
+  {
+    "ts": "2026-06-09T14:59:29Z",
+    "level": "INFO",
+    "service": "notifications",
+    "message": "cache hit",
+    "status": 200,
+    "latency_ms": 598,
+    "request_id": "req-1056"
+  },
+  {
+    "ts": "2026-06-09T15:07:07Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 394,
+    "request_id": "req-1057"
+  },
+  {
+    "ts": "2026-06-09T15:14:46Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 222,
+    "request_id": "req-1058"
+  },
+  {
+    "ts": "2026-06-09T15:22:00Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 92,
+    "request_id": "req-1059"
+  },
+  {
+    "ts": "2026-06-09T15:29:20Z",
+    "level": "WARN",
+    "service": "notifications",
+    "message": "slow query detected",
+    "status": 200,
+    "latency_ms": 748,
+    "request_id": "req-1060"
+  },
+  {
+    "ts": "2026-06-09T15:37:09Z",
+    "level": "ERROR",
+    "service": "auth",
+    "message": "database connection refused",
+    "status": 500,
+    "latency_ms": 1783,
+    "request_id": "req-1061"
+  },
+  {
+    "ts": "2026-06-09T15:44:17Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 577,
+    "request_id": "req-1062"
+  },
+  {
+    "ts": "2026-06-09T15:52:15Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 705,
+    "request_id": "req-1063"
+  },
+  {
+    "ts": "2026-06-09T15:59:45Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "index refreshed",
+    "status": 201,
+    "latency_ms": 290,
+    "request_id": "req-1064"
+  },
+  {
+    "ts": "2026-06-09T16:06:54Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "cache hit",
+    "status": 201,
+    "latency_ms": 724,
+    "request_id": "req-1065"
+  },
+  {
+    "ts": "2026-06-09T16:14:50Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 575,
+    "request_id": "req-1066"
+  },
+  {
+    "ts": "2026-06-09T16:21:54Z",
+    "level": "WARN",
+    "service": "search",
+    "message": "rate limit near threshold",
+    "status": 429,
+    "latency_ms": 154,
+    "request_id": "req-1067"
+  },
+  {
+    "ts": "2026-06-09T16:29:33Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 397,
+    "request_id": "req-1068"
+  },
+  {
+    "ts": "2026-06-09T16:36:57Z",
+    "level": "DEBUG",
+    "service": "notifications",
+    "message": "feature flag evaluated",
+    "status": 201,
+    "latency_ms": 444,
+    "request_id": "req-1069"
+  },
+  {
+    "ts": "2026-06-09T16:44:29Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "request completed",
+    "status": 200,
+    "latency_ms": 358,
+    "request_id": "req-1070"
+  },
+  {
+    "ts": "2026-06-09T16:52:08Z",
+    "level": "DEBUG",
+    "service": "auth",
+    "message": "payload trace",
+    "status": 201,
+    "latency_ms": 139,
+    "request_id": "req-1071"
+  },
+  {
+    "ts": "2026-06-09T16:59:34Z",
+    "level": "INFO",
+    "service": "search",
+    "message": "token issued",
+    "status": 201,
+    "latency_ms": 52,
+    "request_id": "req-1072"
+  },
+  {
+    "ts": "2026-06-09T17:07:10Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 49,
+    "request_id": "req-1073"
+  },
+  {
+    "ts": "2026-06-09T17:14:10Z",
+    "level": "ERROR",
+    "service": "notifications",
+    "message": "upstream timeout",
+    "status": 500,
+    "latency_ms": 1136,
+    "request_id": "req-1074"
+  },
+  {
+    "ts": "2026-06-09T17:21:57Z",
+    "level": "WARN",
+    "service": "api-gateway",
+    "message": "rate limit near threshold",
+    "status": 200,
+    "latency_ms": 503,
+    "request_id": "req-1075"
+  },
+  {
+    "ts": "2026-06-09T17:29:23Z",
+    "level": "INFO",
+    "service": "api-gateway",
+    "message": "token issued",
+    "status": 200,
+    "latency_ms": 73,
+    "request_id": "req-1076"
+  },
+  {
+    "ts": "2026-06-09T17:36:44Z",
+    "level": "WARN",
+    "service": "search",
+    "message": "rate limit near threshold",
+    "status": 429,
+    "latency_ms": 499,
+    "request_id": "req-1077"
+  },
+  {
+    "ts": "2026-06-09T17:44:22Z",
+    "level": "INFO",
+    "service": "auth",
+    "message": "index refreshed",
+    "status": 200,
+    "latency_ms": 264,
+    "request_id": "req-1078"
+  },
+  {
+    "ts": "2026-06-09T17:51:48Z",
+    "level": "INFO",
+    "service": "billing",
+    "message": "cache hit",
+    "status": 200,
+    "latency_ms": 306,
+    "request_id": "req-1079"
+  }
+]

@@ -23,6 +23,12 @@
  */
 
 export { ContextEngine, createContextEngine } from './engine.js';
+export {
+  isOpaqueBlock,
+  messageIsImmutable,
+  BUILTIN_OPAQUE_TYPES,
+} from './opaque-blocks.js';
+export type { OpaqueContentBlock } from './opaque-blocks.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,

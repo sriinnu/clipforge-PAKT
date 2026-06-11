@@ -38,6 +38,7 @@ import type {
   TabularArrayNode,
   TabularRowNode,
 } from '../parser/ast.js';
+import { parseDeltaSentinel } from './delta-shared.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -71,9 +72,10 @@ const POS: SourcePosition = createPosition(0, 0, 0);
  * user string values that happen to look the same must be force-quoted
  * (see {@link needsNumericDeltaQuote}).
  *
- * Unlike the temporal variant this IS a type predicate — safe here
+ * A type predicate, symmetric with `isTemporalDeltaSentinel` in the
+ * temporal codec. Narrowing to plain `StringScalar` is safe here
  * because the decoder's else-branch discriminates on
- * `scalarType === 'number'`, so narrowing away `StringScalar` in the
+ * `scalarType === 'number'`, so removing `StringScalar` in the
  * negative path doesn't conflict with any downstream reasoning.
  *
  * @param node - Scalar node to inspect
@@ -256,18 +258,6 @@ export function numericDeltaEncodeTabular(node: TabularArrayNode): TabularArrayN
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a numeric-delta sentinel string (e.g. `+60`, `-1`) to its signed
- * integer value. Caller must have verified the shape via
- * {@link isNumericDeltaSentinel}.
- */
-function parseSentinel(value: string): number {
-  /* parseInt would accept `+60` but we want to be explicit about base */
-  const sign = value.startsWith('-') ? -1 : 1;
-  const mag = Number.parseInt(value.slice(1), 10);
-  return sign * mag;
-}
-
-/**
  * Revert numeric-delta encoding on one tabular array. Walks each column
  * forward from row 0, resolving any `+N`/`-N` sentinels by adding the
  * signed delta to the previously resolved absolute value in that column.
@@ -316,7 +306,8 @@ export function numericDeltaDecodeTabular(node: TabularArrayNode): {
           resolvedAll = false;
           continue;
         }
-        runningValue += parseSentinel(cell.value);
+        /* Sign character sits at index 0 (`+60` / `-1`). */
+        runningValue += parseDeltaSentinel(cell.value, 0);
         row.values[f] = {
           type: 'scalar',
           scalarType: 'number',

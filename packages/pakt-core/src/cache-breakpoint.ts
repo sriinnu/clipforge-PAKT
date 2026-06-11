@@ -48,6 +48,7 @@ const KNOWN_HEADERS = new Set([
   '@version',
   '@target',
   '@profile',
+  '@cache',
 ]);
 
 /** Hard cap on dict scan to prevent unterminated `@dict` from swallowing the body. */
@@ -132,9 +133,68 @@ function findPrefixEnd(compressed: string): number {
 }
 
 /**
+ * Find the byte offset immediately after the `@cache prefix-end`
+ * directive line (newline included) in the header region of a compressed
+ * PAKT string. The directive explicitly marks where the cacheable prefix
+ * ends, so consumers can place a provider `cache_control` breakpoint at
+ * exactly this offset.
+ *
+ * Only the header region is scanned (known headers, blanks, and one
+ * `@dict ... @end` block) — a body line that happens to start with
+ * `@cache` is never matched.
+ *
+ * @param compressed - Serialized PAKT output
+ * @returns Byte offset right after the directive line, or `null` when no
+ *   directive is present in the header region
+ */
+export function findCacheDirectiveOffset(compressed: string): number | null {
+  if (typeof compressed !== 'string' || compressed.length === 0) return null;
+
+  let pos = 0;
+  let inDict = false;
+  let dictLinesScanned = 0;
+
+  while (pos < compressed.length) {
+    const nl = compressed.indexOf('\n', pos);
+    const lineEnd = nl >= 0 ? nl : compressed.length;
+    let line = compressed.slice(pos, lineEnd);
+    if (line.endsWith('\r')) line = line.slice(0, -1);
+    const advance = lineEnd + (nl >= 0 ? 1 : 0);
+
+    if (inDict) {
+      pos = advance;
+      dictLinesScanned++;
+      if (line === '@end') inDict = false;
+      else if (dictLinesScanned > MAX_DICT_LINES) return null;
+      continue;
+    }
+    if (line === '@dict' || line.startsWith('@dict ')) {
+      pos = advance;
+      inDict = true;
+      dictLinesScanned = 0;
+      continue;
+    }
+    if (line === '@cache prefix-end') {
+      return utf8ByteLength(compressed.slice(0, advance));
+    }
+    if (line === '' || isKnownHeaderLine(line)) {
+      pos = advance;
+      continue;
+    }
+    break; // body starts — no directive in the header region
+  }
+  return null;
+}
+
+/**
  * Compute a cache breakpoint hint for the given compressed output and
  * target. Returns `null` when the prefix has no usable boundary (e.g.
  * the input was passed through unchanged with no PAKT headers).
+ *
+ * When a `@cache prefix-end` directive is present in the header region,
+ * its position is authoritative — the byte offset lands immediately
+ * after the directive line. Otherwise the boundary falls back to the
+ * end of the header block (after `@dict ... @end` or `@from`).
  *
  * Guards: returns `null` for null/undefined/empty input rather than
  * crashing — the function is exported on the public surface, so JS
@@ -148,7 +208,7 @@ export function computeCacheBreakpoint(
 ): CacheBreakpoint | null {
   if (typeof compressed !== 'string' || compressed.length === 0) return null;
 
-  const byteOffset = findPrefixEnd(compressed);
+  const byteOffset = findCacheDirectiveOffset(compressed) ?? findPrefixEnd(compressed);
   if (byteOffset === 0) return null;
 
   return {

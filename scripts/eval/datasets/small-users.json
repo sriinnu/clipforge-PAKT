@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1,
+    "name": "Quinn Achebe",
+    "email": "quinn.achebe@pakteval.dev",
+    "city": "Vienna",
+    "plan": "free",
+    "age": 29,
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Lena Okafor",
+    "email": "lena.okafor@pakteval.dev",
+    "city": "Reykjavik",
+    "plan": "pro",
+    "age": 44,
+    "active": false
+  },
+  {
+    "id": 3,
+    "name": "Takeshi Brandt",
+    "email": "takeshi.brandt@pakteval.dev",
+    "city": "Montevideo",
+    "plan": "enterprise",
+    "age": 37,
+    "active": true
+  },
+  {
+    "id": 4,
+    "name": "Amara Johansson",
+    "email": "amara.johansson@pakteval.dev",
+    "city": "Nairobi",
+    "plan": "free",
+    "age": 52,
+    "active": true
+  },
+  {
+    "id": 5,
+    "name": "Boris Castellano",
+    "email": "boris.castellano@pakteval.dev",
+    "city": "Tallinn",
+    "plan": "pro",
+    "age": 68,
+    "active": false
+  },
+  {
+    "id": 6,
+    "name": "Priya Delacroix",
+    "email": "priya.delacroix@pakteval.dev",
+    "city": "Bogotá",
+    "plan": "enterprise",
+    "age": 33,
+    "active": true
+  },
+  {
+    "id": 7,
+    "name": "Seun Nakamura",
+    "email": "seun.nakamura@pakteval.dev",
+    "city": "Tbilisi",
+    "plan": "free",
+    "age": 41,
+    "active": true
+  }
+]

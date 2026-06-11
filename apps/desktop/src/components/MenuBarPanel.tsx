@@ -1,51 +1,49 @@
 /**
  * Tray-window root for the ClipForge desktop app.
  *
- * Owns the panel-level state (which sub-panel is open, copy-state badge,
- * open animation, last-action / last-run cache) and wires it to the
- * compactor + clipboard hooks. All visuals are delegated to the small
- * stateless sub-components in this folder; long-running side effects
- * live in {@link useTauriShortcuts} & friends.
+ * Owns the panel-level state (active primary tab, which overlay is open,
+ * copy-state badge, open animation, last-action / last-run cache) and
+ * wires it to the compactor + clipboard hooks. The primary surface is
+ * the Telemetry HQ tab (token savings from pakt's MCP/CLI stats files);
+ * the clipboard compress workspace lives on the second tab. All visuals
+ * are delegated to the small stateless sub-components in this folder;
+ * long-running side effects live in {@link useTauriShortcuts} & friends.
  */
 
-import { type FC, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type FC, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { useClipboard } from '../hooks/useClipboard';
 import { useCompactor } from '../hooks/useCompactor';
 import type { CompactorRunResult } from '../hooks/useCompactor';
 import { useHistoryStore } from '../stores/historyStore';
 import type { HistoryEntry } from '../stores/historyStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { MenuBarBottomGrid } from './MenuBarBottomGrid';
-import { MenuBarCommandCard } from './MenuBarCommandCard';
-import { MenuBarEditorGrid } from './MenuBarEditorGrid';
+import { CompressWorkspace } from './CompressWorkspace';
 import { MenuBarToolbar } from './MenuBarToolbar';
 import {
   COPY_STATE_RESET_MS,
   MENU_BAR_OPEN_DURATION_MS,
+  type MainTab,
   type Panel,
   type TransformAction,
 } from './menu-bar-constants';
-import {
-  deriveCommandCopy,
-  deriveOutputMeta,
-  deriveSourceMeta,
-  isMacOSPlatform,
-} from './menu-bar-helpers';
+import { isMacOSPlatform } from './menu-bar-helpers';
 import {
   useClipboardAutoWatch,
   useMenuBarShellListeners,
   useTauriShortcuts,
 } from './use-menu-bar-shortcuts';
 
-// Overlay panels are only rendered on demand (gear / clock click). Loading
-// them lazily keeps the initial tray paint snappy and lets rolldown emit
-// dedicated chunks for each one.
+// Overlay panels and the telemetry tab are only rendered on demand.
+// Loading them lazily keeps the initial tray paint snappy and lets
+// rolldown emit dedicated chunks for each one.
 const HistoryPanel = lazy(() => import('./HistoryPanel'));
 const SettingsPanel = lazy(() => import('./SettingsPanel'));
+const TelemetryPanel = lazy(() => import('./TelemetryPanel'));
 
 /**
- * The tray panel. Renders one of three views: main workspace,
- * settings overlay, or history overlay.
+ * The tray panel. Renders the main view (telemetry HQ or compress
+ * workspace, switched by the toolbar tabs) plus the settings and
+ * history overlays on demand.
  */
 const MenuBarPanel: FC = () => {
   const compactor = useCompactor();
@@ -59,8 +57,11 @@ const MenuBarPanel: FC = () => {
   const setAutoCompress = useSettingsStore((s) => s.setAutoCompress);
   const historyEnabled = useSettingsStore((s) => s.historyEnabled);
   const addEntry = useHistoryStore((s) => s.addEntry);
+  const hydrateHistory = useHistoryStore((s) => s.hydrate);
 
   const [panel, setPanel] = useState<Panel>('main');
+  // Telemetry HQ is the primary surface; the compress workspace is tab #2.
+  const [mainTab, setMainTab] = useState<MainTab>('telemetry');
   const [copyState, setCopyState] = useState<'idle' | 'success' | 'error'>('idle');
   const [isOpening, setIsOpening] = useState(false);
   const [lastAction, setLastAction] = useState<TransformAction>(null);
@@ -134,6 +135,11 @@ const MenuBarPanel: FC = () => {
   useEffect(() => {
     void clipboard.readClipboard();
   }, [clipboard.readClipboard]);
+
+  // Load persisted history from SQLite once on mount (no-op outside Tauri).
+  useEffect(() => {
+    void hydrateHistory();
+  }, [hydrateHistory]);
 
   // Mirror clipboard reads into the source textarea.
   useEffect(() => {
@@ -252,6 +258,8 @@ const MenuBarPanel: FC = () => {
     (entry: HistoryEntry) => {
       setSourceText(entry.input);
       setPanel('main');
+      // History entries feed the source editor, so land on the compress tab.
+      setMainTab('compress');
       triggerOpenAnimation(true);
     },
     [setSourceText, triggerOpenAnimation],
@@ -273,30 +281,6 @@ const MenuBarPanel: FC = () => {
   useTauriShortcuts(shortcutDeps);
   useClipboardAutoWatch(shortcutDeps);
   useMenuBarShellListeners(shortcutDeps);
-
-  // ---- derived display state -----------------------------------------
-
-  const activeLayerCodes = useMemo(
-    () =>
-      [
-        layers.structural ? 'L1' : null,
-        layers.dictionary ? 'L2' : null,
-        layers.tokenizerAware ? 'L3' : null,
-        layers.semantic ? 'L4' : null,
-      ].filter(Boolean) as string[],
-    [layers],
-  );
-  // A run is lossless unless the semantic layer ran and reported otherwise.
-  const runIsLossless = lastRun?.reversible ?? !layers.semantic;
-
-  const { title: commandTitle, body: commandCopy } = deriveCommandCopy({
-    isProcessing: compactor.isProcessing,
-    hasOutput,
-    outputHasError,
-    lastAction,
-  });
-  const sourceMeta = deriveSourceMeta(Boolean(clipboard.content));
-  const outputMeta = deriveOutputMeta(hasOutput, outputHasError);
 
   // ---- render --------------------------------------------------------
 
@@ -320,68 +304,61 @@ const MenuBarPanel: FC = () => {
         <MenuBarToolbar
           autoCompress={autoCompress}
           historyEnabled={historyEnabled}
+          activeTab={mainTab}
+          onTabChange={setMainTab}
           onOpenHistory={() => setPanel('history')}
           onOpenSettings={() => setPanel('settings')}
         />
 
         <div className="desktop-content">
-          <MenuBarCommandCard
-            title={commandTitle}
-            body={commandCopy}
-            isProcessing={compactor.isProcessing}
-            hasInput={compactor.input.trim().length > 0}
-            hasOutput={hasOutput}
-            outputHasError={outputHasError}
-            format={compactor.format}
-            output={compactor.output}
-            model={model}
-            activeLayerCodes={activeLayerCodes}
-            showSemanticBudget={layers.semantic}
-            semanticBudget={semanticBudget}
-            runIsLossless={runIsLossless}
-            packHotkey={packHotkey}
-            restoreHotkey={restoreHotkey}
-            savings={compactor.savings}
-            onRead={() => void clipboard.readClipboard()}
-            onCompress={() => {
-              handleCompress();
-            }}
-            onRestore={() => {
-              handleRestore();
-            }}
-          />
-
-          <MenuBarEditorGrid
-            input={compactor.input}
-            format={compactor.format}
-            output={compactor.output}
-            originalTokens={compactor.originalTokens}
-            compressedTokens={compactor.compressedTokens}
-            sourceMeta={sourceMeta}
-            outputMeta={outputMeta}
-            lastAction={lastAction}
-            autoCompress={autoCompress}
-            sourceTextareaRef={sourceTextareaRef}
-            onSourceChange={setSourceText}
-            onPasteClipboard={() => void clipboard.readClipboard()}
-            hasOutput={hasOutput}
-            outputHasError={outputHasError}
-            outputFormat={outputFormat}
-            copyState={copyState}
-            runIsLossless={runIsLossless}
-            onOutputFormatChange={setOutputFormat}
-            onCopyOutput={() => void handleCopy()}
-          />
-
-          <MenuBarBottomGrid
-            autoCompress={autoCompress}
-            onToggleAutoCompress={() => setAutoCompress(!autoCompress)}
-            model={model}
-            outputFormat={outputFormat}
-            originalTokens={compactor.originalTokens}
-            compressedTokens={compactor.compressedTokens}
-            compressibilityLabel={compactor.compressibilityLabel}
-          />
+          {mainTab === 'telemetry' ? (
+            <div
+              id="tabpanel-telemetry"
+              role="tabpanel"
+              aria-labelledby="tab-telemetry"
+              className="desktop-tabpanel"
+            >
+              {/* Same empty Suspense fallback as the overlays — the shell
+                  stays visible while the telemetry chunk loads. */}
+              <Suspense fallback={null}>
+                <TelemetryPanel />
+              </Suspense>
+            </div>
+          ) : (
+            <div
+              id="tabpanel-compress"
+              role="tabpanel"
+              aria-labelledby="tab-compress"
+              className="desktop-tabpanel"
+            >
+              <CompressWorkspace
+                compactor={compactor}
+                clipboardHasContent={Boolean(clipboard.content)}
+                layers={layers}
+                model={model}
+                semanticBudget={semanticBudget}
+                outputFormat={outputFormat}
+                autoCompress={autoCompress}
+                copyState={copyState}
+                lastAction={lastAction}
+                lastRun={lastRun}
+                packHotkey={packHotkey}
+                restoreHotkey={restoreHotkey}
+                sourceTextareaRef={sourceTextareaRef}
+                onSourceChange={setSourceText}
+                onReadClipboard={() => void clipboard.readClipboard()}
+                onCompress={() => {
+                  handleCompress();
+                }}
+                onRestore={() => {
+                  handleRestore();
+                }}
+                onCopyOutput={() => void handleCopy()}
+                onOutputFormatChange={setOutputFormat}
+                onToggleAutoCompress={() => setAutoCompress(!autoCompress)}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

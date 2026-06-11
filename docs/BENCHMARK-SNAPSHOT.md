@@ -2,6 +2,8 @@
 
 Release-facing fixture snapshot for `@sriinnu/pakt@0.8.0`.
 
+> **Note:** This snapshot predates 0.11. The L3.5 meta-token layer is not included; the numbers below remain the valid lossless L1–L3 baseline.
+
 ## Method
 
 - Generated with `scripts/release/generate-benchmark-snapshot.mjs`
@@ -47,8 +49,9 @@ Release-facing fixture snapshot for `@sriinnu/pakt@0.8.0`.
 
 ## Public Claim Guardrails
 
-- Safe lossless claim: **typical 30-50% savings on structured payloads across the core L1-L3 pipeline**
+- Safe lossless claim: **typical 30-50% savings on structured payloads across the core L1-L3 pipeline** — always paired with "content-dependent"
 - Clarify that higher gains mainly show up on tabular and repetitive JSON
+- Disclose the measured regression case: small deeply-nested config objects can **expand** (eval harness measured +25% tokens on a ~160-line nested config under the standard profile); point users at `pakt_inspect` / `pakt auto`, which pass through payloads that don't compress
 - Treat L4 numbers as opt-in, budgeted, and lossy; do not mix them into lossless marketing copy
 - Do not frame PAKT as a general prose compressor
 - Mention that the browser extension is experimental

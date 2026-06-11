@@ -67,3 +67,6 @@ packages/*/.npmrc
 
 # Local agent worktrees and session data
 .claude/
+scripts/eval/results/
+__pycache__/
+*.pyc

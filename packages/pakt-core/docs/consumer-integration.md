@@ -7,6 +7,7 @@ How to integrate PAKT compression data into dashboards, MCP servers, and API pro
 1. [Dashboard Tools (e.g., tokmeter)](#1-dashboard-tools)
 2. [MCP Server Integrators](#2-mcp-server-integrators)
 3. [API Proxy Builders](#3-api-proxy-builders)
+4. [Prompt-Cache Integration](#4-prompt-cache-integration)
 
 ---
 
@@ -498,6 +499,106 @@ if (pricing) {
   console.log(`Output cost saved: $${outputCostSaved.toFixed(4)}`);
 }
 ```
+
+---
+
+## 4. Prompt-Cache Integration
+
+Provider prompt caches (Anthropic `cache_control`, OpenAI's automatic
+prefix cache) bill cached reads at a fraction of base input cost — but only
+when the cached region is **byte-identical** across calls. PAKT gives you
+two levers to keep its output in the cacheable region.
+
+### The `@cache prefix-end` directive
+
+When you pass a cache `target` (or `cacheDirective: true`), `compress()`
+emits a `@cache prefix-end` line right after the `@dict ... @end` block and
+returns a `cacheBreakpoint` with the byte offset immediately after the
+directive. The directive is a no-op header — `decompress()` strips it, so
+round-trips are unaffected.
+
+```ts
+import { compress, decompress } from '@sriinnu/pakt';
+
+const result = compress(bigJson, { target: 'anthropic' });
+// result.compressed:
+//   @from json
+//   @dict
+//     $a: platform_engineering_team
+//     $b: security_engineering_team
+//   @end
+//   @cache prefix-end      <- place your cache_control breakpoint here
+//   ...body...
+
+const { byteOffset, recommendedTTLSeconds } = result.cacheBreakpoint!;
+// Everything before byteOffset is the stable, cacheable prefix.
+
+decompress(result.compressed); // directive is ignored — lossless
+```
+
+Across MCP turns, the `pakt_compress` and `pakt_auto` tools share a
+per-session rolling dictionary: aliases discovered in earlier calls stay
+pinned to the same `$a, $b, ...` slots and new ones append after, so the
+prefix above stays byte-stable turn-over-turn. Opt out per call with
+`statelessDict: true` on `pakt_compress`.
+
+### Dictionary-as-system-prompt (`dictPlacement: 'system'`)
+
+For multi-turn agents the dictionary belongs where caching is most
+effective and survives across user turns: the **system prompt**. With
+`dictPlacement: 'system'`, the body omits the `@dict` block entirely and
+the dictionary comes back as a separate `dictBlock` string:
+
+```ts
+import Anthropic from '@anthropic-ai/sdk';
+import { compress, decompress } from '@sriinnu/pakt';
+
+const { compressed: body, dictBlock } = compress(bigJson, {
+  dictPlacement: 'system',
+  target: 'anthropic', // moves the @cache directive into dictBlock
+});
+
+const client = new Anthropic();
+const response = await client.messages.create({
+  model: 'claude-sonnet-4-5',
+  max_tokens: 1024,
+  system: [
+    { type: 'text', text: SYSTEM_PROMPT },
+    {
+      type: 'text',
+      text: `PAKT dictionary (aliases used in payloads):\n${dictBlock ?? ''}`,
+      cache_control: { type: 'ephemeral' }, // dict cached across turns
+    },
+  ],
+  // Per-turn bodies are small and reference $a/$b aliases only.
+  messages: [{ role: 'user', content: body }],
+});
+
+// Round-trip locally whenever you need the original data back:
+const original = decompress(body, { dict: dictBlock });
+```
+
+Notes:
+
+- With `dictPlacement: 'system'`, no `cacheBreakpoint` is returned for the
+  body — the entire `dictBlock` is the cacheable unit (it carries the
+  `@cache prefix-end` directive when a target was set).
+- `decompress(body, { dict })` merges the external dictionary before alias
+  expansion. On alias conflicts, **inline entries win** — a body's own
+  `@dict` definitions are authoritative; conflicts only arise if you pass
+  a stale external dict against an inline-compressed body.
+- Token accounting: `compressedTokens` still counts dict + body together,
+  since the dictionary reaches the model once (amortized by the cache).
+- CLI equivalents:
+
+```bash
+pakt compress data.json --dict-placement system --dict-out dict.pakt > body.pakt
+pakt decompress body.pakt --dict dict.pakt --to json
+```
+
+- MCP equivalents: `pakt_compress` accepts `dictPlacement`, `cacheTarget`,
+  and `statelessDict`; the tool result carries `dictBlock` and
+  `cacheByteOffset`.
 
 ---
 

@@ -61,7 +61,9 @@ to tokenizers:
 PAKT targets the intersection: **structured data that must be sent to or received
 from an LLM, where token cost matters**. It achieves a typical 30-50% token
 reduction on structured payloads, with higher gains on repetitive and tabular
-data, while maintaining full data fidelity.
+data, while maintaining full data fidelity. Savings are content-dependent:
+small deeply-nested objects with little repetition can expand rather than
+shrink — inspect before compressing when payload shape is unknown.
 
 ### 1.3 Design Principles
 

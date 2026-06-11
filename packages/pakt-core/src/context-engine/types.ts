@@ -32,6 +32,14 @@ export interface ContextMessage {
   summarized?: boolean;
   /** Timestamp when this message was added. */
   addedAt?: number;
+  /**
+   * When `true`, the message contains one or more provider-owned opaque
+   * content blocks (e.g. Anthropic `compaction` or `clear_tool_uses`).
+   * The engine treats the entire message as immutable: it is never
+   * compressed, deduped, aged, or summarised — and is passed through
+   * byte-identical to the API.
+   */
+  containsOpaqueBlocks?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +111,36 @@ export interface ContextEngineConfig {
 
   /** Model identifier for token counting. @default 'gpt-4o' */
   model?: string;
+
+  /**
+   * When set, the engine treats this value as the provider's lossy compaction
+   * trigger (tokens). PAKT's own lossless optimisation is targeted to keep the
+   * total context **below** this threshold so server-side compaction never
+   * fires. The remaining gap is reported as `headroomTokens` in
+   * {@link ContextSavings}.
+   *
+   * Anthropic's default trigger for `compact-2026-01-12` is approximately
+   * **150 000 input tokens**. Set this to `150_000` (or lower for safety
+   * margin) to align PAKT's budget to fire before Anthropic's lossy pass.
+   *
+   * When `providerCompactionThresholdTokens` is set and is less than
+   * `maxContextTokens`, the engine uses it as the effective ceiling instead of
+   * `maxContextTokens` for aging and summarisation decisions.
+   *
+   * @see https://platform.claude.com/docs/en/build-with-claude/compaction
+   * @default undefined (disabled)
+   */
+  providerCompactionThresholdTokens?: number;
+
+  /**
+   * Additional block `type` strings (beyond the built-in `compaction` /
+   * `clear_tool_uses`) that the engine should treat as provider-owned and
+   * immutable. Useful for custom or future provider content-block types.
+   *
+   * @example `['my_provider_summary']`
+   * @default []
+   */
+  extraOpaqueTypes?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +195,15 @@ export interface ContextSavings {
   savedTokens: number;
   /** Savings percentage. */
   savedPercent: number;
+  /**
+   * Tokens remaining before the provider's lossy compaction trigger fires.
+   * Only present when `providerCompactionThresholdTokens` is configured.
+   * A negative value means the current context already exceeds the threshold.
+   *
+   * Example: if `providerCompactionThresholdTokens = 150_000` and the
+   * optimised context is 120 000 tokens, `headroomTokens = 30_000`.
+   */
+  headroomTokens?: number;
   /** Breakdown by source. */
   breakdown: {
     /** Tokens saved by compressing tool results. */

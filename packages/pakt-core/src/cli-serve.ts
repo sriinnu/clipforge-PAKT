@@ -129,6 +129,11 @@ async function wrapServer(
                 );
               }
             } else {
+              // Non-text block: coerce to empty text (behaviour unchanged).
+              // Emit one stderr warn per block type so the operator knows content was dropped.
+              process.stderr.write(
+                `pakt: non-text content block type "${block.type}" from ${tool.name} coerced to empty text\n`,
+              );
               compressed.push({ type: 'text', text: String(block.text ?? '') });
             }
           }

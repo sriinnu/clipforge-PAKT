@@ -7,20 +7,52 @@
  * TypeScript types, and SDK registration all derive from these contracts.
  *
  * The schema-construction primitives (FieldSpec, defineToolContract, etc.)
- * live in `contract-builder.ts`. This file only owns the four PAKT tool
- * definitions and the inferred type aliases.
+ * live in `contract-builder.ts`. The inspect/explain contracts live in
+ * `contract-insight.ts` and the stats/savings/dashboard contracts in
+ * `contract-stats.ts`; all are re-exported here so this module stays the
+ * single import surface for contracts.
  */
 
 import type * as z from 'zod/v4';
 import { PAKT_FORMAT_VALUES } from '../formats.js';
 import {
   AUTO_ACTION_VALUES,
+  CACHE_TARGET_VALUES,
+  DICT_PLACEMENT_VALUES,
   PII_MODE_VALUES,
-  RECOMMENDED_ACTION_VALUES,
   defineToolContract,
 } from './contract-builder.js';
+import { PAKT_EXPLAIN_CONTRACT, PAKT_INSPECT_CONTRACT } from './contract-insight.js';
+import {
+  PAKT_DASHBOARD_CONTRACT,
+  PAKT_SAVINGS_CONTRACT,
+  PAKT_STATS_CONTRACT,
+} from './contract-stats.js';
 
 export type { PaktMcpContract } from './contract-builder.js';
+export {
+  PAKT_EXPLAIN_CONTRACT,
+  PAKT_INSPECT_CONTRACT,
+} from './contract-insight.js';
+export type {
+  PaktExplainArgsFromContract,
+  PaktExplainResultFromContract,
+  PaktInspectArgsFromContract,
+  PaktInspectResultFromContract,
+} from './contract-insight.js';
+export {
+  PAKT_DASHBOARD_CONTRACT,
+  PAKT_SAVINGS_CONTRACT,
+  PAKT_STATS_CONTRACT,
+} from './contract-stats.js';
+export type {
+  PaktDashboardArgsFromContract,
+  PaktDashboardResultFromContract,
+  PaktSavingsArgsFromContract,
+  PaktSavingsResultFromContract,
+  PaktStatsArgsFromContract,
+  PaktStatsResultFromContract,
+} from './contract-stats.js';
 
 export const PAKT_COMPRESS_CONTRACT = defineToolContract({
   name: 'pakt_compress',
@@ -72,6 +104,26 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
         'When true and piiMode is redact, return a placeholder → original mapping in piiMapping.',
       required: false,
     },
+    statelessDict: {
+      type: 'boolean',
+      description:
+        'Opt out of the per-session rolling dictionary. By default (false), structured inputs (JSON/YAML/CSV) share one dictionary across all pakt_compress and pakt_auto calls in this server process: aliases discovered in earlier turns stay pinned to the same $a, $b, ... slots and the @dict block grows append-only, keeping the output prefix byte-stable so provider prompt caches (Anthropic cache_control, OpenAI prefix cache) hit across turns. Set true for fully stateless per-call compression (no cross-turn alias reuse). Ignored when piiMode is active (redacted values never seed the session dictionary).',
+      required: false,
+    },
+    dictPlacement: {
+      type: 'string',
+      description:
+        'Where the dictionary lives: inline (default — @dict block at the top of `compressed`) or system (the @dict block is removed from the body and returned separately in `dictBlock` so it can be pinned into a cached system prompt; decompress with the dict option). Applies to structured and plain-text inputs; mixed-content blocks keep inline dictionaries.',
+      enum: DICT_PLACEMENT_VALUES,
+      required: false,
+    },
+    cacheTarget: {
+      type: 'string',
+      description:
+        'Target LLM provider for prompt-cache hints. When set, a `@cache prefix-end` directive is emitted after the @dict block (a no-op header stripped on decompression) and `cacheByteOffset` reports where to place the provider cache_control breakpoint. With dictPlacement system the directive moves into `dictBlock` and no offset is returned — cache the whole dict block instead.',
+      enum: CACHE_TARGET_VALUES,
+      required: false,
+    },
   },
   outputFields: {
     compressed: {
@@ -113,6 +165,18 @@ export const PAKT_COMPRESS_CONTRACT = defineToolContract({
       type: 'string',
       description:
         'JSON object string: placeholder → original mapping for reversible redact mode; omitted otherwise.',
+      required: false,
+    },
+    dictBlock: {
+      type: 'string',
+      description:
+        'Standalone @dict ... @end block (plus @cache directive when emitted), present only when dictPlacement is system and a dictionary was emitted. Pin it into the system prompt; pass it back via decompress dict option.',
+      required: false,
+    },
+    cacheByteOffset: {
+      type: 'number',
+      description:
+        'Byte offset in `compressed` where the cacheable prefix ends (right after the @cache prefix-end directive). Present only when cacheTarget is set and the directive was emitted inline.',
       required: false,
     },
   },
@@ -240,401 +304,6 @@ export const PAKT_AUTO_CONTRACT = defineToolContract({
   },
 });
 
-export const PAKT_INSPECT_CONTRACT = defineToolContract({
-  name: 'pakt_inspect',
-  description: [
-    'Inspect text before using PAKT.',
-    'Detects the format, counts tokens, estimates compression savings,',
-    'and recommends whether to compress, decompress, or leave the content as-is.',
-  ].join(' '),
-  inputFields: {
-    text: {
-      type: 'string',
-      description: 'The text to inspect.',
-      minLength: 1,
-      minLengthMessage: 'text must be a non-empty string',
-    },
-    model: {
-      type: 'string',
-      description: 'Optional model identifier used for token counting.',
-      minLength: 1,
-      required: false,
-    },
-    semanticBudget: {
-      type: 'number',
-      description: 'Optional positive token budget to estimate lossy L4 compression.',
-      integer: true,
-      positive: true,
-      positiveMessage: 'semanticBudget must be a positive integer',
-      required: false,
-    },
-  },
-  outputFields: {
-    detectedFormat: {
-      type: 'string',
-      description: 'Detected format for the inspected input.',
-      enum: PAKT_FORMAT_VALUES,
-    },
-    confidence: {
-      type: 'number',
-      description: 'Confidence from the format detector.',
-    },
-    reason: {
-      type: 'string',
-      description: 'Human-readable detection reason.',
-    },
-    inputTokens: {
-      type: 'number',
-      description: 'Token count for the current input.',
-    },
-    recommendedAction: {
-      type: 'string',
-      description: 'Suggested next action for an MCP client.',
-      enum: RECOMMENDED_ACTION_VALUES,
-    },
-    estimatedOutputTokens: {
-      type: 'number',
-      description: 'Token count after estimated compression, when relevant.',
-      required: false,
-    },
-    estimatedSavings: {
-      type: 'number',
-      description: 'Estimated savings percentage after compression, when relevant.',
-      required: false,
-    },
-    estimatedSavedTokens: {
-      type: 'number',
-      description: 'Estimated absolute tokens saved, when relevant.',
-      required: false,
-    },
-    reversible: {
-      type: 'boolean',
-      description: 'Reversibility of the current or estimated representation.',
-      required: false,
-    },
-    originalFormat: {
-      type: 'string',
-      description: 'Original structured format declared by PAKT, when inspecting PAKT input.',
-      enum: PAKT_FORMAT_VALUES,
-      required: false,
-    },
-    wasLossy: {
-      type: 'boolean',
-      description: 'Whether the inspected PAKT payload is lossy, when known.',
-      required: false,
-    },
-  },
-});
-
-export const PAKT_STATS_CONTRACT = defineToolContract({
-  name: 'pakt_stats',
-  description: [
-    'Return session-level compression statistics including compounding context savings.',
-    'Shows total calls, token savings, format breakdown, cost estimates,',
-    'dedup cache efficiency, and cumulative tokens saved across conversation turns.',
-  ].join(' '),
-  inputFields: {
-    model: {
-      type: 'string',
-      description: 'Optional model identifier for cost estimation (default: gpt-4o).',
-      minLength: 1,
-      required: false,
-    },
-    scope: {
-      type: 'string',
-      description:
-        'Stats scope: "session" (current process, fast, default) or "all" (persistent stats across all agents, reads disk).',
-      enum: ['session', 'all'] as const,
-      required: false,
-    },
-  },
-  outputFields: {
-    sessionDuration: {
-      type: 'string',
-      description: 'Human-readable session duration (e.g., "14m 32s").',
-    },
-    totalCalls: {
-      type: 'number',
-      description: 'Total number of tool calls in this session.',
-    },
-    totalInputTokens: {
-      type: 'number',
-      description: 'Total input tokens processed across all calls.',
-    },
-    totalOutputTokens: {
-      type: 'number',
-      description: 'Total output tokens produced across all calls.',
-    },
-    totalSavedTokens: {
-      type: 'number',
-      description: 'Total tokens saved across all calls.',
-    },
-    overallSavingsPercent: {
-      type: 'number',
-      description: 'Weighted overall savings percentage (0-100).',
-    },
-    callsByAction: {
-      type: 'string',
-      description: 'JSON object: { compress, decompress, inspect } call counts.',
-    },
-    byFormat: {
-      type: 'string',
-      description: 'JSON object: per-format breakdown with calls, tokens, and savings.',
-    },
-    topFormat: {
-      type: 'string',
-      description:
-        'JSON object string: format with most calls and its avg savings; omitted when unavailable.',
-      required: false,
-    },
-    estimatedCostSaved: {
-      type: 'string',
-      description:
-        'JSON object string: { input, output, currency } cost savings estimate; omitted when unavailable.',
-      required: false,
-    },
-    lastCallAt: {
-      type: 'string',
-      description:
-        'ISO 8601 timestamp string of the most recent tool call; omitted when unavailable.',
-      required: false,
-    },
-    latencyMs: {
-      type: 'string',
-      description:
-        'JSON object string: { p50, p95, p99, avg, samples } latency percentiles in ms; omitted when no calls carry timing.',
-      required: false,
-    },
-    lossy: {
-      type: 'string',
-      description:
-        'JSON object string: { count, inputTokens } accounting for non-reversible (L4 semantic / PII redact) calls.',
-      required: false,
-    },
-    dedupHits: {
-      type: 'number',
-      description: 'Total dedup cache hits (compression pipeline runs avoided).',
-      required: false,
-    },
-    dedupEntries: {
-      type: 'number',
-      description: 'Total entries in the dedup cache.',
-      required: false,
-    },
-    totalCompoundingSavings: {
-      type: 'number',
-      description:
-        'Estimated total tokens saved by serving cached results instead of recompressing.',
-      required: false,
-    },
-    rollingDictSize: {
-      type: 'number',
-      description: 'Number of entries in the rolling dictionary (cross-turn alias reuse).',
-      required: false,
-    },
-    rollingDictReuses: {
-      type: 'number',
-      description: 'Total times a seeded alias was reused across conversation turns.',
-      required: false,
-    },
-    rollingDictSavings: {
-      type: 'number',
-      description: 'Estimated tokens saved by rolling dictionary seeding vs re-discovery.',
-      required: false,
-    },
-  },
-});
-
-export const PAKT_EXPLAIN_CONTRACT = defineToolContract({
-  name: 'pakt_explain',
-  description: [
-    'Compress text and return a detailed educational explanation of WHY it compressed the way it did.',
-    'Shows per-layer savings breakdown, structural analysis, dictionary analysis,',
-    'and human-readable recommendations. Useful for understanding and trusting PAKT output.',
-  ].join(' '),
-  inputFields: {
-    text: {
-      type: 'string',
-      description:
-        'The text content to compress and explain (JSON, YAML, CSV, Markdown, or mixed).',
-      minLength: 1,
-      minLengthMessage: 'text must be a non-empty string',
-    },
-    model: {
-      type: 'string',
-      description: 'Optional model identifier used for token counting.',
-      minLength: 1,
-      required: false,
-    },
-  },
-  outputFields: {
-    detectedFormat: {
-      type: 'string',
-      description: 'The detected input format.',
-      enum: PAKT_FORMAT_VALUES,
-    },
-    savings: {
-      type: 'number',
-      description: 'Overall savings percentage (0-100).',
-    },
-    savedTokens: {
-      type: 'number',
-      description: 'Absolute tokens saved by compression.',
-    },
-    layerBreakdown: {
-      type: 'string',
-      description:
-        'JSON array of per-layer breakdown objects with layer name, tokens saved, and human-readable explanation.',
-    },
-    structuralAnalysis: {
-      type: 'string',
-      description:
-        'JSON object with structural analysis: totalKeys, uniqueKeys, keyRepetitionRatio, arrayCount, tabularArrays, nestingDepth, structuralOverhead.',
-    },
-    dictionaryAnalysis: {
-      type: 'string',
-      description:
-        'JSON object with dictionary analysis: candidatesFound, aliasesCreated, topPatterns with value, occurrences, tokensSaved, and type.',
-    },
-    recommendation: {
-      type: 'string',
-      description:
-        'Human-readable recommendation about the compression results and potential improvements.',
-    },
-  },
-});
-
-export const PAKT_SAVINGS_CONTRACT = defineToolContract({
-  name: 'pakt_savings',
-  description: [
-    'Quick human-friendly savings summary with dollar amounts.',
-    'Returns a concise report like "You\'ve saved 1.3M tokens ($19.50) across 47 sessions."',
-    'Supports scope: "session" (current), "all" (all agents, all time).',
-  ].join(' '),
-  inputFields: {
-    model: {
-      type: 'string',
-      description: 'Model identifier for cost estimation (default: gpt-4o).',
-      minLength: 1,
-      required: false,
-    },
-    scope: {
-      type: 'string',
-      description: 'Stats scope: "session" (current, default) or "all" (all agents, reads disk).',
-      enum: ['session', 'all'] as const,
-      required: false,
-    },
-  },
-  outputFields: {
-    summary: {
-      type: 'string',
-      description: 'Human-readable savings summary in one sentence.',
-    },
-    totalSavedTokens: {
-      type: 'number',
-      description: 'Total tokens saved.',
-    },
-    totalCalls: {
-      type: 'number',
-      description: 'Total compression calls.',
-    },
-    estimatedCostSaved: {
-      type: 'string',
-      description: 'Formatted dollar amount saved (e.g. "$3.90").',
-    },
-    avgSavingsPercent: {
-      type: 'number',
-      description: 'Average savings percentage across all calls.',
-    },
-    topFormat: {
-      type: 'string',
-      description: 'The format that saved the most tokens.',
-      required: false,
-    },
-  },
-});
-
-export const PAKT_DASHBOARD_CONTRACT = defineToolContract({
-  name: 'pakt_dashboard',
-  description: [
-    'Rich project-level compression dashboard with trends and per-format breakdown.',
-    'Shows daily savings, format-level performance, best wins, rolling dictionary stats,',
-    'and dedup cache efficiency. Use for understanding compression patterns over time.',
-  ].join(' '),
-  inputFields: {
-    model: {
-      type: 'string',
-      description: 'Model identifier for cost estimation (default: gpt-4o).',
-      minLength: 1,
-      required: false,
-    },
-    scope: {
-      type: 'string',
-      description: 'Stats scope: "session" (current, default) or "all" (all agents, reads disk).',
-      enum: ['session', 'all'] as const,
-      required: false,
-    },
-  },
-  outputFields: {
-    summary: {
-      type: 'string',
-      description: 'One-line savings headline.',
-    },
-    totalSavedTokens: {
-      type: 'number',
-      description: 'Total tokens saved.',
-    },
-    totalCalls: {
-      type: 'number',
-      description: 'Total compression calls.',
-    },
-    avgSavingsPercent: {
-      type: 'number',
-      description: 'Weighted average savings percentage.',
-    },
-    estimatedCostSaved: {
-      type: 'string',
-      description: 'JSON object string with input/output cost breakdown.',
-      required: false,
-    },
-    formatBreakdown: {
-      type: 'string',
-      description: 'JSON object string: per-format stats with calls, tokens saved, avg savings.',
-    },
-    topFormat: {
-      type: 'string',
-      description: 'JSON object string: best-performing format with stats.',
-      required: false,
-    },
-    sessionDuration: {
-      type: 'string',
-      description: 'Human-readable session duration.',
-    },
-    dedupEfficiency: {
-      type: 'string',
-      description: 'JSON object string: cache hits, entries, hit rate, compounding savings.',
-      required: false,
-    },
-    rollingDictStats: {
-      type: 'string',
-      description: 'JSON object string: rolling dictionary size, reuses, estimated savings.',
-      required: false,
-    },
-    latencyMs: {
-      type: 'string',
-      description:
-        'JSON object string: { p50, p95, p99, avg, samples } latency percentiles in ms; omitted when no calls carry timing.',
-      required: false,
-    },
-    lossy: {
-      type: 'string',
-      description:
-        'JSON object string: { count, inputTokens } accounting for non-reversible compression calls; omitted when zero.',
-      required: false,
-    },
-  },
-});
-
 export const PAKT_MCP_CONTRACTS = [
   PAKT_COMPRESS_CONTRACT,
   PAKT_AUTO_CONTRACT,
@@ -650,13 +319,3 @@ export type PaktCompressArgsFromContract = z.infer<typeof PAKT_COMPRESS_CONTRACT
 export type PaktCompressResultFromContract = z.infer<typeof PAKT_COMPRESS_CONTRACT.outputSchema>;
 export type PaktAutoArgsFromContract = z.infer<typeof PAKT_AUTO_CONTRACT.inputSchema>;
 export type PaktAutoResultFromContract = z.infer<typeof PAKT_AUTO_CONTRACT.outputSchema>;
-export type PaktInspectArgsFromContract = z.infer<typeof PAKT_INSPECT_CONTRACT.inputSchema>;
-export type PaktInspectResultFromContract = z.infer<typeof PAKT_INSPECT_CONTRACT.outputSchema>;
-export type PaktStatsArgsFromContract = z.infer<typeof PAKT_STATS_CONTRACT.inputSchema>;
-export type PaktStatsResultFromContract = z.infer<typeof PAKT_STATS_CONTRACT.outputSchema>;
-export type PaktExplainArgsFromContract = z.infer<typeof PAKT_EXPLAIN_CONTRACT.inputSchema>;
-export type PaktExplainResultFromContract = z.infer<typeof PAKT_EXPLAIN_CONTRACT.outputSchema>;
-export type PaktSavingsArgsFromContract = z.infer<typeof PAKT_SAVINGS_CONTRACT.inputSchema>;
-export type PaktSavingsResultFromContract = z.infer<typeof PAKT_SAVINGS_CONTRACT.outputSchema>;
-export type PaktDashboardArgsFromContract = z.infer<typeof PAKT_DASHBOARD_CONTRACT.inputSchema>;
-export type PaktDashboardResultFromContract = z.infer<typeof PAKT_DASHBOARD_CONTRACT.outputSchema>;

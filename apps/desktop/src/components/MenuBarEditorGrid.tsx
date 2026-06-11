@@ -10,7 +10,7 @@ import type { PaktFormat } from '@sriinnu/pakt';
 import type { ChangeEvent, RefObject } from 'react';
 import FormatBadge from './FormatBadge';
 import { OUTPUT_FORMATS, type TransformAction } from './menu-bar-constants';
-import { deriveCopyBadge, deriveOutputStatus } from './menu-bar-helpers';
+import { deriveCopyBadge, deriveCopyButtonLabel, deriveOutputStatus } from './menu-bar-helpers';
 
 /** Props for the {@link MenuBarEditorGrid} layout. */
 export interface MenuBarEditorGridProps {
@@ -139,8 +139,13 @@ function OutputCard(props: MenuBarEditorGridProps) {
               ))}
             </select>
             {!outputHasError && hasOutput ? (
-              <button type="button" onClick={onCopyOutput} className="desktop-primary-button">
-                Copy output
+              <button
+                type="button"
+                onClick={onCopyOutput}
+                aria-live="polite"
+                className={`desktop-primary-button ${copyState !== 'idle' ? `is-copy-${copyState}` : ''}`}
+              >
+                {deriveCopyButtonLabel(copyState)}
               </button>
             ) : null}
           </div>
