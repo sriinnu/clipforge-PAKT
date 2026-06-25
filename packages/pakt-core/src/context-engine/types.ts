@@ -141,6 +141,17 @@ export interface ContextEngineConfig {
    * @default []
    */
   extraOpaqueTypes?: string[];
+
+  /**
+   * Cross-message shared dictionary. When enabled, the engine mines full
+   * lines that recur across the **entire** message set (not just within a
+   * single payload like L2/L3.5), defines each once in a `@shared` preamble,
+   * and rewrites occurrences with a compact `§N` alias. Lossless, gated on a
+   * net token reduction and a round-trip check. Safe to leave on: a no-op
+   * pass leaves the context untouched.
+   * @default true
+   */
+  sharedDictionary?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +227,8 @@ export interface ContextSavings {
     deduplication: number;
     /** Tokens saved by tail-truncating older tool results (Gemini-CLI aging). */
     toolResultAging: number;
+    /** Tokens saved by the cross-message shared dictionary (`@shared`). */
+    sharedDictionary: number;
   };
 }
 

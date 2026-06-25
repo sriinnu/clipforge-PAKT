@@ -292,6 +292,11 @@ export {
   BUILTIN_OPAQUE_TYPES,
 } from './context-engine/index.js';
 export type { OpaqueContentBlock } from './context-engine/index.js';
+export {
+  buildSharedDictionary,
+  expandSharedDictionary,
+} from './context-engine/index.js';
+export type { SharedDictEntry, SharedDictResult } from './context-engine/index.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,
