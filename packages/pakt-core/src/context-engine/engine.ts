@@ -18,6 +18,7 @@ import {
   deduplicateContent,
 } from './history-strategies.js';
 import { messageIsImmutable } from './opaque-blocks.js';
+import { buildSharedDictionary } from './shared-dictionary.js';
 import { ageSingleToolResult, clampToolResult, computeAgingCutoff } from './tool-aging.js';
 import type {
   ContextEngineConfig,
@@ -51,6 +52,7 @@ const DEFAULT_CONFIG: Required<Omit<ContextEngineConfig, 'summarizer' | 'provide
   toolResultTailLines: 30,
   providerCompactionThresholdTokens: undefined,
   extraOpaqueTypes: [],
+  sharedDictionary: true,
 };
 
 /**
@@ -196,12 +198,28 @@ export class ContextEngine {
       summarySavings = this.extractFacts(optimized);
     }
 
+    // Layer 5: Cross-message shared dictionary — mine lines recurring across
+    // the whole (non-summarized, non-opaque) message set and amortize their
+    // cost into a single `@shared` preamble. Runs last so it operates on the
+    // already-compressed surface and never double-counts other layers.
+    let sharedDictSavings = 0;
+    let sharedPreamble: ContextMessage | null = null;
+    if (this.config.sharedDictionary) {
+      const shared = buildSharedDictionary(
+        optimized.filter((m) => !m.summarized),
+        this.config.model,
+      );
+      sharedDictSavings = shared.savedTokens;
+      sharedPreamble = shared.preamble;
+    }
+
     // Build the optimized context index preamble
     const indexMessage = buildIndexMessage(this.contextIndex, this.config.model);
 
     // Assemble final messages
     const finalMessages: ContextMessage[] = [];
     if (indexMessage) finalMessages.push(indexMessage);
+    if (sharedPreamble) finalMessages.push(sharedPreamble);
     finalMessages.push(...optimized.filter((m) => !m.summarized));
 
     const optimizedTokens = finalMessages.reduce(
@@ -239,6 +257,7 @@ export class ContextEngine {
         summarization: summarySavings,
         deduplication: dedupSavings,
         toolResultAging: agingSavings,
+        sharedDictionary: sharedDictSavings,
       },
     };
 
