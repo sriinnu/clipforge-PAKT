@@ -17,6 +17,7 @@ import {
   compressHistory,
   deduplicateContent,
 } from './history-strategies.js';
+import { extractRelevant } from './extractive.js';
 import { messageIsImmutable } from './opaque-blocks.js';
 import { buildSharedDictionary } from './shared-dictionary.js';
 import { ageSingleToolResult, clampToolResult, computeAgingCutoff } from './tool-aging.js';
@@ -39,9 +40,12 @@ import type {
  */
 const MAX_TOOL_RESULT_BYTES = 1_048_576; // 1 MiB
 
-const DEFAULT_CONFIG: Required<Omit<ContextEngineConfig, 'summarizer' | 'providerCompactionThresholdTokens'>> & {
+const DEFAULT_CONFIG: Required<
+  Omit<ContextEngineConfig, 'summarizer' | 'providerCompactionThresholdTokens' | 'query'>
+> & {
   summarizer: ContextEngineConfig['summarizer'];
   providerCompactionThresholdTokens: number | undefined;
+  query: string | undefined;
 } = {
   maxContextTokens: 100_000,
   recentTurns: 5,
@@ -52,6 +56,8 @@ const DEFAULT_CONFIG: Required<Omit<ContextEngineConfig, 'summarizer' | 'provide
   toolResultTailLines: 30,
   providerCompactionThresholdTokens: undefined,
   extraOpaqueTypes: [],
+  extractive: false,
+  query: undefined,
   sharedDictionary: true,
 };
 
@@ -198,6 +204,11 @@ export class ContextEngine {
       summarySavings = this.extractFacts(optimized);
     }
 
+    // Layer 4.5: Query-aware extractive selection (lossy, opt-in). Reduce older
+    // large tool results to the lines relevant to the current query. Recent
+    // turns are preserved at full fidelity; opaque/summarized are skipped.
+    const extractiveSavings = this.runExtractive(optimized);
+
     // Layer 5: Cross-message shared dictionary — mine lines recurring across
     // the whole (non-summarized, non-opaque) message set and amortize their
     // cost into a single `@shared` preamble. Runs last so it operates on the
@@ -258,6 +269,7 @@ export class ContextEngine {
         deduplication: dedupSavings,
         toolResultAging: agingSavings,
         sharedDictionary: sharedDictSavings,
+        extractive: extractiveSavings,
       },
     };
 
@@ -289,6 +301,14 @@ export class ContextEngine {
   /** Get the current turn number. */
   getCurrentTurn(): number {
     return this.currentTurn;
+  }
+
+  /**
+   * Set the current query used by the extractive layer to decide which
+   * tool-result lines are relevant. No effect unless `extractive` is enabled.
+   */
+  setQuery(query: string): void {
+    this.config.query = query;
   }
 
   /** Get the raw message count. */
@@ -359,6 +379,39 @@ export class ContextEngine {
       saved += ageSingleToolResult(msg, tailLines, this.config.model);
     }
 
+    return saved;
+  }
+
+  /**
+   * Query-aware extractive selection over older, large tool results.
+   *
+   * No-op unless `extractive` is enabled and a `query` is set. Recent turns
+   * (within `recentTurns` of the current turn) are preserved at full fidelity;
+   * opaque, summarized, and below-threshold results are skipped. Lossy but
+   * faithful — kept lines are verbatim; dropped runs become elision markers.
+   */
+  private runExtractive(messages: ContextMessage[]): number {
+    const query = this.config.query;
+    if (!this.config.extractive || !query) return 0;
+
+    const cutoff = this.currentTurn - this.config.recentTurns;
+    if (cutoff <= 0) return 0;
+
+    let saved = 0;
+    for (const msg of messages) {
+      if (msg.role !== 'tool') continue;
+      if ((msg.turn ?? 0) > cutoff) continue; // preserve recent turns verbatim
+      if (msg.summarized) continue;
+      if (msg.containsOpaqueBlocks) continue;
+      if ((msg.currentTokens ?? 0) < this.config.minToolResultTokens) continue;
+
+      const result = extractRelevant(msg.content, { query, model: this.config.model });
+      if (result.savedTokens > 0) {
+        msg.content = result.text;
+        msg.currentTokens = countTokens(result.text, this.config.model);
+        saved += result.savedTokens;
+      }
+    }
     return saved;
   }
 
