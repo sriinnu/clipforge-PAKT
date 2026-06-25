@@ -10,11 +10,11 @@
  * an explicit, source-anchored signal the agent can act on (re-read the file)
  * rather than a silent truncation.
  *
- * Research basis: extractive compression consistently beats token-pruning and
- * abstractive summarization on faithfulness and accuracy retention
- * (Jha et al. 2024, hf.co/papers/2407.08892), and source-anchored selection
- * avoids the hallucination that free-form summaries introduce
- * (hf.co/papers/2512.14244).
+ * Research basis: extractive compression often outperforms token-pruning, and
+ * is competitive with abstractive summarization, on accuracy retention
+ * (Jha et al. 2024, hf.co/papers/2407.08892); source-anchored selection avoids
+ * the hallucination that free-form summaries introduce (hf.co/papers/2512.14244).
+ * Note: these are findings from the cited work, not measurements of this layer.
  *
  * Scoring is deterministic and model-free: query terms are weighted by inverse
  * document frequency across the result's own lines, so a rare identifier the
