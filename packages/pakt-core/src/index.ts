@@ -77,6 +77,8 @@ export {
 
 export { applyPIILayer } from './layers/index.js';
 export type { L4PIIOptions, L4PIIResult, PIIMode } from './layers/index.js';
+export { compactCode, detectCodeFamily, looksLikeCode } from './layers/index.js';
+export type { CodeFamily, CompactCodeOptions, CompactCodeResult } from './layers/index.js';
 export { detectPII, redactPII } from './pii/index.js';
 export type {
   PIIKind,
