@@ -133,6 +133,25 @@ export interface ContextEngineConfig {
   providerCompactionThresholdTokens?: number;
 
   /**
+   * Query-aware extractive selection. When enabled **and** a `query` is set,
+   * older large tool results are reduced to the lines relevant to the query;
+   * irrelevant runs are folded into an explicit elision marker. This is the
+   * one lossy layer in the engine — kept lines are verbatim (faithful,
+   * no hallucination), but dropped lines are gone until the source is re-read.
+   * Off by default precisely because it is lossy.
+   * @default false
+   */
+  extractive?: boolean;
+
+  /**
+   * The current query, used by the extractive layer to decide which tool-result
+   * lines are relevant. Set via {@link ContextEngine.setQuery} or config. Has
+   * no effect unless `extractive` is enabled.
+   * @default undefined
+   */
+  query?: string;
+
+  /**
    * Additional block `type` strings (beyond the built-in `compaction` /
    * `clear_tool_uses`) that the engine should treat as provider-owned and
    * immutable. Useful for custom or future provider content-block types.
@@ -229,6 +248,8 @@ export interface ContextSavings {
     toolResultAging: number;
     /** Tokens saved by the cross-message shared dictionary (`@shared`). */
     sharedDictionary: number;
+    /** Tokens saved by query-aware extractive selection (lossy, opt-in). */
+    extractive: number;
   };
 }
 

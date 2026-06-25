@@ -297,6 +297,8 @@ export {
   expandSharedDictionary,
 } from './context-engine/index.js';
 export type { SharedDictEntry, SharedDictResult } from './context-engine/index.js';
+export { extractRelevant } from './context-engine/index.js';
+export type { ExtractiveOptions, ExtractiveResult } from './context-engine/index.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,

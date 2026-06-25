@@ -34,6 +34,8 @@ export {
   expandSharedDictionary,
 } from './shared-dictionary.js';
 export type { SharedDictEntry, SharedDictResult } from './shared-dictionary.js';
+export { extractRelevant } from './extractive.js';
+export type { ExtractiveOptions, ExtractiveResult } from './extractive.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,
