@@ -152,6 +152,16 @@ export interface ContextEngineConfig {
   query?: string;
 
   /**
+   * Code compaction. When enabled, tool results that confidently look like
+   * source code (and are not JSON/YAML/CSV/Markdown) have comments and
+   * redundant blank lines stripped with full string-literal awareness.
+   * Behavior-preserving but not byte-lossless (comments are removed), so it is
+   * opt-in. Markdown is explicitly excluded so `#` headings are never eaten.
+   * @default false
+   */
+  compactCode?: boolean;
+
+  /**
    * Additional block `type` strings (beyond the built-in `compaction` /
    * `clear_tool_uses`) that the engine should treat as provider-owned and
    * immutable. Useful for custom or future provider content-block types.
@@ -250,6 +260,8 @@ export interface ContextSavings {
     sharedDictionary: number;
     /** Tokens saved by query-aware extractive selection (lossy, opt-in). */
     extractive: number;
+    /** Tokens saved by code compaction — comment/blank-line stripping (opt-in). */
+    codeCompaction: number;
   };
 }
 

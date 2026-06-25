@@ -43,3 +43,5 @@ export {
 } from './L1-delta-temporal.js';
 export { applyPIILayer } from './L4-pii.js';
 export type { L4PIIOptions, L4PIIResult, PIIMode } from './L4-pii.js';
+export { compactCode, detectCodeFamily, looksLikeCode } from './code-compact.js';
+export type { CodeFamily, CompactCodeOptions, CompactCodeResult } from './code-compact.js';
