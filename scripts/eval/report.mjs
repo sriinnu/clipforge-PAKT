@@ -100,13 +100,13 @@ export function estimateRunCost(payloadTokens, taskCount) {
   let inputTokens = 0;
   for (const p of payloadTokens) inputTokens += (p.json + p.pakt + 2 * 80) * perDatasetTasks;
   const outputTokens = taskCount * 2 * 30; // terse answers, ~30 tokens each
-  const estUsd =
-    (inputTokens * PRICING.inputPerMTok + outputTokens * PRICING.outputPerMTok) / 1e6;
+  const estUsd = (inputTokens * PRICING.inputPerMTok + outputTokens * PRICING.outputPerMTok) / 1e6;
   return { inputTokens: Math.round(inputTokens), estUsd };
 }
 
 /** Formats a ratio as a percent string, or "—" when there are no samples. */
-const pct = (ok, total) => (total === 0 ? '—' : `${((100 * ok) / total).toFixed(1)}% (${ok}/${total})`);
+const pct = (ok, total) =>
+  total === 0 ? '—' : `${((100 * ok) / total).toFixed(1)}% (${ok}/${total})`;
 
 /**
  * Returns true when a model string comes from the CLI provider.
@@ -123,12 +123,16 @@ function isCliModel(model) {
  *
  * @param {EvalRecord[]} records
  * @param {string} [suiteFilter]  If set, only include records from this suite.
+ * @param {string} [profileFilter] If set, only count PAKT records from this layer profile.
  * @returns {Map<string, Map<string, {json: [number, number], pakt: [number, number]}>>}
  */
-function aggregate(records, suiteFilter) {
+function aggregate(records, suiteFilter, profileFilter) {
   const byModel = new Map();
   for (const r of records) {
     if (suiteFilter && r.suite !== suiteFilter) continue;
+    // Under a multi-profile sweep, keep the JSON baseline plus a single PAKT
+    // profile so the json-vs-pakt table stays a clean 1:1 comparison.
+    if (profileFilter && r.format === 'pakt' && r.profile !== profileFilter) continue;
     const modelKey = `${r.provider}:${r.model}`;
     if (!byModel.has(modelKey)) byModel.set(modelKey, new Map());
     const rows = byModel.get(modelKey);
@@ -160,7 +164,14 @@ export function computeMatchedPairs(records) {
   }
 
   /** @type {MatchedPairCounts} */
-  const counts = { bothRight: 0, bothWrong: 0, jsonOnly: 0, paktOnly: 0, total: 0, formatEffect: 0 };
+  const counts = {
+    bothRight: 0,
+    bothWrong: 0,
+    jsonOnly: 0,
+    paktOnly: 0,
+    total: 0,
+    formatEffect: 0,
+  };
 
   for (const [, pair] of pairMap) {
     if (pair.json === null || pair.pakt === null) continue; // incomplete pair
@@ -226,7 +237,7 @@ function renderMatchedPairSection(records) {
   lines.push('');
   lines.push(
     'Each row in the table below is one QUESTION asked to both formats. ' +
-    '`bothWrong` rows are task-difficulty noise and excluded from the format effect.',
+      '`bothWrong` rows are task-difficulty noise and excluded from the format effect.',
   );
   lines.push('');
   lines.push('| Cell | Count | Meaning |');
@@ -237,7 +248,9 @@ function renderMatchedPairSection(records) {
   lines.push(`| paktOnly  | ${mp.paktOnly} | PAKT correct, JSON wrong |`);
   lines.push(`| **total matched** | **${mp.total}** | |`);
   lines.push('');
-  lines.push(`**Format effect (paktOnly − jsonOnly) = ${mp.formatEffect > 0 ? '+' : ''}${mp.formatEffect}**`);
+  lines.push(
+    `**Format effect (paktOnly − jsonOnly) = ${mp.formatEffect > 0 ? '+' : ''}${mp.formatEffect}**`,
+  );
   lines.push('');
   lines.push(`**Verdict:** ${formatVerdict(mp)}`);
   lines.push('');
@@ -263,8 +276,129 @@ function suiteNames(records) {
 }
 
 /**
+ * @typedef {Object} FrontierRow
+ * @property {string} profile      Layer profile id.
+ * @property {number} avgSavings   Mean token savings % across datasets for this profile.
+ * @property {[number, number]} paktAcc  [correct, total] for PAKT under this profile.
+ * @property {[number, number]} jsonAcc  [correct, total] for the shared JSON baseline.
+ * @property {MatchedPairCounts} matched Matched-pair counts: JSON vs this profile.
+ * @property {number} pValue       Sign-test p-value for the matched pairs.
+ */
+
+/**
+ * Computes the savings-vs-comprehension Pareto frontier across layer profiles.
+ *
+ * Each profile's PAKT records are matched-paired against the SHARED JSON
+ * baseline (the json records rendered once per task), so a profile that trades
+ * accuracy for savings is visible as a negative format effect. Aggregated
+ * across all models/suites in the run — keep one provider per run for a clean
+ * read.
+ *
+ * @param {EvalRecord[]} records
+ * @param {{dataset: string, profile: string, savingsPct: number}[]} tokenStats
+ * @param {string[]} profiles  Profile ids in sweep order.
+ * @returns {FrontierRow[]}  One row per profile, in sweep order.
+ */
+export function computeParetoFrontier(records, tokenStats, profiles) {
+  const jsonRecords = records.filter((r) => r.format === 'json');
+  const jsonOk = jsonRecords.filter((r) => r.correct).length;
+
+  return profiles.map((profile) => {
+    const pakt = records.filter((r) => r.format === 'pakt' && r.profile === profile);
+    const paktOk = pakt.filter((r) => r.correct).length;
+    const sv = tokenStats.filter((t) => t.profile === profile);
+    const avgSavings = sv.length ? sv.reduce((s, t) => s + t.savingsPct, 0) / sv.length : 0;
+    const matched = computeMatchedPairs([...jsonRecords, ...pakt]);
+    return {
+      profile,
+      avgSavings,
+      paktAcc: [paktOk, pakt.length],
+      jsonAcc: [jsonOk, jsonRecords.length],
+      matched,
+      pValue: signTestPValue(matched.jsonOnly, matched.paktOnly),
+    };
+  });
+}
+
+/**
+ * Picks the recommended "no-loss frontier" profile: the highest-savings profile
+ * whose comprehension is not significantly worse than JSON.
+ *
+ * A profile qualifies when the matched-pair sign test does NOT significantly
+ * favor JSON (p ≥ α or the lean is toward PAKT) AND its accuracy is within a
+ * 2-point tolerance of the JSON baseline.
+ *
+ * @param {FrontierRow[]} rows
+ * @returns {FrontierRow | null}
+ */
+export function pickRecommendedProfile(rows) {
+  const qualifying = rows.filter((row) => {
+    const sigWorse = row.pValue < SIGN_TEST_ALPHA && row.matched.formatEffect < 0;
+    const jsonAccPct = row.jsonAcc[1] ? row.jsonAcc[0] / row.jsonAcc[1] : 0;
+    const paktAccPct = row.paktAcc[1] ? row.paktAcc[0] / row.paktAcc[1] : 0;
+    const withinTolerance = paktAccPct >= jsonAccPct - 0.02;
+    return !sigWorse && withinTolerance;
+  });
+  if (qualifying.length === 0) return null;
+  return qualifying.reduce((a, b) => (b.avgSavings > a.avgSavings ? b : a));
+}
+
+/**
+ * Renders the Pareto frontier section: one row per layer profile, with the
+ * recommended no-loss frontier highlighted.
+ * @param {EvalRecord[]} records
+ * @param {{dataset: string, profile: string, savingsPct: number}[]} tokenStats
+ * @param {string[]} profiles
+ * @returns {string[]}
+ */
+function renderParetoFrontier(records, tokenStats, profiles) {
+  const lines = [];
+  lines.push('---');
+  lines.push('');
+  lines.push('## Pareto frontier — savings vs comprehension, by layer profile');
+  lines.push('');
+  lines.push(
+    'Each profile is matched-paired against the **shared JSON baseline**. ' +
+      '`format effect` is `paktOnly − jsonOnly`; a significantly negative value ' +
+      '(sign-test p < 0.05) means the profile traded comprehension for savings.',
+  );
+  lines.push('');
+  lines.push(
+    '| Profile | Avg savings | PAKT accuracy | JSON baseline | Format effect | Sign-test p |',
+  );
+  lines.push('|---|---|---|---|---|---|');
+  const rows = computeParetoFrontier(records, tokenStats, profiles);
+  for (const row of rows) {
+    const fe = `${row.matched.formatEffect > 0 ? '+' : ''}${row.matched.formatEffect}`;
+    lines.push(
+      `| \`${row.profile}\` | ${row.avgSavings.toFixed(1)}% | ${pct(...row.paktAcc)} | ` +
+        `${pct(...row.jsonAcc)} | ${fe} | ${row.pValue.toFixed(2)} |`,
+    );
+  }
+  lines.push('');
+
+  const pick = pickRecommendedProfile(rows);
+  if (pick) {
+    lines.push(
+      `**Recommended no-loss frontier: \`${pick.profile}\`** — ` +
+        `${pick.avgSavings.toFixed(1)}% mean savings with no significant comprehension loss ` +
+        `vs JSON (format effect ${pick.matched.formatEffect > 0 ? '+' : ''}${pick.matched.formatEffect}, ` +
+        `p=${pick.pValue.toFixed(2)}).`,
+    );
+  } else {
+    lines.push(
+      '**No profile cleared the no-loss bar** in this run — every profile either lost ' +
+        'comprehension significantly or fell outside the 2-point accuracy tolerance. ' +
+        'Treat savings claims with caution until a larger sample is run.',
+    );
+  }
+  lines.push('');
+  return lines;
+}
+
+/**
  * Renders the markdown report for a run.
- * @param {{startedAt: string, mock: boolean, suiteFlag?: string, records: EvalRecord[], tokenStats: {dataset: string, jsonTokens: number, paktTokens: number, savingsPct: number}[], cost: {inputTokens: number, estUsd: number}}} run
+ * @param {{startedAt: string, mock: boolean, suiteFlag?: string, profiles?: string[], records: EvalRecord[], tokenStats: {dataset: string, profile?: string, jsonTokens: number, paktTokens: number, savingsPct: number}[], cost: {inputTokens: number, estUsd: number}}} run
  * @returns {string}
  */
 export function renderMarkdown(run) {
@@ -273,8 +407,18 @@ export function renderMarkdown(run) {
   lines.push('');
   lines.push(`- Run started: ${run.startedAt}`);
   lines.push(`- Suite: \`${run.suiteFlag ?? 'comprehension'}\``);
-  lines.push(`- Mode: ${run.mock ? '**MOCK (echo model — NOT model evidence; pipeline verification only)**' : 'live API'}`);
+  lines.push(
+    `- Mode: ${run.mock ? '**MOCK (echo model — NOT model evidence; pipeline verification only)**' : 'live API'}`,
+  );
   lines.push(`- Records: ${run.records.length}`);
+  const profiles = run.profiles ?? ['standard'];
+  // Under a multi-profile sweep the json-vs-pakt table and matched-pair test
+  // are pinned to the first profile (the canonical 1:1 comparison); the full
+  // cross-profile view lives in the Pareto frontier section below.
+  const canonical = profiles[0];
+  lines.push(
+    `- Profiles: ${profiles.map((p) => `\`${p}\``).join(', ')} (canonical: \`${canonical}\`)`,
+  );
   lines.push('');
 
   const suites = suiteNames(run.records);
@@ -291,19 +435,19 @@ export function renderMarkdown(run) {
       if (suite === 'comprehension') {
         lines.push(
           '> **Comprehension suite** — small payloads (6–8 rows), retrieval-light questions.' +
-          ' Isolates format-reading ability. The matched-pair table below is the honest signal.',
+            ' Isolates format-reading ability. The matched-pair table below is the honest signal.',
         );
       } else {
         lines.push(
           '> **Stress suite** — 50/80-row payloads with cross-row reasoning and aggregation.' +
-          ' Results here are format-confounded by retrieval difficulty; use the comprehension suite' +
-          ' for the clean format-effect signal.',
+            ' Results here are format-confounded by retrieval difficulty; use the comprehension suite' +
+            ' for the clean format-effect signal.',
         );
       }
       lines.push('');
     }
 
-    for (const [modelKey, rows] of aggregate(suiteRecords)) {
+    for (const [modelKey, rows] of aggregate(suiteRecords, undefined, canonical)) {
       const modelName = modelKey.split(':').slice(1).join(':');
       const cli = isCliModel(modelName);
 
@@ -312,17 +456,19 @@ export function renderMarkdown(run) {
         lines.push('');
         lines.push(
           '> **CLI mode** — accuracy here reflects the full Claude Code / Codex agent harness' +
-          ' around the model, not a bare API endpoint.',
+            ' around the model, not a bare API endpoint.',
         );
       }
       lines.push('');
       lines.push('| Dataset / Category | JSON accuracy | PAKT accuracy |');
       lines.push('|---|---|---|');
-      let tot = { json: [0, 0], pakt: [0, 0] };
+      const tot = { json: [0, 0], pakt: [0, 0] };
       for (const [rowKey, cell] of rows) {
         lines.push(`| ${rowKey} | ${pct(...cell.json)} | ${pct(...cell.pakt)} |`);
-        tot.json[0] += cell.json[0]; tot.json[1] += cell.json[1];
-        tot.pakt[0] += cell.pakt[0]; tot.pakt[1] += cell.pakt[1];
+        tot.json[0] += cell.json[0];
+        tot.json[1] += cell.json[1];
+        tot.pakt[0] += cell.pakt[0];
+        tot.pakt[1] += cell.pakt[1];
       }
       lines.push(`| **overall** | **${pct(...tot.json)}** | **${pct(...tot.pakt)}** |`);
       lines.push('');
@@ -330,26 +476,33 @@ export function renderMarkdown(run) {
       // Matched-pair table — shown for every suite, but especially meaningful
       // for the comprehension suite.
       const modelRecords = suiteRecords.filter(
-        (r) => `${r.provider}:${r.model}` === modelKey,
+        (r) =>
+          `${r.provider}:${r.model}` === modelKey &&
+          (r.format === 'json' || r.profile === canonical),
       );
       lines.push(...renderMatchedPairSection(modelRecords));
     }
   }
+
+  // Cross-profile Pareto frontier (savings vs comprehension).
+  lines.push(...renderParetoFrontier(run.records, run.tokenStats, profiles));
 
   // Token savings (always local, format-agnostic).
   lines.push('---');
   lines.push('');
   lines.push('## Payload token counts (local tokenizer estimate)');
   lines.push('');
-  lines.push('| Dataset | JSON (minified) | PAKT | Savings |');
-  lines.push('|---|---|---|---|');
+  lines.push('| Dataset | Profile | JSON (minified) | PAKT | Savings |');
+  lines.push('|---|---|---|---|---|');
   for (const t of run.tokenStats) {
-    lines.push(`| ${t.dataset} | ${t.jsonTokens} | ${t.paktTokens} | ${t.savingsPct.toFixed(1)}% |`);
+    lines.push(
+      `| ${t.dataset} | \`${t.profile ?? 'standard'}\` | ${t.jsonTokens} | ${t.paktTokens} | ${t.savingsPct.toFixed(1)}% |`,
+    );
   }
   lines.push('');
   lines.push(
     `## Estimated cost per full live run ` +
-    `(Fable 5: $${PRICING.inputPerMTok}/MTok in, $${PRICING.outputPerMTok}/MTok out)`,
+      `(Fable 5: $${PRICING.inputPerMTok}/MTok in, $${PRICING.outputPerMTok}/MTok out)`,
   );
   lines.push('');
   lines.push(`- Estimated input tokens: ~${run.cost.inputTokens.toLocaleString('en-US')}`);
@@ -364,19 +517,21 @@ export function renderMarkdown(run) {
     lines.push('');
     lines.push(
       'Accuracy numbers for CLI providers (`claude` / `codex`) reflect the **agent harness**' +
-      ' around the model — system prompts, tool definitions, and any automatic context the CLI' +
-      ' injects. This differs from raw-API accuracy, where the model receives only the eval prompt.',
+        ' around the model — system prompts, tool definitions, and any automatic context the CLI' +
+        ' injects. This differs from raw-API accuracy, where the model receives only the eval prompt.',
     );
     lines.push('');
     lines.push(
-      '**Token savings** in this report come from the harness\'s LOCAL `compress()` call.' +
-      ' CLI-reported token usage is intentionally ignored: each `claude -p` call carries ~25K' +
-      ' tokens of Claude Code system-prompt overhead unrelated to the PAKT payload.',
+      "**Token savings** in this report come from the harness's LOCAL `compress()` call." +
+        ' CLI-reported token usage is intentionally ignored: each `claude -p` call carries ~25K' +
+        ' tokens of Claude Code system-prompt overhead unrelated to the PAKT payload.',
     );
     lines.push('');
   }
 
-  lines.push('> No results are published in the repo README until a real run is executed and reviewed.');
+  lines.push(
+    '> No results are published in the repo README until a real run is executed and reviewed.',
+  );
   lines.push('');
   return lines.join('\n');
 }
