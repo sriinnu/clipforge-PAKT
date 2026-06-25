@@ -190,7 +190,10 @@ export function extractRelevant(content: string, opts: ExtractiveOptions): Extra
   if (lines.length <= minKeep) return noOp;
 
   const scores = scoreLines(lines, queryTerms);
-  const topScore = Math.max(...scores);
+  // Fold rather than `Math.max(...scores)`: the spread blows the call stack on
+  // adversarial tool output with hundreds of thousands of short lines.
+  let topScore = 0;
+  for (const s of scores) if (s > topScore) topScore = s;
   if (topScore <= 0) return noOp; // query is orthogonal to the content — keep all
 
   // Decide which line indices to keep: any line above the relative threshold,

@@ -50,6 +50,67 @@ describe('compactCode: c-family', () => {
     expect(text).toContain('`\na\n\nb\n`');
     expect(text).not.toMatch(/\n\n\nuse/);
   });
+
+  // --- Regression: regex-literal awareness (reviewer BLOCKER) ---
+
+  it('does not mistake comment markers inside a regex literal for comments', () => {
+    const src = [
+      'function clean(s) {',
+      '  return s.replace(/\\/\\*.*?\\*\\//gs, ""); // strip block comments',
+      '}',
+    ].join('\n');
+    const { text } = compactCode(src, { lang: 'c-family', model: MODEL });
+    // The regex survives verbatim; only the trailing line comment is removed.
+    expect(text).toContain('s.replace(/\\/\\*.*?\\*\\//gs, "")');
+    expect(text).not.toContain('strip block comments');
+  });
+
+  it('handles a regex containing // inside a character class', () => {
+    const src = ['const re = /[//]/;', 'const y = 42;', 'f(re, y);'].join('\n');
+    const { text } = compactCode(src, { lang: 'c-family', model: MODEL });
+    expect(text).toContain('/[//]/');
+    expect(text).toContain('const y = 42;');
+  });
+
+  it('distinguishes a regex after a keyword from division after a value', () => {
+    const src = ['const a = b / c / d; // div', 'return /x\\/y/.test(z); // re'].join('\n');
+    const { text } = compactCode(src, { lang: 'c-family', model: MODEL });
+    expect(text).toContain('b / c / d;');
+    expect(text).toContain('/x\\/y/.test(z)');
+    expect(text).not.toContain('div');
+    expect(text).not.toContain(' re');
+  });
+
+  // --- Regression: unterminated constructs must no-op (reviewer MAJOR) ---
+
+  it('returns the original on an unterminated block comment (never drops code)', () => {
+    const src = 'const x = 1;\n/* not closed\nconst y = 2;\nimportant();';
+    const { text, savedTokens } = compactCode(src, { lang: 'c-family', model: MODEL });
+    expect(text).toBe(src); // behavior-preserving: no code dropped
+    expect(savedTokens).toBe(0);
+  });
+
+  it('returns the original on an unterminated template literal', () => {
+    const src = 'const t = `open\nconst y = 2;\nuse(y);';
+    const { text } = compactCode(src, { lang: 'c-family', model: MODEL });
+    expect(text).toBe(src);
+  });
+
+  it('preserves comment markers inside a template interpolation', () => {
+    const src = ['const t = `a ${ inner(`x`) } b`; // strip', 'use(t);'].join('\n');
+    const { text } = compactCode(src, { lang: 'c-family', model: MODEL });
+    expect(text).toContain('`a ${ inner(`x`) } b`');
+    expect(text).not.toContain('strip');
+  });
+
+  // --- Regression: CRLF survives trailing-whitespace strip ---
+
+  it('preserves CRLF line endings', () => {
+    const src = 'function f() {\r\n  return 1; // c\r\n}\r\n';
+    const { text } = compactCode(src, { lang: 'c-family', model: MODEL });
+    expect(text).toContain('function f() {\r\n');
+    expect(text).not.toContain('// c');
+  });
 });
 
 describe('compactCode: python', () => {

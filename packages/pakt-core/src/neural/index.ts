@@ -111,7 +111,10 @@ export async function combineWithGuarantee(
 ): Promise<NeuralCombineResult> {
   const model = opts.model ?? 'gpt-4o';
   const accept = opts.accept ?? (() => true);
-  const minGain = opts.minGain ?? 1;
+  // Clamp to >= 0 so the non-regression invariant (tokens(result) <= baseline)
+  // holds unconditionally — a negative minGain would otherwise admit a LARGER
+  // candidate.
+  const minGain = Math.max(0, opts.minGain ?? 1);
   const deterministic = opts.deterministic ?? input;
   const deterministicTokens = countTokens(deterministic, model);
 
@@ -141,7 +144,15 @@ export async function combineWithGuarantee(
   // Token gate: must beat the baseline by at least `minGain`.
   if (neuralTokens > deterministicTokens - minGain) return fallback('no-gain', neuralTokens);
   // Fidelity gate: caller decides whether the lossy candidate is acceptable.
-  if (!accept(input, candidate)) return fallback('rejected-by-accept', neuralTokens);
+  // A throwing `accept` is treated as a rejection — the gate must never be able
+  // to break the pipeline (mirrors the compress() guard above).
+  let accepted: boolean;
+  try {
+    accepted = accept(input, candidate);
+  } catch {
+    return fallback('rejected-by-accept', neuralTokens);
+  }
+  if (!accepted) return fallback('rejected-by-accept', neuralTokens);
 
   return {
     text: candidate,

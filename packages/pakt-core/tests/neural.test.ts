@@ -104,4 +104,30 @@ describe('combineWithGuarantee: non-regression', () => {
     // Core invariant: result is never larger than the deterministic baseline.
     expect(r.tokens).toBeLessThanOrEqual(r.deterministicTokens);
   });
+
+  it('guarantee holds even with an adversarial negative minGain', async () => {
+    // A negative minGain must not be allowed to admit a larger candidate.
+    const bigger = compressorOf('bigger', (i) => `${i} ${i} ${i} ${i}`);
+    const r = await combineWithGuarantee(ORIGINAL, bigger, {
+      model: MODEL,
+      deterministic: DETERMINISTIC,
+      minGain: -1000,
+    });
+    expect(r.tokens).toBeLessThanOrEqual(r.deterministicTokens);
+    expect(r.source).toBe('deterministic');
+  });
+
+  it('treats a throwing accept gate as a rejection (never crashes)', async () => {
+    const neural = compressorOf('tiny', () => 'revenue grew');
+    const r = await combineWithGuarantee(ORIGINAL, neural, {
+      model: MODEL,
+      deterministic: DETERMINISTIC,
+      accept: () => {
+        throw new Error('validator blew up');
+      },
+    });
+    expect(r.source).toBe('deterministic');
+    expect(r.rejectedReason).toBe('rejected-by-accept');
+    expect(r.tokens).toBe(r.deterministicTokens);
+  });
 });

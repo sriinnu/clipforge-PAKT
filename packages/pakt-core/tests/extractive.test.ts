@@ -102,19 +102,32 @@ describe('extractive: engine integration', () => {
     expect(savings.breakdown.extractive).toBe(0);
   });
 
-  it('preserves recent-turn tool results verbatim', () => {
+  it('preserves recent-turn tool results verbatim (exercises the recency branch)', () => {
     const engine = createContextEngine({
       maxContextTokens: 1_000_000,
       extractive: true,
       query: 'INV-9001',
-      recentTurns: 5,
+      recentTurns: 2,
     });
-    engine.addMessage({ role: 'user', content: 'investigate' });
+    // Advance to turn 5 so cutoff = 5 - 2 = 3 > 0 (past the global guard), then
+    // add the tool result in the CURRENT turn so the per-message `turn > cutoff`
+    // recency skip is what spares it.
+    for (let i = 0; i < 5; i++) engine.addMessage({ role: 'user', content: `step ${String(i)}` });
     const log = buildLog();
     engine.addToolResult('read_logs', log);
 
-    const { savings } = engine.optimize();
-    // The only tool result is in the current/recent window → untouched.
+    const { savings, messages } = engine.optimize();
+    // Recent tool result is untouched even though cutoff > 0.
     expect(savings.breakdown.extractive).toBe(0);
+    expect(messages.find((m) => m.role === 'tool')?.content).toBe(log);
+  });
+
+  it('does not crash on a tool result with hundreds of thousands of lines', () => {
+    // Regression: Math.max(...scores) used to blow the call stack here.
+    const huge = Array.from({ length: 200_000 }, (_, i) => `noise line ${String(i)}`);
+    huge[100_000] = 'relevant INV-9001 marker line';
+    const content = huge.join('\n');
+    const result = extractRelevant(content, { query: 'INV-9001 marker', model: MODEL });
+    expect(result.text).toContain('INV-9001 marker');
   });
 });
