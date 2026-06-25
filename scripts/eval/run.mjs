@@ -12,8 +12,20 @@
  *                             [--model claude-fable-5]
  *                             [--openai-model gpt-4o-mini] [--dataset users]
  *                             [--max-tasks N]
+ *                             [--profiles structure,standard,tokenizer,semantic]
+ *                             [--frontier] [--semantic-budget N]
  *                             [--provider cli --cli claude [--model <alias>]]
  *                             [--provider cli --cli codex  [--model <alias>]]
+ *
+ * Layer-profile sweep:
+ *   --profiles a,b,c  Render the payload under each PAKT layer profile and emit
+ *                     a Pareto frontier (savings% vs comprehension accuracy),
+ *                     each profile matched-paired against the shared JSON
+ *                     baseline. Default: standard (single profile, as before).
+ *   --frontier        Shorthand for the full sweep
+ *                     (structure, standard, tokenizer, semantic).
+ *   --semantic-budget Positive token budget for the lossy semantic profile
+ *                     (default 200; only used when 'semantic' is swept).
  *
  * Env: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENAI_BASE_URL.
  * KEY-GATED: with no keys, no --mock, and no --provider cli, prints a notice
@@ -36,14 +48,9 @@
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { anthropicProvider, cliProvider, mockProvider, openAiProvider } from './providers.mjs';
+import { estimateRunCost, writeReport } from './report.mjs';
 import { buildComprehensionSuites, buildSuites, scoreAnswer } from './tasks.mjs';
-import {
-  anthropicProvider,
-  openAiProvider,
-  mockProvider,
-  cliProvider,
-} from './providers.mjs';
-import { writeReport, estimateRunCost } from './report.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR = join(HERE, 'results');
@@ -60,7 +67,10 @@ function parseArgs(argv) {
     if (!argv[i].startsWith('--')) continue;
     const key = argv[i].slice(2);
     const next = argv[i + 1];
-    if (next && !next.startsWith('--')) { args[key] = next; i++; } else args[key] = true;
+    if (next && !next.startsWith('--')) {
+      args[key] = next;
+      i++;
+    } else args[key] = true;
   }
   return args;
 }
@@ -115,9 +125,7 @@ function resolveSuites(suiteFlag, datasetFilter) {
   const stress = {
     suiteName: 'stress',
     builder: buildSuites,
-    datasetFilter: datasetFilter
-      ? datasetFilter.filter((k) => !k.startsWith('small-'))
-      : undefined,
+    datasetFilter: datasetFilter ? datasetFilter.filter((k) => !k.startsWith('small-')) : undefined,
   };
   if (suiteFlag === 'stress') return [stress];
   if (suiteFlag === 'all') return [comprehension, stress];
@@ -153,49 +161,92 @@ async function main() {
     const model = typeof args.model === 'string' ? args.model : undefined;
     console.log(
       `[cli] Using ${cliName} CLI${model ? ` (model: ${model})` : ' (default model)'}` +
-      ` — no API key required, auth via local ${cliName === 'claude' ? 'Claude Code' : 'Codex'} subscription.`,
+        ` — no API key required, auth via local ${cliName === 'claude' ? 'Claude Code' : 'Codex'} subscription.`,
     );
     if (cliName === 'codex') {
       console.log(
         '[cli] NOTE: codex provider is UNTESTED in this environment — ' +
-        'output parsing is defensive but unverified. See providers.mjs for details.',
+          'output parsing is defensive but unverified. See providers.mjs for details.',
       );
     }
     providers.push(cliProvider({ cli: cliName, model }));
   } else {
     // ── API mode: key-gated ────────────────────────────────────────────────
     if (providerFlag && providerFlag !== 'anthropic' && providerFlag !== 'openai') {
-      console.error(`Unknown --provider: ${providerFlag}. Use anthropic, openai, cli, or omit for auto-detect.`);
+      console.error(
+        `Unknown --provider: ${providerFlag}. Use anthropic, openai, cli, or omit for auto-detect.`,
+      );
       process.exit(1);
     }
     if (!providerFlag || providerFlag === 'anthropic') {
       if (anthropicKey) {
-        providers.push(anthropicProvider({ model: String(args.model ?? 'claude-fable-5'), apiKey: anthropicKey }));
+        providers.push(
+          anthropicProvider({
+            model: String(args.model ?? 'claude-fable-5'),
+            apiKey: anthropicKey,
+          }),
+        );
       }
     }
     if (!providerFlag || providerFlag === 'openai') {
       if (openAiKey && args['openai-model']) {
-        providers.push(openAiProvider({
-          model: String(args['openai-model']),
-          apiKey: openAiKey,
-          baseUrl: process.env.OPENAI_BASE_URL || (typeof args['openai-base-url'] === 'string' ? args['openai-base-url'] : undefined),
-        }));
+        providers.push(
+          openAiProvider({
+            model: String(args['openai-model']),
+            apiKey: openAiKey,
+            baseUrl:
+              process.env.OPENAI_BASE_URL ||
+              (typeof args['openai-base-url'] === 'string' ? args['openai-base-url'] : undefined),
+          }),
+        );
       }
     }
   }
 
   if (providers.length === 0) {
     console.log('No API keys found (ANTHROPIC_API_KEY / OPENAI_API_KEY) and --mock not set.');
-    console.log('Nothing was run and no results were written — this harness never fabricates results.');
-    console.log('Set a key for a live run, use `--provider cli --cli claude` for a subscription-based run,');
+    console.log(
+      'Nothing was run and no results were written — this harness never fabricates results.',
+    );
+    console.log(
+      'Set a key for a live run, use `--provider cli --cli claude` for a subscription-based run,',
+    );
     console.log('or use `node scripts/eval/run.mjs --mock` to verify the pipeline.');
     process.exit(0);
   }
 
   const pakt = await loadPakt();
-  const paktOptions = pakt.createProfiledPaktOptions('standard');
+
+  // Layer-profile sweep. Default to a single 'standard' profile (back-compat
+  // with the original single-profile run). Pass `--profiles a,b,c` to sweep
+  // multiple profiles and emit a Pareto frontier (savings% vs comprehension
+  // accuracy) in the report. `--frontier` is shorthand for the full sweep.
+  const KNOWN_PROFILES = ['structure', 'standard', 'tokenizer', 'semantic'];
+  const profiles =
+    args.frontier === true
+      ? ['structure', 'standard', 'tokenizer', 'semantic']
+      : typeof args.profiles === 'string'
+        ? args.profiles
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean)
+        : ['standard'];
+  for (const p of profiles) {
+    if (!KNOWN_PROFILES.includes(p)) {
+      console.error(`Unknown --profiles entry "${p}". Known: ${KNOWN_PROFILES.join(', ')}`);
+      process.exit(1);
+    }
+  }
+  const semanticBudget = args['semantic-budget'] ? Number(args['semantic-budget']) : 200;
+  const profileOptions = new Map(
+    profiles.map((p) => [
+      p,
+      pakt.createProfiledPaktOptions(p, p === 'semantic' ? { semanticBudget } : {}),
+    ]),
+  );
+
   const datasetFilter = typeof args.dataset === 'string' ? args.dataset.split(',') : undefined;
-  const maxTasks = args['max-tasks'] ? Number(args['max-tasks']) : Infinity;
+  const maxTasks = args['max-tasks'] ? Number(args['max-tasks']) : Number.POSITIVE_INFINITY;
 
   // Resolve which suites to run.
   const suiteConfigs = resolveSuites(suiteFlag, datasetFilter);
@@ -203,27 +254,31 @@ async function main() {
   // Build all suites upfront.
   const allSuiteRuns = [];
   for (const cfg of suiteConfigs) {
-    const suites = cfg.datasetFilter
-      ? cfg.builder(cfg.datasetFilter)
-      : cfg.builder();
+    const suites = cfg.datasetFilter ? cfg.builder(cfg.datasetFilter) : cfg.builder();
     allSuiteRuns.push({ suiteName: cfg.suiteName, suites });
   }
 
-  // Render payloads once per dataset and collect token stats.
+  // Render payloads once per (dataset × profile) and collect token stats.
+  // `payloads.get(key)` is `{ json: string, pakt: Map<profile, string> }`.
   const payloads = new Map();
   const tokenStats = [];
   for (const { suites } of allSuiteRuns) {
     for (const suite of suites) {
       if (payloads.has(suite.key)) continue; // avoid double-rendering shared keys
       const minified = JSON.stringify(suite.data);
-      const result = pakt.compress(minified, paktOptions);
-      payloads.set(suite.key, { json: minified, pakt: result.compressed });
-      tokenStats.push({
-        dataset: suite.key,
-        jsonTokens: result.originalTokens,
-        paktTokens: result.compressedTokens,
-        savingsPct: 100 * (1 - result.compressedTokens / result.originalTokens),
-      });
+      const paktByProfile = new Map();
+      for (const p of profiles) {
+        const result = pakt.compress(minified, profileOptions.get(p));
+        paktByProfile.set(p, result.compressed);
+        tokenStats.push({
+          dataset: suite.key,
+          profile: p,
+          jsonTokens: result.originalTokens,
+          paktTokens: result.compressedTokens,
+          savingsPct: 100 * (1 - result.compressedTokens / result.originalTokens),
+        });
+      }
+      payloads.set(suite.key, { json: minified, pakt: paktByProfile });
     }
   }
 
@@ -237,27 +292,48 @@ async function main() {
       console.log(`\n--- Suite: ${suiteName} ---`);
       for (const suite of suites) {
         const tasks = suite.tasks.slice(0, maxTasks);
-        for (const format of ['json', 'pakt']) {
+        // Each "pass" is a (format, profile) rendering of the payload. The JSON
+        // baseline is rendered once; every layer profile is paired against it.
+        const passes = [
+          { format: 'json', profile: 'json', payload: payloads.get(suite.key).json },
+          ...profiles.map((p) => ({
+            format: 'pakt',
+            profile: p,
+            payload: payloads.get(suite.key).pakt.get(p),
+          })),
+        ];
+        for (const { format, profile, payload } of passes) {
           for (const task of tasks) {
-            const prompt = buildPrompt(payloads.get(suite.key)[format], task.question);
+            const prompt = buildPrompt(payload, task.question);
             let raw = '';
             let usage = { input: 0, output: 0 };
             try {
-              const res = await provider.ask(prompt, { task, index, format });
+              const res = await provider.ask(prompt, { task, index, format, profile });
               raw = res.text;
               usage = res.usage;
             } catch (err) {
-              console.error(`  ${task.id} [${format}] FAILED: ${err.message}`);
+              console.error(`  ${task.id} [${format}:${profile}] FAILED: ${err.message}`);
             }
             const { correct, got } = scoreAnswer(task, raw);
             records.push({
               suite: suiteName,
-              provider: provider.name, model: provider.model,
-              dataset: suite.key, category: task.category, taskId: task.id,
-              format, question: task.question, expected: task.expected,
-              got, raw, correct, usage,
+              provider: provider.name,
+              model: provider.model,
+              dataset: suite.key,
+              category: task.category,
+              taskId: task.id,
+              format,
+              profile,
+              question: task.question,
+              expected: task.expected,
+              got,
+              raw,
+              correct,
+              usage,
             });
-            console.log(`  ${task.id} [${format}] ${correct ? 'PASS' : 'FAIL'} (expected: ${task.expected}, got: ${got || '<empty>'})`);
+            console.log(
+              `  ${task.id} [${format}:${profile}] ${correct ? 'PASS' : 'FAIL'} (expected: ${task.expected}, got: ${got || '<empty>'})`,
+            );
             index++;
             // Pace: skip for mock (instant); use longer delay for CLI calls (slow).
             if (!mock) {
@@ -272,14 +348,21 @@ async function main() {
 
   // Total task count across all suites for cost estimate.
   const taskCount = allSuiteRuns.reduce(
-    (s, { suites }) => s + suites.reduce((ss, suite) => ss + Math.min(suite.tasks.length, maxTasks), 0),
+    (s, { suites }) =>
+      s + suites.reduce((ss, suite) => ss + Math.min(suite.tasks.length, maxTasks), 0),
     0,
   );
+  // Cost estimate is per-model for a single profile pass; use the first
+  // profile's per-dataset token counts so payloadTokens.length matches the
+  // dataset count the taskCount is divided across.
+  const firstProfile = profiles[0];
   const cost = estimateRunCost(
-    tokenStats.map((t) => ({ json: t.jsonTokens, pakt: t.paktTokens })),
+    tokenStats
+      .filter((t) => t.profile === firstProfile)
+      .map((t) => ({ json: t.jsonTokens, pakt: t.paktTokens })),
     taskCount,
   );
-  const run = { startedAt, mock, suiteFlag, records, tokenStats, cost };
+  const run = { startedAt, mock, suiteFlag, profiles, records, tokenStats, cost };
   const { jsonPath, mdPath } = writeReport(run, RESULTS_DIR);
 
   const ok = records.filter((r) => r.correct).length;

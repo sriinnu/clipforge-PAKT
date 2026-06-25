@@ -29,6 +29,13 @@ export {
   BUILTIN_OPAQUE_TYPES,
 } from './opaque-blocks.js';
 export type { OpaqueContentBlock } from './opaque-blocks.js';
+export {
+  buildSharedDictionary,
+  expandSharedDictionary,
+} from './shared-dictionary.js';
+export type { SharedDictEntry, SharedDictResult } from './shared-dictionary.js';
+export { extractRelevant } from './extractive.js';
+export type { ExtractiveOptions, ExtractiveResult } from './extractive.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,

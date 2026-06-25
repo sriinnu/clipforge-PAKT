@@ -77,6 +77,16 @@ export {
 
 export { applyPIILayer } from './layers/index.js';
 export type { L4PIIOptions, L4PIIResult, PIIMode } from './layers/index.js';
+export { compactCode, detectCodeFamily, looksLikeCode } from './layers/index.js';
+export type { CodeFamily, CompactCodeOptions, CompactCodeResult } from './layers/index.js';
+export { combineWithGuarantee } from './neural/index.js';
+export type {
+  NeuralCombineOptions,
+  NeuralCombineResult,
+  NeuralCompressionContext,
+  NeuralCompressor,
+  NeuralRejectReason,
+} from './neural/index.js';
 export { detectPII, redactPII } from './pii/index.js';
 export type {
   PIIKind,
@@ -292,6 +302,13 @@ export {
   BUILTIN_OPAQUE_TYPES,
 } from './context-engine/index.js';
 export type { OpaqueContentBlock } from './context-engine/index.js';
+export {
+  buildSharedDictionary,
+  expandSharedDictionary,
+} from './context-engine/index.js';
+export type { SharedDictEntry, SharedDictResult } from './context-engine/index.js';
+export { extractRelevant } from './context-engine/index.js';
+export type { ExtractiveOptions, ExtractiveResult } from './context-engine/index.js';
 export type {
   CompressionStrategy,
   ContextEngineConfig,
