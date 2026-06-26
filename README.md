@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/pakt-logo.svg" alt="PAKT" height="60" />
+  <img src="assets/pakt-logo.svg?v=2" alt="PAKT" height="60" />
 </p>
 
 <h3 align="center">ClipForge PAKT</h3>
