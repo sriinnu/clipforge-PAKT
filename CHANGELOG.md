@@ -5,9 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — 0.11.0-dev
+## [Unreleased]
+
+## [0.11.0] - 2026-06-26
 
 ### Added
+
+- **Agent context-engine layers.** Five additions to `createContextEngine()` plus new exports:
+  - Cross-message shared `@shared` dictionary (default on, lossless): mines lines recurring across the whole message set, defines each once, and rewrites occurrences with `§N` aliases; round-trip + net-savings gated, opaque/summarized-safe, collision-safe. Exports `buildSharedDictionary` / `expandSharedDictionary`.
+  - Query-aware extractive selection (`extractive` config, off by default; lossy but faithful): keeps query-relevant tool-result lines verbatim and folds the rest into an explicit elision marker. Deterministic IDF scoring — selection, not generation, so it cannot hallucinate. Exports `extractRelevant`; set the query via `setQuery()`.
+  - Literal-aware code compaction (`compactCode` config, off by default): strips comments and redundant blank lines from code tool output using a real character-level lexer (string / template / regex aware), and bails to a no-op on any unterminated construct, so it is behavior-preserving. Exports `compactCode` / `looksLikeCode`.
+  - Opt-in neural tier with a non-regression guarantee: `combineWithGuarantee()` keeps a pluggable neural compressor's output only when it is smaller **and** passes a caller-supplied fidelity gate, otherwise falls back to the deterministic result — the output is never larger than the baseline. No model is bundled.
+  - New `ContextSavings.breakdown` fields: `sharedDictionary`, `extractive`, `codeCompaction`.
+- **Per-layer Pareto frontier in the eval harness.** `scripts/eval/run.mjs --profiles a,b,c` (or `--frontier`) sweeps PAKT layer profiles and reports savings% vs comprehension accuracy per profile, each matched-paired against the shared JSON baseline with a sign test, plus a recommended no-loss frontier pick.
+- **Cloudflare Pages deploy workflow.** `.github/workflows/deploy-playground.yml` builds the playground on push to `main` (and manual dispatch) and deploys it once `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets are set; until then it builds and skips the deploy with a notice.
 
 - **Cache-synergy pack.** `RollingDictionary` wired into `handleCompress` (MCP `pakt_compress`) for cross-turn alias reuse; opt out with `statelessDict: true`. `@cache prefix-end` directive now emitted after `@dict ... @end` when `cacheTarget` is set or `cacheDirective: true`; `cache-breakpoint.ts::findCacheDirectiveOffset` returns the exact byte offset. Prefix byte-stability verified by `tests/cache-stability.test.ts`.
 - **`dictPlacement: 'inline' | 'system'` option on `compress()`.** When `'system'`, the result carries `result.dictBlock` for placement in the system prompt (where provider caching is most effective). `decompress(body, { dict })` accepts an externally-supplied dict block (inline wins on conflict). CLI: `--dict-placement system` + `--dict-out <file>` on compress; `--dict <file>` on decompress. MCP: `dictPlacement` parameter.
@@ -23,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **README rewritten as a plain, factual statement.** Dropped marketing claims (the "only ..." superlative, the "90% cost reduction" line that was the provider's cache, not PAKT's); surfaced where it does not help and the measured comprehension result; moved the version-stamped feature list to this CHANGELOG. Logo cache-busted (`pakt-logo.svg?v=2`); unreferenced `clipforge-logo.svg` removed.
 - **Desktop repositioned as Agent Telemetry HQ.** Default tab is now a telemetry dashboard reading `~/.pakt/stats` JSONL files (today / 7-day savings, per-agent source table, latency percentiles, lossy share, sparklines). Clipboard compress is the second tab.
 - **Desktop history is now real SQLite.** `tauri-plugin-sql` frontend API replaces old Rust stubs; legacy `localStorage` history migrated automatically on first open. macOS is the validated compile-and-run path; Windows and Linux are source targets.
 - **Extension store prep complete.** `apps/extension/store/` contains listing copy, privacy policy, screenshots checklist, smoke-test script, and submission checklist. Extension remains unpublished and not yet smoke-tested on live sites.
