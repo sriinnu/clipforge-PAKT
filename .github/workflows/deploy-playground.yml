@@ -1,0 +1,62 @@
+name: Deploy Playground
+
+# Builds the playground on every push to main and deploys it to Cloudflare
+# Pages. The deploy step only runs once CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID are set in repo Settings → Secrets; until then the job
+# builds and skips the deploy with a notice (it never fails for a missing
+# secret), so this is safe to merge before the credentials exist.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/playground/**'
+      - 'packages/pakt-core/**'
+      - '.github/workflows/deploy-playground.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-playground
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy playground
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Core must build first — the playground imports @sriinnu/pakt (workspace:*).
+      - run: pnpm build:core
+      - run: pnpm build:playground
+
+      - id: guard
+        name: Check Cloudflare credentials
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — playground built but deploy skipped. Add both in Settings → Secrets and Variables → Actions to enable deploys."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.guard.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Change --project-name if the Cloudflare Pages project is named differently.
+          command: pages deploy apps/playground/dist --project-name=pakt-4f9
