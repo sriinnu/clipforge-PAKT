@@ -12,11 +12,70 @@ import type {
   CompressibilityResult,
   PaktFormat,
 } from '@sriinnu/pakt';
+import { useEffect, useState } from 'react';
 import { DECOMPRESS_FORMATS } from '../app-constants';
 import { formatDelta, formatPercent } from '../app-helpers';
+import { type PIIMatch, detectPii, redactPii } from '../pakt-runtime';
 
 /** Tone for the right-hand stat card driven by {@link getStatsTone}. */
 type StatsTone = 'idle' | 'saving' | 'expanded';
+
+function PiiDetectionBadge({
+  input,
+  onInputChange,
+}: {
+  input: string;
+  onInputChange: (v: string) => void;
+}) {
+  const [matches, setMatches] = useState<PIIMatch[]>([]);
+  const [redacting, setRedacting] = useState(false);
+
+  useEffect(() => {
+    if (!input.trim()) {
+      setMatches([]);
+      return;
+    }
+    const id = window.setTimeout(async () => {
+      try {
+        const found = await detectPii(input);
+        setMatches(found);
+      } catch {
+        /* ignore worker errors — PII detection is advisory */
+      }
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [input]);
+
+  async function handleRedact(): Promise<void> {
+    setRedacting(true);
+    try {
+      const redacted = await redactPii(input);
+      onInputChange(redacted);
+      setMatches([]);
+    } catch {
+      /* ignore */
+    } finally {
+      setRedacting(false);
+    }
+  }
+
+  if (matches.length === 0) return null;
+
+  const kinds = [...new Set(matches.map((m) => m.kind))].join(', ');
+  return (
+    <p className="pii-warning-line">
+      <span>PII detected: {kinds} ({matches.length} match{matches.length === 1 ? '' : 'es'})</span>
+      <button
+        type="button"
+        className="ghost"
+        onClick={() => void handleRedact()}
+        disabled={redacting}
+      >
+        {redacting ? 'Redacting…' : 'Redact PII'}
+      </button>
+    </p>
+  );
+}
 
 /**
  * Props for {@link PlaygroundWorkspace}. The shape mirrors the
@@ -131,6 +190,7 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
               <strong>{compressibility.profile}</strong>
             </p>
           ) : null}
+          <PiiDetectionBadge input={input} onInputChange={onInputChange} />
           <div className="action-row">
             <label className="toggle-control" htmlFor="live-compress-toggle">
               <input

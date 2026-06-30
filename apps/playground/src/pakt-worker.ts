@@ -3,6 +3,7 @@ import type {
   CompressionConfig,
   ContextDemoMessage,
   ContextEngineDemoConfig,
+  PackerRunItem,
 } from './pakt-service';
 import {
   analyzePreview,
@@ -12,6 +13,9 @@ import {
   getCompressibility,
   optimizeContext,
   preloadPakt,
+  redactPiiText,
+  runPacker,
+  scanPii,
 } from './pakt-service';
 
 type WorkerRequest =
@@ -45,7 +49,10 @@ type WorkerRequest =
       type: 'optimizeContext';
       messages: ContextDemoMessage[];
       config: ContextEngineDemoConfig;
-    };
+    }
+  | { id: number; type: 'scanPii'; text: string }
+  | { id: number; type: 'redactPii'; text: string }
+  | { id: number; type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -114,6 +121,19 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           id: message.id,
           ok: true,
           payload: await optimizeContext(message.messages, message.config),
+        });
+        return;
+      case 'scanPii':
+        respond({ id: message.id, ok: true, payload: await scanPii(message.text) });
+        return;
+      case 'redactPii':
+        respond({ id: message.id, ok: true, payload: await redactPiiText(message.text) });
+        return;
+      case 'runPacker':
+        respond({
+          id: message.id,
+          ok: true,
+          payload: await runPacker(message.items, message.budget, message.model),
         });
         return;
       default: {

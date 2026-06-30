@@ -3,6 +3,8 @@ import {
   type CacheTarget,
   type CompressibilityResult,
   PAKT_LAYER_PROFILES,
+  type PIIMatch,
+  type PackerItem,
   type PaktFormat,
   type PaktLayerProfile,
   type PaktLayerProfileId,
@@ -587,5 +589,91 @@ function buildRecommendation(
     winnerLabel: winner.label,
     tokens: winner.tokens,
     packedOutput: winner.packedOutput,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PII detection / redaction
+// ---------------------------------------------------------------------------
+
+export async function scanPii(text: string): Promise<PIIMatch[]> {
+  const { detectPII } = await loadPakt();
+  return detectPII(text);
+}
+
+export async function redactPiiText(text: string): Promise<string> {
+  const { redactPII } = await loadPakt();
+  return redactPII(text).text;
+}
+
+export type { PIIMatch };
+
+// ---------------------------------------------------------------------------
+// Context window packer
+// ---------------------------------------------------------------------------
+
+export interface PackerRunItem {
+  id: string;
+  content: string;
+  priority?: number;
+  role?: string;
+}
+
+export interface PackerRunResult {
+  packed: Array<{
+    id: string;
+    compressed: string;
+    originalTokens: number;
+    compressedTokens: number;
+    savingsPercent: number;
+    wasCompressed: boolean;
+  }>;
+  dropped: Array<{
+    id: string;
+    reason: string;
+    tokensNeeded: number;
+  }>;
+  totalTokens: number;
+  remainingBudget: number;
+  stats: {
+    totalItems: number;
+    packedCount: number;
+    droppedCount: number;
+    originalTotalTokens: number;
+    compressedTotalTokens: number;
+    overallSavingsPercent: number;
+  };
+}
+
+export async function runPacker(
+  items: PackerRunItem[],
+  budget: number,
+  model: string,
+): Promise<PackerRunResult> {
+  const { pack } = await loadPakt();
+  const packerItems: PackerItem[] = items.map(({ id, content, priority, role }) => ({
+    id,
+    content,
+    ...(priority !== undefined ? { priority } : {}),
+    ...(role ? { role: role as PackerItem['role'] } : {}),
+  }));
+  const result = pack(packerItems, { budget, model, adaptiveCompression: true });
+  return {
+    packed: result.packed.map((p) => ({
+      id: p.id,
+      compressed: p.compressed,
+      originalTokens: p.originalTokens,
+      compressedTokens: p.compressedTokens,
+      savingsPercent: p.savingsPercent,
+      wasCompressed: p.wasCompressed,
+    })),
+    dropped: result.dropped.map((d) => ({
+      id: d.id,
+      reason: d.reason,
+      tokensNeeded: d.tokensNeeded,
+    })),
+    totalTokens: result.totalTokens,
+    remainingBudget: result.remainingBudget,
+    stats: { ...result.stats },
   };
 }

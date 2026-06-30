@@ -1,6 +1,7 @@
 import type {
   CacheTarget,
   CompressibilityResult,
+  PIIMatch,
   PaktFormat,
   PaktLayerProfileId,
 } from '@sriinnu/pakt';
@@ -12,6 +13,8 @@ import type {
   ContextEngineDemoConfig,
   ContextOptimizeResult,
   DecompressionResult,
+  PackerRunItem,
+  PackerRunResult,
   PreviewResult,
 } from './pakt-service';
 
@@ -32,7 +35,10 @@ type WorkerMessage =
       type: 'optimizeContext';
       messages: ContextDemoMessage[];
       config: ContextEngineDemoConfig;
-    };
+    }
+  | { type: 'scanPii'; text: string }
+  | { type: 'redactPii'; text: string }
+  | { type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -196,6 +202,22 @@ export async function optimizeContext(
   return callWorker<ContextOptimizeResult>({ type: 'optimizeContext', messages, config });
 }
 
+export async function detectPii(text: string): Promise<PIIMatch[]> {
+  return callWorker<PIIMatch[]>({ type: 'scanPii', text });
+}
+
+export async function redactPii(text: string): Promise<string> {
+  return callWorker<string>({ type: 'redactPii', text });
+}
+
+export async function runPacker(
+  items: PackerRunItem[],
+  budget: number,
+  model: string,
+): Promise<PackerRunResult> {
+  return callWorker<PackerRunResult>({ type: 'runPacker', items, budget, model });
+}
+
 export type {
   ComparisonItem,
   ComparisonState,
@@ -206,6 +228,8 @@ export type {
   ContextOptimizeResult,
   OptimizedMessageView,
   DecompressionResult,
+  PackerRunItem,
+  PackerRunResult,
   PreviewResult,
 } from './pakt-service';
-export type { CompressibilityResult, PaktLayerProfileId };
+export type { CompressibilityResult, PIIMatch, PaktLayerProfileId };

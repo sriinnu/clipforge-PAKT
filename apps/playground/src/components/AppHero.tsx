@@ -116,6 +116,14 @@ export function AppHero({
         >
           Context Engine
         </button>
+        <button
+          className={`tab-button ${viewMode === 'packer' ? 'active' : ''}`}
+          type="button"
+          aria-pressed={viewMode === 'packer'}
+          onClick={() => onViewModeChange('packer')}
+        >
+          Context Packer
+        </button>
       </fieldset>
     </>
   );

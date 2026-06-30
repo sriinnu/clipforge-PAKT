@@ -32,6 +32,7 @@ import { CompareLayersView } from './components/CompareLayersView';
 import { ContextEngineView } from './components/ContextEngineView';
 import { ControlsCard } from './components/ControlsCard';
 import { NotesAndWorkflowCards } from './components/NotesAndWorkflowCards';
+import { PackerView } from './components/PackerView';
 import { PlaygroundWorkspace } from './components/PlaygroundWorkspace';
 import {
   type ComparisonState,
@@ -429,9 +430,9 @@ export default function App() {
           tableProjectionWinner={tableProjectionWinner}
           onApplyWinner={handleApplyComparisonWinner}
         />
-      ) : (
-        <ContextEngineView />
-      )}
+      ) : viewMode === 'packer' ? (
+        <PackerView />
+      ) : <ContextEngineView />}
 
       {error ? (
         <div className="error-banner" role="alert">
