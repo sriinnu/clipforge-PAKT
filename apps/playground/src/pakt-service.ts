@@ -212,6 +212,103 @@ export function getCompressibility(text: string): CompressibilityResult {
   return estimateCompressibility(text);
 }
 
+// ---------------------------------------------------------------------------
+// Context engine demo — surfaces the agent-loop optimizer in the playground
+// ---------------------------------------------------------------------------
+
+/** One message in a demo agent conversation. */
+export interface ContextDemoMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  /** Tool name (for `role: 'tool'`). */
+  toolName?: string;
+}
+
+/** Knobs exposed in the playground for {@link optimizeContext}. */
+export interface ContextEngineDemoConfig {
+  maxContextTokens?: number;
+  recentTurns?: number;
+  /** Cross-message `@shared` dictionary (lossless, default on). */
+  sharedDictionary?: boolean;
+  /** Query-aware extractive selection (lossy, off by default). */
+  extractive?: boolean;
+  /** Query that drives extractive line selection. */
+  query?: string;
+  /** Comment/blank-line code compaction (lossy, off by default). */
+  compactCode?: boolean;
+  targetModel?: string;
+}
+
+/** A single optimized message, flattened for display. */
+export interface OptimizedMessageView {
+  role: string;
+  toolName?: string;
+  tokens: number;
+  content: string;
+}
+
+/** Result of {@link optimizeContext}. */
+export interface ContextOptimizeResult {
+  originalTokens: number;
+  optimizedTokens: number;
+  savedTokens: number;
+  savedPercent: number;
+  /** Per-layer savings: toolResults, historyCompression, summarization,
+   *  deduplication, toolResultAging, sharedDictionary, extractive, codeCompaction. */
+  breakdown: Record<string, number>;
+  messages: OptimizedMessageView[];
+  /** Number of facts the engine extracted into its context index. */
+  factCount: number;
+}
+
+/**
+ * Run the PAKT context engine over a demo agent conversation and return a
+ * display-friendly summary: token before/after, the per-layer savings
+ * breakdown, and the optimized messages. Heavy (loads the engine), so it runs
+ * in the worker like the other actions.
+ */
+export async function optimizeContext(
+  messages: ContextDemoMessage[],
+  config: ContextEngineDemoConfig,
+): Promise<ContextOptimizeResult> {
+  const pakt = await loadPakt();
+  const model = config.targetModel ?? 'gpt-4o';
+  const engine = pakt.createContextEngine({
+    model,
+    maxContextTokens: config.maxContextTokens ?? 8000,
+    recentTurns: config.recentTurns ?? 2,
+    sharedDictionary: config.sharedDictionary ?? true,
+    extractive: config.extractive ?? false,
+    ...(config.query ? { query: config.query } : {}),
+    compactCode: config.compactCode ?? false,
+  });
+
+  for (const m of messages) {
+    if (m.role === 'tool') {
+      engine.addToolResult(m.toolName ?? 'tool', m.content);
+    } else {
+      engine.addMessage({ role: m.role, content: m.content });
+    }
+  }
+
+  const { messages: optimized, savings, index } = engine.optimize();
+
+  return {
+    originalTokens: savings.originalTokens,
+    optimizedTokens: savings.optimizedTokens,
+    savedTokens: savings.savedTokens,
+    savedPercent: savings.savedPercent,
+    breakdown: { ...savings.breakdown },
+    messages: optimized.map((m) => ({
+      role: m.role,
+      ...(m.toolName ? { toolName: m.toolName } : {}),
+      tokens: m.currentTokens ?? pakt.countTokens(m.content, model),
+      content: m.content,
+    })),
+    factCount: index?.facts.length ?? 0,
+  };
+}
+
 export async function analyzePreview(
   input: string,
   liveCompress: boolean,

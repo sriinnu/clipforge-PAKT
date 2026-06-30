@@ -29,6 +29,7 @@ import {
 } from './app-helpers';
 import { AppHero } from './components/AppHero';
 import { CompareLayersView } from './components/CompareLayersView';
+import { ContextEngineView } from './components/ContextEngineView';
 import { ControlsCard } from './components/ControlsCard';
 import { NotesAndWorkflowCards } from './components/NotesAndWorkflowCards';
 import { PlaygroundWorkspace } from './components/PlaygroundWorkspace';
@@ -364,27 +365,31 @@ export default function App() {
         onViewModeChange={setViewMode}
       />
 
-      <ControlsCard
-        samples={samples}
-        selectedSample={selectedSample}
-        compressionProfileId={compressionProfileId}
-        selectedProfile={selectedProfile}
-        targetModel={targetModel}
-        cacheTarget={cacheTarget}
-        semanticBudgetInput={semanticBudgetInput}
-        onSampleChange={loadSample}
-        onProfileChange={setCompressionProfileId}
-        onTargetModelChange={setTargetModel}
-        onCacheTargetChange={setCacheTarget}
-        onSemanticBudgetChange={setSemanticBudgetInput}
-      />
+      {viewMode !== 'context' ? (
+        <>
+          <ControlsCard
+            samples={samples}
+            selectedSample={selectedSample}
+            compressionProfileId={compressionProfileId}
+            selectedProfile={selectedProfile}
+            targetModel={targetModel}
+            cacheTarget={cacheTarget}
+            semanticBudgetInput={semanticBudgetInput}
+            onSampleChange={loadSample}
+            onProfileChange={setCompressionProfileId}
+            onTargetModelChange={setTargetModel}
+            onCacheTargetChange={setCacheTarget}
+            onSemanticBudgetChange={setSemanticBudgetInput}
+          />
 
-      <NotesAndWorkflowCards
-        workflowNotice={workflowNotice}
-        insightTitle={display.workflowInsightTitle}
-        insightBody={display.workflowInsightBody}
-        onCopyWorkflow={(label) => void handleCopyWorkflow(label)}
-      />
+          <NotesAndWorkflowCards
+            workflowNotice={workflowNotice}
+            insightTitle={display.workflowInsightTitle}
+            insightBody={display.workflowInsightBody}
+            onCopyWorkflow={(label) => void handleCopyWorkflow(label)}
+          />
+        </>
+      ) : null}
 
       {viewMode === 'playground' ? (
         <PlaygroundWorkspace
@@ -417,13 +422,15 @@ export default function App() {
           onClearOutput={handleClearOutput}
           onCopyOutput={() => void handleCopy()}
         />
-      ) : (
+      ) : viewMode === 'compare' ? (
         <CompareLayersView
           comparisonState={comparisonState}
           packedInputDetected={packedInputDetected}
           tableProjectionWinner={tableProjectionWinner}
           onApplyWinner={handleApplyComparisonWinner}
         />
+      ) : (
+        <ContextEngineView />
       )}
 
       {error ? (

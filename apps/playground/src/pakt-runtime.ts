@@ -8,6 +8,9 @@ import type {
   ComparisonState,
   CompressionConfig,
   CompressionResult,
+  ContextDemoMessage,
+  ContextEngineDemoConfig,
+  ContextOptimizeResult,
   DecompressionResult,
   PreviewResult,
 } from './pakt-service';
@@ -24,7 +27,12 @@ type WorkerMessage =
       targetModel?: string;
       cacheTarget?: CacheTarget;
     }
-  | { type: 'compressibility'; text: string };
+  | { type: 'compressibility'; text: string }
+  | {
+      type: 'optimizeContext';
+      messages: ContextDemoMessage[];
+      config: ContextEngineDemoConfig;
+    };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -176,11 +184,27 @@ export async function estimateCompressibility(text: string): Promise<Compressibi
   return callWorker<CompressibilityResult>({ type: 'compressibility', text });
 }
 
+/**
+ * Run the context engine over a demo agent conversation via the worker.
+ * Returns token before/after, the per-layer savings breakdown, and the
+ * optimized messages.
+ */
+export async function optimizeContext(
+  messages: ContextDemoMessage[],
+  config: ContextEngineDemoConfig,
+): Promise<ContextOptimizeResult> {
+  return callWorker<ContextOptimizeResult>({ type: 'optimizeContext', messages, config });
+}
+
 export type {
   ComparisonItem,
   ComparisonState,
   CompressionConfig,
   CompressionResult,
+  ContextDemoMessage,
+  ContextEngineDemoConfig,
+  ContextOptimizeResult,
+  OptimizedMessageView,
   DecompressionResult,
   PreviewResult,
 } from './pakt-service';

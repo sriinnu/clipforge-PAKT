@@ -1,11 +1,16 @@
 import type { CacheTarget, PaktFormat } from '@sriinnu/pakt';
-import type { CompressionConfig } from './pakt-service';
+import type {
+  CompressionConfig,
+  ContextDemoMessage,
+  ContextEngineDemoConfig,
+} from './pakt-service';
 import {
   analyzePreview,
   compressSource,
   computeComparison,
   decompressSource,
   getCompressibility,
+  optimizeContext,
   preloadPakt,
 } from './pakt-service';
 
@@ -34,7 +39,13 @@ type WorkerRequest =
       targetModel?: string;
       cacheTarget?: CacheTarget;
     }
-  | { id: number; type: 'compressibility'; text: string };
+  | { id: number; type: 'compressibility'; text: string }
+  | {
+      id: number;
+      type: 'optimizeContext';
+      messages: ContextDemoMessage[];
+      config: ContextEngineDemoConfig;
+    };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -96,6 +107,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           id: message.id,
           ok: true,
           payload: getCompressibility(message.text),
+        });
+        return;
+      case 'optimizeContext':
+        respond({
+          id: message.id,
+          ok: true,
+          payload: await optimizeContext(message.messages, message.config),
         });
         return;
       default: {
