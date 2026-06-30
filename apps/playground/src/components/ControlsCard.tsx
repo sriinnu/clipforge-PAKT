@@ -4,13 +4,9 @@
  * underneath. Stateless — parent owns every value and change handler.
  */
 
-import {
-  type CacheTarget,
-  PAKT_LAYER_PROFILES,
-  type PaktLayerProfile,
-  type PaktLayerProfileId,
-  getTokenizerFamilyInfo,
-} from '@sriinnu/pakt';
+import type { CacheTarget, PaktLayerProfile, PaktLayerProfileId } from '@sriinnu/pakt';
+// Lightweight, tokenizer-free metadata — keeps the BPE engine out of the main bundle.
+import { PAKT_LAYER_PROFILES, getTokenizerFamilyInfo } from '@sriinnu/pakt/meta';
 import { TARGET_MODELS } from '../app-constants';
 import type { samples } from '../samples';
 

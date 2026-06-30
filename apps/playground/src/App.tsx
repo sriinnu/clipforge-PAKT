@@ -7,14 +7,9 @@
  * under the project's 450-LOC cap.
  */
 
-import {
-  type CacheBreakpoint,
-  type CacheTarget,
-  DEFAULT_SEMANTIC_BUDGET,
-  type PaktFormat,
-  type PaktLayerProfileId,
-  getPaktLayerProfile,
-} from '@sriinnu/pakt';
+import type { CacheBreakpoint, CacheTarget, PaktFormat, PaktLayerProfileId } from '@sriinnu/pakt';
+// Lightweight, tokenizer-free metadata — keeps the BPE engine out of the main bundle.
+import { DEFAULT_SEMANTIC_BUDGET, getPaktLayerProfile } from '@sriinnu/pakt/meta';
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type Action,
