@@ -3,6 +3,8 @@ import {
   type CacheTarget,
   type CompressibilityResult,
   PAKT_LAYER_PROFILES,
+  type PIIMatch,
+  type PackerItem,
   type PaktFormat,
   type PaktLayerProfile,
   type PaktLayerProfileId,
@@ -210,6 +212,103 @@ export async function preloadPakt(): Promise<void> {
  */
 export function getCompressibility(text: string): CompressibilityResult {
   return estimateCompressibility(text);
+}
+
+// ---------------------------------------------------------------------------
+// Context engine demo — surfaces the agent-loop optimizer in the playground
+// ---------------------------------------------------------------------------
+
+/** One message in a demo agent conversation. */
+export interface ContextDemoMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  /** Tool name (for `role: 'tool'`). */
+  toolName?: string;
+}
+
+/** Knobs exposed in the playground for {@link optimizeContext}. */
+export interface ContextEngineDemoConfig {
+  maxContextTokens?: number;
+  recentTurns?: number;
+  /** Cross-message `@shared` dictionary (lossless, default on). */
+  sharedDictionary?: boolean;
+  /** Query-aware extractive selection (lossy, off by default). */
+  extractive?: boolean;
+  /** Query that drives extractive line selection. */
+  query?: string;
+  /** Comment/blank-line code compaction (lossy, off by default). */
+  compactCode?: boolean;
+  targetModel?: string;
+}
+
+/** A single optimized message, flattened for display. */
+export interface OptimizedMessageView {
+  role: string;
+  toolName?: string;
+  tokens: number;
+  content: string;
+}
+
+/** Result of {@link optimizeContext}. */
+export interface ContextOptimizeResult {
+  originalTokens: number;
+  optimizedTokens: number;
+  savedTokens: number;
+  savedPercent: number;
+  /** Per-layer savings: toolResults, historyCompression, summarization,
+   *  deduplication, toolResultAging, sharedDictionary, extractive, codeCompaction. */
+  breakdown: Record<string, number>;
+  messages: OptimizedMessageView[];
+  /** Number of facts the engine extracted into its context index. */
+  factCount: number;
+}
+
+/**
+ * Run the PAKT context engine over a demo agent conversation and return a
+ * display-friendly summary: token before/after, the per-layer savings
+ * breakdown, and the optimized messages. Heavy (loads the engine), so it runs
+ * in the worker like the other actions.
+ */
+export async function optimizeContext(
+  messages: ContextDemoMessage[],
+  config: ContextEngineDemoConfig,
+): Promise<ContextOptimizeResult> {
+  const pakt = await loadPakt();
+  const model = config.targetModel ?? 'gpt-4o';
+  const engine = pakt.createContextEngine({
+    model,
+    maxContextTokens: config.maxContextTokens ?? 8000,
+    recentTurns: config.recentTurns ?? 2,
+    sharedDictionary: config.sharedDictionary ?? true,
+    extractive: config.extractive ?? false,
+    ...(config.query ? { query: config.query } : {}),
+    compactCode: config.compactCode ?? false,
+  });
+
+  for (const m of messages) {
+    if (m.role === 'tool') {
+      engine.addToolResult(m.toolName ?? 'tool', m.content);
+    } else {
+      engine.addMessage({ role: m.role, content: m.content });
+    }
+  }
+
+  const { messages: optimized, savings, index } = engine.optimize();
+
+  return {
+    originalTokens: savings.originalTokens,
+    optimizedTokens: savings.optimizedTokens,
+    savedTokens: savings.savedTokens,
+    savedPercent: savings.savedPercent,
+    breakdown: { ...savings.breakdown },
+    messages: optimized.map((m) => ({
+      role: m.role,
+      ...(m.toolName ? { toolName: m.toolName } : {}),
+      tokens: m.currentTokens ?? pakt.countTokens(m.content, model),
+      content: m.content,
+    })),
+    factCount: index?.facts.length ?? 0,
+  };
 }
 
 export async function analyzePreview(
@@ -490,5 +589,91 @@ function buildRecommendation(
     winnerLabel: winner.label,
     tokens: winner.tokens,
     packedOutput: winner.packedOutput,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PII detection / redaction
+// ---------------------------------------------------------------------------
+
+export async function scanPii(text: string): Promise<PIIMatch[]> {
+  const { detectPII } = await loadPakt();
+  return detectPII(text);
+}
+
+export async function redactPiiText(text: string): Promise<string> {
+  const { redactPII } = await loadPakt();
+  return redactPII(text).text;
+}
+
+export type { PIIMatch };
+
+// ---------------------------------------------------------------------------
+// Context window packer
+// ---------------------------------------------------------------------------
+
+export interface PackerRunItem {
+  id: string;
+  content: string;
+  priority?: number;
+  role?: string;
+}
+
+export interface PackerRunResult {
+  packed: Array<{
+    id: string;
+    compressed: string;
+    originalTokens: number;
+    compressedTokens: number;
+    savingsPercent: number;
+    wasCompressed: boolean;
+  }>;
+  dropped: Array<{
+    id: string;
+    reason: string;
+    tokensNeeded: number;
+  }>;
+  totalTokens: number;
+  remainingBudget: number;
+  stats: {
+    totalItems: number;
+    packedCount: number;
+    droppedCount: number;
+    originalTotalTokens: number;
+    compressedTotalTokens: number;
+    overallSavingsPercent: number;
+  };
+}
+
+export async function runPacker(
+  items: PackerRunItem[],
+  budget: number,
+  model: string,
+): Promise<PackerRunResult> {
+  const { pack } = await loadPakt();
+  const packerItems: PackerItem[] = items.map(({ id, content, priority, role }) => ({
+    id,
+    content,
+    ...(priority !== undefined ? { priority } : {}),
+    ...(role ? { role: role as PackerItem['role'] } : {}),
+  }));
+  const result = pack(packerItems, { budget, model, adaptiveCompression: true });
+  return {
+    packed: result.packed.map((p) => ({
+      id: p.id,
+      compressed: p.compressed,
+      originalTokens: p.originalTokens,
+      compressedTokens: p.compressedTokens,
+      savingsPercent: p.savingsPercent,
+      wasCompressed: p.wasCompressed,
+    })),
+    dropped: result.dropped.map((d) => ({
+      id: d.id,
+      reason: d.reason,
+      tokensNeeded: d.tokensNeeded,
+    })),
+    totalTokens: result.totalTokens,
+    remainingBudget: result.remainingBudget,
+    stats: { ...result.stats },
   };
 }

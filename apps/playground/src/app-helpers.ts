@@ -7,7 +7,8 @@
  * `App.test.tsx` exercise them indirectly via the rendered DOM.
  */
 
-import { type CompressibilityResult, getPaktLayerProfile } from '@sriinnu/pakt';
+import type { CompressibilityResult } from '@sriinnu/pakt';
+import { getPaktLayerProfile } from '@sriinnu/pakt/meta';
 import type { Action } from './app-constants';
 import type { ComparisonItem } from './pakt-runtime';
 

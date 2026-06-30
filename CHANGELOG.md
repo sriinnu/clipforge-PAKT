@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`@sriinnu/pakt/meta` lightweight subpath export.** Tokenizer-free metadata — layer profiles (`PAKT_LAYER_PROFILES`, `getPaktLayerProfile`, `createProfiledPaktOptions`, `DEFAULT_SEMANTIC_BUDGET`), compressibility scoring (`estimateCompressibility`), and tokenizer-family info (`getTokenizerFamilyInfo`) — so a bundler can keep the multi-megabyte BPE tokenizer out of a browser main bundle. Additive; the package root is unchanged.
+- **Playground "Context Engine" tab.** A third view that runs `createContextEngine().optimize()` over demo agent conversations in the worker and surfaces the agent-loop savings the single-payload compressor can't: the cross-message `@shared` dictionary, dedup, and tool-result aging (lossless, on by default), plus opt-in extractive selection (with a query) and code compaction. Shows token before/after, the per-layer savings breakdown, and the optimized messages.
+
+### Changed
+
+- **Playground first-load slashed ~93%.** The main-thread code now imports metadata from `@sriinnu/pakt/meta` and loads the full engine only inside the web worker, so the initial JS bundle drops from ~3.5 MB to ~233 KB (gzip ~74 KB); the BPE tokenizer stays off the main thread.
+
 ## [0.11.0] - 2026-06-26
 
 ### Added

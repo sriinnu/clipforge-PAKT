@@ -1,6 +1,7 @@
 import type {
   CacheTarget,
   CompressibilityResult,
+  PIIMatch,
   PaktFormat,
   PaktLayerProfileId,
 } from '@sriinnu/pakt';
@@ -8,7 +9,12 @@ import type {
   ComparisonState,
   CompressionConfig,
   CompressionResult,
+  ContextDemoMessage,
+  ContextEngineDemoConfig,
+  ContextOptimizeResult,
   DecompressionResult,
+  PackerRunItem,
+  PackerRunResult,
   PreviewResult,
 } from './pakt-service';
 
@@ -24,7 +30,15 @@ type WorkerMessage =
       targetModel?: string;
       cacheTarget?: CacheTarget;
     }
-  | { type: 'compressibility'; text: string };
+  | { type: 'compressibility'; text: string }
+  | {
+      type: 'optimizeContext';
+      messages: ContextDemoMessage[];
+      config: ContextEngineDemoConfig;
+    }
+  | { type: 'scanPii'; text: string }
+  | { type: 'redactPii'; text: string }
+  | { type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -176,12 +190,46 @@ export async function estimateCompressibility(text: string): Promise<Compressibi
   return callWorker<CompressibilityResult>({ type: 'compressibility', text });
 }
 
+/**
+ * Run the context engine over a demo agent conversation via the worker.
+ * Returns token before/after, the per-layer savings breakdown, and the
+ * optimized messages.
+ */
+export async function optimizeContext(
+  messages: ContextDemoMessage[],
+  config: ContextEngineDemoConfig,
+): Promise<ContextOptimizeResult> {
+  return callWorker<ContextOptimizeResult>({ type: 'optimizeContext', messages, config });
+}
+
+export async function detectPii(text: string): Promise<PIIMatch[]> {
+  return callWorker<PIIMatch[]>({ type: 'scanPii', text });
+}
+
+export async function redactPii(text: string): Promise<string> {
+  return callWorker<string>({ type: 'redactPii', text });
+}
+
+export async function runPacker(
+  items: PackerRunItem[],
+  budget: number,
+  model: string,
+): Promise<PackerRunResult> {
+  return callWorker<PackerRunResult>({ type: 'runPacker', items, budget, model });
+}
+
 export type {
   ComparisonItem,
   ComparisonState,
   CompressionConfig,
   CompressionResult,
+  ContextDemoMessage,
+  ContextEngineDemoConfig,
+  ContextOptimizeResult,
+  OptimizedMessageView,
   DecompressionResult,
+  PackerRunItem,
+  PackerRunResult,
   PreviewResult,
 } from './pakt-service';
-export type { CompressibilityResult, PaktLayerProfileId };
+export type { CompressibilityResult, PIIMatch, PaktLayerProfileId };

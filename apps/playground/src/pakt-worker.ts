@@ -1,12 +1,21 @@
 import type { CacheTarget, PaktFormat } from '@sriinnu/pakt';
-import type { CompressionConfig } from './pakt-service';
+import type {
+  CompressionConfig,
+  ContextDemoMessage,
+  ContextEngineDemoConfig,
+  PackerRunItem,
+} from './pakt-service';
 import {
   analyzePreview,
   compressSource,
   computeComparison,
   decompressSource,
   getCompressibility,
+  optimizeContext,
   preloadPakt,
+  redactPiiText,
+  runPacker,
+  scanPii,
 } from './pakt-service';
 
 type WorkerRequest =
@@ -34,7 +43,16 @@ type WorkerRequest =
       targetModel?: string;
       cacheTarget?: CacheTarget;
     }
-  | { id: number; type: 'compressibility'; text: string };
+  | { id: number; type: 'compressibility'; text: string }
+  | {
+      id: number;
+      type: 'optimizeContext';
+      messages: ContextDemoMessage[];
+      config: ContextEngineDemoConfig;
+    }
+  | { id: number; type: 'scanPii'; text: string }
+  | { id: number; type: 'redactPii'; text: string }
+  | { id: number; type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -96,6 +114,26 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           id: message.id,
           ok: true,
           payload: getCompressibility(message.text),
+        });
+        return;
+      case 'optimizeContext':
+        respond({
+          id: message.id,
+          ok: true,
+          payload: await optimizeContext(message.messages, message.config),
+        });
+        return;
+      case 'scanPii':
+        respond({ id: message.id, ok: true, payload: await scanPii(message.text) });
+        return;
+      case 'redactPii':
+        respond({ id: message.id, ok: true, payload: await redactPiiText(message.text) });
+        return;
+      case 'runPacker':
+        respond({
+          id: message.id,
+          ok: true,
+          payload: await runPacker(message.items, message.budget, message.model),
         });
         return;
       default: {

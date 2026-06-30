@@ -108,6 +108,22 @@ export function AppHero({
         >
           Compare Layers
         </button>
+        <button
+          className={`tab-button ${viewMode === 'context' ? 'active' : ''}`}
+          type="button"
+          aria-pressed={viewMode === 'context'}
+          onClick={() => onViewModeChange('context')}
+        >
+          Context Engine
+        </button>
+        <button
+          className={`tab-button ${viewMode === 'packer' ? 'active' : ''}`}
+          type="button"
+          aria-pressed={viewMode === 'packer'}
+          onClick={() => onViewModeChange('packer')}
+        >
+          Context Packer
+        </button>
       </fieldset>
     </>
   );
