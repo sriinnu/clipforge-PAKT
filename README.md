@@ -58,13 +58,13 @@ Full reproducible numbers: [docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHO
 
 Lossless on bytes does not by itself prove a model understands the compressed form as well as raw JSON, so this is measured directly. The harness asks every question of both formats and uses matched-pair scoring with a two-sided sign test.
 
-Comprehension suite, 36 questions × 4 runs = 144 paired observations, through the Claude Code CLI:
+Comprehension suite, 36 questions, one live run through the Claude Code CLI:
 
 | | JSON | PAKT |
 |---|---|---|
-| Pooled accuracy | 73.6% | 70.8% |
+| Accuracy | 97.2% (35/36) | 100% (36/36) |
 
-The formats agreed on 124/144 questions. Of the 20 that diverged, PAKT was right on 8 and JSON on 12 — a sign test gives **p = 0.50**, indistinguishable from chance. So on this suite PAKT is **comprehension-neutral versus minified JSON: no statistically significant penalty, and none measured the other way either.**
+35 questions both formats answered correctly, none both wrong, and 1 where they diverged (PAKT right, JSON wrong) — a sign test gives **p = 1.00**, so there is **no statistically significant difference**: PAKT is comprehension-neutral here. Read that as parity, not as PAKT being better — this run sits near the ceiling (almost every question passes regardless of format), which makes it a *weak* discriminator. A harder suite, or several runs, would test the claim more sharply; that remains open work.
 
 This is one suite, measured through one agent harness at one setting. Reproduce or extend it with `node scripts/eval/run.mjs --provider cli --cli claude` (uses a local Claude Code/Codex subscription) or `--provider anthropic` with an API key. Details and the harness's reasoning: [scripts/eval/README.md](./scripts/eval/README.md).
 
