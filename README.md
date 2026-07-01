@@ -24,7 +24,7 @@
 
 The core layers (`L1–L3`) are **lossless** — `decompress()` returns the input byte-for-byte. A separate `L4` layer is opt-in, budgeted, and explicitly lossy.
 
-It does not help everything. Small, deeply-nested config objects can come out *larger* (measured +25% on one ~160-line config). Prose with no repetition compresses to nothing and is passed through unchanged. `pakt_inspect` / `pakt auto` tell you whether a given payload is worth compressing before you commit.
+It pays off on repetitive or tabular data — JSON records, logs, CSV — and does not help everything: small deeply-nested config objects can come out *larger* (measured +25% on one ~160-line config), and prose with no repetition is passed through unchanged. `pakt_inspect` / `pakt auto` tell you whether a payload is worth compressing before you commit.
 
 ```
 JSON (28 tokens)                    PAKT (15 tokens)
@@ -38,6 +38,8 @@ JSON (28 tokens)                    PAKT (15 tokens)
   ]                                   Alice|$a
 }                                     Bob|$a
 ```
+
+*Illustrative best case (small, highly repetitive input); typical JSON savings run 27–33% — see the table.*
 
 ## What it saves (and where it doesn't)
 
@@ -56,7 +58,7 @@ Full reproducible numbers: [docs/BENCHMARK-SNAPSHOT.md](./docs/BENCHMARK-SNAPSHO
 
 ## Does the model still read it correctly?
 
-Lossless on bytes does not by itself prove a model understands the compressed form as well as raw JSON, so this is measured directly. The harness asks every question of both formats and uses matched-pair scoring with a two-sided sign test.
+Lossless on bytes doesn't prove a model reads the compressed form as well as raw JSON, so it's measured directly: the same questions asked of both formats, matched-pair scored.
 
 Comprehension suite, 36 questions, one live run through the Claude Code CLI:
 
@@ -64,9 +66,9 @@ Comprehension suite, 36 questions, one live run through the Claude Code CLI:
 |---|---|---|
 | Accuracy | 97.2% (35/36) | 100% (36/36) |
 
-35 questions both formats answered correctly, none both wrong, and 1 where they diverged (PAKT right, JSON wrong) — a sign test gives **p = 1.00**, so there is **no statistically significant difference**: PAKT is comprehension-neutral here. Read that as parity, not as PAKT being better — this run sits near the ceiling (almost every question passes regardless of format), which makes it a *weak* discriminator. A harder suite, or several runs, would test the claim more sharply; that remains open work.
+The formats diverged on one question (PAKT right, JSON wrong); a sign test gives **p = 1.00** — parity, not an edge. This run sits near the accuracy ceiling, so it's a *weak* discriminator, and a harder suite is open work.
 
-This is one suite, measured through one agent harness at one setting. Reproduce or extend it with `node scripts/eval/run.mjs --provider cli --cli claude` (uses a local Claude Code/Codex subscription) or `--provider anthropic` with an API key. Details and the harness's reasoning: [scripts/eval/README.md](./scripts/eval/README.md).
+Reproduce: `node scripts/eval/run.mjs --provider cli --cli claude` (local Claude Code/Codex subscription) or `--provider anthropic` with an API key. Method and reasoning: [scripts/eval/README.md](./scripts/eval/README.md).
 
 ## Install
 
@@ -103,7 +105,7 @@ Compression is layered. Each app and CLI surface exposes the same profiles:
 These are opt-in and aimed at agent loops. The lossless paths are on by default; the lossy ones are off until you enable them.
 
 - **MCP server** — `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, `pakt_stats`, `pakt_explain`, `pakt_savings`, `pakt_dashboard`. Same logic as the CLI and library.
-- **Context engine** — `createContextEngine()` compresses tool results, deduplicates repeated content across turns, ages old tool output to a tail, and (default on, lossless) shares a cross-message `@shared` dictionary. Opt-in and **lossy**: query-aware extractive line selection (`extractive`) and comment/blank-line code compaction (`compactCode`). The comprehension impact of these lossy passes has not yet been measured on a live model — treat them as experimental.
+- **Context engine** — `createContextEngine()` compresses tool results, dedupes content across turns, ages old output to a tail, and shares a cross-message `@shared` dictionary (default on, lossless). Two passes are opt-in and **lossy** — extractive line selection (`extractive`) and code compaction (`compactCode`); their live-model comprehension impact is unmeasured, so treat them as experimental.
 - **Optional neural tier** — `combineWithGuarantee()` lets you plug in a neural compressor (you supply the model) and keeps its output only when it is smaller *and* passes your fidelity check; otherwise it falls back to the deterministic result. The combined output is never larger than the deterministic baseline. No model is bundled.
 - **Prompt-cache cooperation** — PAKT keeps the `@dict` prefix byte-stable across turns and emits a cache-breakpoint hint, so a provider's own prefix cache can reuse it. The cost reduction there comes from the provider's cache; PAKT's part is making the prefix stable.
 
