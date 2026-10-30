@@ -1,4 +1,10 @@
-name: Publish @sriinnu/pakt to npm
+name: Stage @sriinnu/pakt on npm
+
+# Stages @sriinnu/pakt with trusted publishing (OIDC) and provenance; no npm
+# token exists. A staged version goes live only after a maintainer approves
+# it with 2FA: `npm stage list @sriinnu/pakt`, then `npm stage approve <id>`.
+# One-time: `npm trust github @sriinnu/pakt --repo sriinnu/clipforge-PAKT
+#   --file publish-pakt-npm.yml --allow-stage-publish`
 
 on:
   push:
@@ -18,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish:
@@ -58,6 +65,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
+      # npm stage needs npm >= 11.15; Node 22 ships npm 10.
+      - name: Install npm with stage support
+        run: npm install -g npm@11.20.0
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -89,9 +100,9 @@ jobs:
       - name: Run package tests
         run: pnpm --filter @sriinnu/pakt test
 
-      - name: Publish to npm
+      - name: Stage on npm
         if: ${{ github.event_name == 'push' || github.event.inputs.publish_npm == 'true' }}
         working-directory: packages/pakt-core
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          npm stage publish --provenance --access public
+          echo "::notice::@sriinnu/pakt is staged. Approve: npm stage list @sriinnu/pakt, then npm stage approve <id>."
