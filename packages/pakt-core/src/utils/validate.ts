@@ -8,6 +8,7 @@
 
 import { isPaktFormat } from '../formats.js';
 import type { ValidationError, ValidationResult, ValidationWarning } from '../types.js';
+import { splitOutsideQuotes } from './split-quoted.js';
 
 export { repair } from './repair.js';
 
@@ -229,7 +230,7 @@ export function validate(pakt: string): ValidationResult {
     if (inlineMatch) {
       // biome-ignore lint/style/noNonNullAssertion: capture group always exists when regex matches
       const declaredCount = Number.parseInt(inlineMatch[2]!, 10);
-      const items = (inlineMatch[3] ?? '').split(',').map((v) => v.trim());
+      const items = splitOutsideQuotes(inlineMatch[3] ?? '', ',').map((v) => v.trim());
       if (items.length !== declaredCount) {
         errors.push({
           line: lineNum,

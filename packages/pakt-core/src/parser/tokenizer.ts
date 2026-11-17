@@ -293,9 +293,15 @@ function scanColon(
   if (col < line.length && line[col] === ' ') {
     col++; // skip space after colon
 
-    // If value starts with a quote, delegate to quoted string scanner
-    if (col < line.length && line[col] === '"') {
-      const result = scanQuotedString(line, col, lineNum, lineOffset + col);
+    // A lone quoted value goes to the quoted string scanner. A quoted value
+    // followed by `,` is an inline-array payload (`"a",b`) and stays one
+    // VALUE token so the parser can split it quote-aware (issue #59).
+    const quoted =
+      col < line.length && line[col] === '"'
+        ? scanQuotedString(line, col, lineNum, lineOffset + col)
+        : null;
+    if (quoted && line[quoted.end] !== ',') {
+      const result = quoted;
       tokens.push(result.token);
       col = result.end;
       // After the quoted string, check for inline comment

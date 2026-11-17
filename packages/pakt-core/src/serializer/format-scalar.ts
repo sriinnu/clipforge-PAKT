@@ -33,12 +33,20 @@ export function formatScalar(scalar: ScalarNode): string {
   }
 }
 
-/** Format a tabular cell, quoting values that contain pipes or spaces. */
+/**
+ * Format a tabular cell. Row lines are tokenized word-by-word, so any
+ * structural delimiter (`| , [ ] { }`) or a space must be quoted.
+ */
 export function formatTabularCell(scalar: ScalarNode): string {
-  if (
-    scalar.scalarType === 'string' &&
-    (scalar.value.includes('|') || scalar.value.includes(' '))
-  ) {
+  if (scalar.scalarType === 'string' && /[| ,[\]{}%]/.test(scalar.value)) {
+    return quoteString(scalar.value);
+  }
+  return formatScalar(scalar);
+}
+
+/** Format an inline-array element; commas must be quoted to survive the split. */
+export function formatInlineCell(scalar: ScalarNode): string {
+  if (scalar.scalarType === 'string' && scalar.value.includes(',')) {
     return quoteString(scalar.value);
   }
   return formatScalar(scalar);

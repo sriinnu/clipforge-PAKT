@@ -47,35 +47,17 @@ function asciiPrintable(): string[] {
 }
 
 /**
- * Strings safe for JSON test cases. Filters PAKT structural chars
- * (`,` `|` `:` `[` `]` `{` `}` `"` `~` `$` `@` `#` `\`) and numeric-
- * looking strings — each excluded class has an open bug tracked in
- * `.fails()` tests. Require letter lead and trimmed whitespace.
+ * JSON string leaf: any printable ASCII, including every PAKT structural
+ * char, padding whitespace, and number/boolean/null look-alikes. Widened
+ * from a letter-only generator after issue #59 showed those filters were
+ * hiding real round-trip bugs.
  */
 const jsonSafeString = (): fc.Arbitrary<string> =>
-  fc
-    .string({
-      unit: fc.constantFrom(...asciiPrintable().filter((c) => !/[",|:[\]{}~$@#\\]/.test(c))),
-      minLength: 1,
-      maxLength: 10,
-    })
-    .filter(
-      (s) =>
-        s.length > 0 &&
-        s === s.trim() &&
-        /^[A-Za-z_]/.test(s) &&
-        !['true', 'false', 'null'].includes(s.toLowerCase()),
-    );
+  fc.string({ unit: fc.constantFrom(...asciiPrintable()), minLength: 0, maxLength: 10 });
 
-/** JSON key — letter-leading ASCII identifier (numeric keys are lossy). */
+/** JSON key: any printable ASCII, including numeric and delimiter-laden keys. */
 const jsonSafeKey = (): fc.Arbitrary<string> =>
-  fc
-    .string({
-      unit: fc.constantFrom(...asciiPrintable().filter((c) => /[A-Za-z0-9_-]/.test(c))),
-      minLength: 1,
-      maxLength: 8,
-    })
-    .filter((s) => s.length > 0 && /^[A-Za-z_]/.test(s));
+  fc.string({ unit: fc.constantFrom(...asciiPrintable()), minLength: 0, maxLength: 8 });
 
 /**
  * JSON value generator. Arrays only hold leaves (avoids nested-array
