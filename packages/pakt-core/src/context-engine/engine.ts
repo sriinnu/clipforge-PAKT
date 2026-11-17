@@ -8,6 +8,7 @@
 import { compress } from '../compress.js';
 import { detect } from '../detect.js';
 import { compactCode, looksLikeCode } from '../layers/code-compact.js';
+import { MemorySpillStore, type SpillStore, spill } from '../spill/index.js';
 import { countTokens } from '../tokens/index.js';
 import { extractRelevant } from './extractive.js';
 import { buildIndexMessage, runFactExtraction, shouldSummarize } from './fact-extraction.js';
@@ -35,7 +36,15 @@ import type {
 const MAX_TOOL_RESULT_BYTES = 1_048_576; // 1 MiB
 
 const DEFAULT_CONFIG: Required<
-  Omit<ContextEngineConfig, 'summarizer' | 'providerCompactionThresholdTokens' | 'query'>
+  Omit<
+    ContextEngineConfig,
+    | 'summarizer'
+    | 'providerCompactionThresholdTokens'
+    | 'query'
+    | 'spillThresholdTokens'
+    | 'spillStore'
+    | 'spillHeadLines'
+  >
 > & {
   summarizer: ContextEngineConfig['summarizer'];
   providerCompactionThresholdTokens: number | undefined;
@@ -91,8 +100,21 @@ export class ContextEngine {
     compressedToolResults: 0,
   };
 
+  private readonly spillThreshold: number | undefined;
+  private readonly spillHeadLines: number;
+  private readonly spillStore: SpillStore;
+
   constructor(config?: ContextEngineConfig) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    const { spillThresholdTokens, spillStore, spillHeadLines, ...rest } = config ?? {};
+    this.config = { ...DEFAULT_CONFIG, ...rest };
+    this.spillThreshold = spillThresholdTokens;
+    this.spillHeadLines = spillHeadLines ?? 20;
+    this.spillStore = spillStore ?? new MemorySpillStore();
+  }
+
+  /** Full text of a result spilled at append time, or `undefined`. */
+  recall(id: string): string | undefined {
+    return this.spillStore.get(id);
   }
 
   /** Add a message to the conversation. */
@@ -143,15 +165,34 @@ export class ContextEngine {
       }
     }
 
+    let currentTokens = countTokens(finalContent, this.config.model);
+    let spillId: string | undefined;
+    // Spill-at-append: done once here, never revisited, so the gist bytes are
+    // stable across every later optimize() call.
+    if (this.spillThreshold !== undefined && currentTokens > this.spillThreshold) {
+      const spilled = spill(finalContent, this.spillStore, {
+        thresholdTokens: this.spillThreshold,
+        headLines: this.spillHeadLines,
+        model: this.config.model,
+        tokens: currentTokens,
+      });
+      if (spilled.spilled) {
+        finalContent = spilled.content;
+        currentTokens = spilled.tokens;
+        spillId = spilled.id;
+      }
+    }
+
     const msg: ContextMessage = {
       role: 'tool',
       content: finalContent,
       toolName,
       turn: this.currentTurn,
       originalTokens: tokens,
-      currentTokens: countTokens(finalContent, this.config.model),
+      currentTokens,
       paktCompressed: compressed,
       addedAt: Date.now(),
+      ...(spillId !== undefined ? { spillId } : {}),
     };
 
     this.messages.push(msg);

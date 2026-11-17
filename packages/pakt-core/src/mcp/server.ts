@@ -11,6 +11,7 @@ import {
   PAKT_DASHBOARD_CONTRACT,
   PAKT_EXPLAIN_CONTRACT,
   PAKT_INSPECT_CONTRACT,
+  PAKT_RECALL_CONTRACT,
   PAKT_SAVINGS_CONTRACT,
   PAKT_STATS_CONTRACT,
 } from './contract.js';
@@ -97,6 +98,7 @@ function recordCallFromResult(
     case 'pakt_explain':
     case 'pakt_savings':
     case 'pakt_dashboard':
+    case 'pakt_recall':
       break;
   }
 }
@@ -110,7 +112,8 @@ function executeTool(name: PaktToolName, args: Record<string, unknown>) {
       name !== 'pakt_stats' &&
       name !== 'pakt_explain' &&
       name !== 'pakt_savings' &&
-      name !== 'pakt_dashboard'
+      name !== 'pakt_dashboard' &&
+      name !== 'pakt_recall'
     ) {
       recordCallFromResult(name, result, Date.now() - startedAt);
     }
@@ -199,5 +202,15 @@ export function registerPaktTools(server: McpServer, options?: PaktToolOptions):
       outputSchema: PAKT_DASHBOARD_CONTRACT.outputSchema,
     },
     async (args) => executeTool('pakt_dashboard', args),
+  );
+
+  server.registerTool(
+    'pakt_recall',
+    {
+      description: PAKT_RECALL_CONTRACT.description,
+      inputSchema: PAKT_RECALL_CONTRACT.inputSchema,
+      outputSchema: PAKT_RECALL_CONTRACT.outputSchema,
+    },
+    async (args) => executeTool('pakt_recall', args),
   );
 }

@@ -114,6 +114,7 @@ describe('cli-serve MCP transport', () => {
       'pakt_dashboard',
       'pakt_explain',
       'pakt_inspect',
+      'pakt_recall',
       'pakt_savings',
       'pakt_stats',
     ]);
@@ -207,6 +208,7 @@ describe('cli-serve MCP transport', () => {
       'pakt_dashboard',
       'pakt_explain',
       'pakt_inspect',
+      'pakt_recall',
       'pakt_savings',
       'pakt_stats',
     ]);

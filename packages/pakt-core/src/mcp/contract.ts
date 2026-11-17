@@ -23,6 +23,7 @@ import {
   defineToolContract,
 } from './contract-builder.js';
 import { PAKT_EXPLAIN_CONTRACT, PAKT_INSPECT_CONTRACT } from './contract-insight.js';
+import { PAKT_RECALL_CONTRACT } from './contract-recall.js';
 import {
   PAKT_DASHBOARD_CONTRACT,
   PAKT_SAVINGS_CONTRACT,
@@ -30,6 +31,11 @@ import {
 } from './contract-stats.js';
 
 export type { PaktMcpContract } from './contract-builder.js';
+export { PAKT_RECALL_CONTRACT } from './contract-recall.js';
+export type {
+  PaktRecallArgsFromContract,
+  PaktRecallResultFromContract,
+} from './contract-recall.js';
 export {
   PAKT_EXPLAIN_CONTRACT,
   PAKT_INSPECT_CONTRACT,
@@ -312,6 +318,7 @@ export const PAKT_MCP_CONTRACTS = [
   PAKT_EXPLAIN_CONTRACT,
   PAKT_SAVINGS_CONTRACT,
   PAKT_DASHBOARD_CONTRACT,
+  PAKT_RECALL_CONTRACT,
 ] as const;
 
 export type PaktContractToolName = (typeof PAKT_MCP_CONTRACTS)[number]['name'];

@@ -332,6 +332,20 @@ export type {
 } from './context-engine/index.js';
 
 // ---------------------------------------------------------------------------
+// Spill-at-append (cache-safe gists for large tool results)
+// ---------------------------------------------------------------------------
+
+export {
+  MemorySpillStore,
+  SPILL_ID_PATTERN,
+  spill,
+  spillGist,
+  spillId,
+} from './spill/index.js';
+export type { SpillOptions, SpillResult, SpillStore } from './spill/index.js';
+export { FileSpillStore, defaultSpillDir } from './spill/file-store.js';
+
+// ---------------------------------------------------------------------------
 // Prompt-cache synergy (cache directive + external dictionaries)
 // ---------------------------------------------------------------------------
 
