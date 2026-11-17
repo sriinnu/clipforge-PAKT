@@ -12,8 +12,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { aggregateTelemetry, type TelemetrySnapshot } from './stats-aggregate';
-import { parseStatsSnapshot, type RawStatsSnapshot } from './stats-schema';
+import { type TelemetrySnapshot, aggregateTelemetry } from './stats-aggregate';
+import { type RawStatsSnapshot, parseStatsSnapshot } from './stats-schema';
 
 /** Poll interval while the telemetry panel is visible. */
 const POLL_INTERVAL_MS = 5000;

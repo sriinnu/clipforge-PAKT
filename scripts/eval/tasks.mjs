@@ -77,22 +77,60 @@ function smallUsersTasks(u) {
   const anyOver60 = u.some((x) => x.age > 60) ? 'yes' : 'no';
 
   /** @param {string} id @param {string} cat @param {string} q @param {string|number} exp @param {"string"|"number"} [m] */
-  const t = (id, cat, q, exp, m = 'string') =>
-    ({ id: `su-${id}`, dataset: 'small-users', category: cat, question: q, expected: exp, match: m });
+  const t = (id, cat, q, exp, m = 'string') => ({
+    id: `su-${id}`,
+    dataset: 'small-users',
+    category: cat,
+    question: q,
+    expected: exp,
+    match: m,
+  });
 
   return [
-    t('01', 'extraction',  'What is the email address of Quinn Achebe?',                          byName('Quinn Achebe').email),
-    t('02', 'extraction',  'What is the age of Seun Nakamura?',                                   byName('Seun Nakamura').age, 'number'),
-    t('03', 'extraction',  'What plan is Lena Okafor on?',                                        byName('Lena Okafor').plan),
-    t('04', 'extraction',  'What city does Takeshi Brandt live in?',                              byName('Takeshi Brandt').city),
-    t('05', 'relational',  'What is the email address of the user in Nairobi?',                   byCity('Nairobi').email),
-    t('06', 'relational',  'What plan is the Tallinn user on?',                                   byCity('Tallinn').plan),
-    t('07', 'boolean',     'Is Priya Delacroix currently active? Answer yes or no.',              byName('Priya Delacroix').active ? 'yes' : 'no'),
-    t('08', 'boolean',     'Is there any user older than 60? Answer yes or no.',                  anyOver60),
-    t('09', 'boolean',     'Is Boris Castellano active? Answer yes or no.',                       byName('Boris Castellano').active ? 'yes' : 'no'),
-    t('10', 'count',       'How many users are on the enterprise plan?',                          enterpriseCount, 'number'),
-    t('11', 'count',       'How many users are both active and on the free plan?',                activeFreeCount, 'number'),
-    t('12', 'extraction',  'What is the name of the oldest user?',                               oldest.name),
+    t(
+      '01',
+      'extraction',
+      'What is the email address of Quinn Achebe?',
+      byName('Quinn Achebe').email,
+    ),
+    t(
+      '02',
+      'extraction',
+      'What is the age of Seun Nakamura?',
+      byName('Seun Nakamura').age,
+      'number',
+    ),
+    t('03', 'extraction', 'What plan is Lena Okafor on?', byName('Lena Okafor').plan),
+    t('04', 'extraction', 'What city does Takeshi Brandt live in?', byName('Takeshi Brandt').city),
+    t(
+      '05',
+      'relational',
+      'What is the email address of the user in Nairobi?',
+      byCity('Nairobi').email,
+    ),
+    t('06', 'relational', 'What plan is the Tallinn user on?', byCity('Tallinn').plan),
+    t(
+      '07',
+      'boolean',
+      'Is Priya Delacroix currently active? Answer yes or no.',
+      byName('Priya Delacroix').active ? 'yes' : 'no',
+    ),
+    t('08', 'boolean', 'Is there any user older than 60? Answer yes or no.', anyOver60),
+    t(
+      '09',
+      'boolean',
+      'Is Boris Castellano active? Answer yes or no.',
+      byName('Boris Castellano').active ? 'yes' : 'no',
+    ),
+    t('10', 'count', 'How many users are on the enterprise plan?', enterpriseCount, 'number'),
+    t(
+      '11',
+      'count',
+      'How many users are both active and on the free plan?',
+      activeFreeCount,
+      'number',
+    ),
+    t('12', 'extraction', 'What is the name of the oldest user?', oldest.name),
   ];
 }
 
@@ -114,22 +152,67 @@ function smallConfigTasks(c) {
   const disabledFlags = Object.keys(c.feature_flags).filter((f) => !c.feature_flags[f]);
 
   /** @param {string} id @param {string} cat @param {string} q @param {string|number} exp @param {"string"|"number"} [m] */
-  const t = (id, cat, q, exp, m = 'string') =>
-    ({ id: `sc-${id}`, dataset: 'small-config', category: cat, question: q, expected: exp, match: m });
+  const t = (id, cat, q, exp, m = 'string') => ({
+    id: `sc-${id}`,
+    dataset: 'small-config',
+    category: cat,
+    question: q,
+    expected: exp,
+    match: m,
+  });
 
   return [
-    t('01', 'extraction', 'What is the port of the mailer service?',                             svcs.mailer.port, 'number'),
-    t('02', 'extraction', 'What is the timeout_ms of the inventory service?',                    svcs.inventory.timeout_ms, 'number'),
-    t('03', 'extraction', 'What is the environment this config is for?',                         c.environment),
-    t('04', 'extraction', 'What is the session_ttl_minutes limit?',                              c.limits.session_ttl_minutes, 'number'),
-    t('05', 'extraction', 'How many retries is the mailer service configured for?',              svcs.mailer.retries, 'number'),
-    t('06', 'relational', 'Which service has zero retries configured?',                          zeroRetries),
-    t('07', 'relational', 'Which service has the highest timeout_ms?',                           highestTimeout),
-    t('08', 'boolean',    'Is TLS enabled on the gateway service? Answer yes or no.',            svcs.gateway.tls ? 'yes' : 'no'),
-    t('09', 'boolean',    'Is the beta_checkout feature flag enabled? Answer yes or no.',        c.feature_flags.beta_checkout ? 'yes' : 'no'),
-    t('10', 'boolean',    'Is the new_search feature flag enabled? Answer yes or no.',           c.feature_flags.new_search ? 'yes' : 'no'),
-    t('11', 'count',      'How many services have TLS enabled?',                                 tlsEnabled.length, 'number'),
-    t('12', 'count',      'How many feature flags are disabled (set to false)?',                 disabledFlags.length, 'number'),
+    t('01', 'extraction', 'What is the port of the mailer service?', svcs.mailer.port, 'number'),
+    t(
+      '02',
+      'extraction',
+      'What is the timeout_ms of the inventory service?',
+      svcs.inventory.timeout_ms,
+      'number',
+    ),
+    t('03', 'extraction', 'What is the environment this config is for?', c.environment),
+    t(
+      '04',
+      'extraction',
+      'What is the session_ttl_minutes limit?',
+      c.limits.session_ttl_minutes,
+      'number',
+    ),
+    t(
+      '05',
+      'extraction',
+      'How many retries is the mailer service configured for?',
+      svcs.mailer.retries,
+      'number',
+    ),
+    t('06', 'relational', 'Which service has zero retries configured?', zeroRetries),
+    t('07', 'relational', 'Which service has the highest timeout_ms?', highestTimeout),
+    t(
+      '08',
+      'boolean',
+      'Is TLS enabled on the gateway service? Answer yes or no.',
+      svcs.gateway.tls ? 'yes' : 'no',
+    ),
+    t(
+      '09',
+      'boolean',
+      'Is the beta_checkout feature flag enabled? Answer yes or no.',
+      c.feature_flags.beta_checkout ? 'yes' : 'no',
+    ),
+    t(
+      '10',
+      'boolean',
+      'Is the new_search feature flag enabled? Answer yes or no.',
+      c.feature_flags.new_search ? 'yes' : 'no',
+    ),
+    t('11', 'count', 'How many services have TLS enabled?', tlsEnabled.length, 'number'),
+    t(
+      '12',
+      'count',
+      'How many feature flags are disabled (set to false)?',
+      disabledFlags.length,
+      'number',
+    ),
   ];
 }
 
@@ -149,22 +232,60 @@ function smallEventsTasks(evts) {
   const anyErrorBefore10 = errors.some((x) => x.ts.slice(11, 13) < '10') ? 'yes' : 'no';
 
   /** @param {string} id @param {string} cat @param {string} q @param {string|number} exp @param {"string"|"number"} [m] */
-  const t = (id, cat, q, exp, m = 'string') =>
-    ({ id: `se-${id}`, dataset: 'small-events', category: cat, question: q, expected: exp, match: m });
+  const t = (id, cat, q, exp, m = 'string') => ({
+    id: `se-${id}`,
+    dataset: 'small-events',
+    category: cat,
+    question: q,
+    expected: exp,
+    match: m,
+  });
 
   return [
-    t('01', 'extraction', 'What is the message of the event with id evt-003?',                  byId('evt-003').message),
-    t('02', 'extraction', 'What service produced event evt-006?',                               byId('evt-006').service),
-    t('03', 'extraction', 'What is the latency_ms of event evt-004?',                           byId('evt-004').latency_ms, 'number'),
-    t('04', 'extraction', 'What is the timestamp (ts) of event evt-001?',                       byId('evt-001').ts),
-    t('05', 'extraction', 'What level is event evt-007?',                                       byId('evt-007').level),
-    t('06', 'relational', 'What is the message of the event with the highest latency_ms?',       slowest.message),
-    t('07', 'relational', 'What is the level of the event with id evt-005?',                    byId('evt-005').level),
-    t('08', 'boolean',    'Is there any ERROR event before 10:00? Answer yes or no.',           anyErrorBefore10),
-    t('09', 'boolean',    'Does event evt-008 have a level of WARN? Answer yes or no.',         byId('evt-008').level === 'WARN' ? 'yes' : 'no'),
-    t('10', 'count',      'How many ERROR events are there?',                                   errors.length, 'number'),
-    t('11', 'count',      'How many WARN events are there?',                                    warns.length, 'number'),
-    t('12', 'count',      'How many events are from the mailer service?',                       evts.filter((x) => x.service === 'mailer').length, 'number'),
+    t(
+      '01',
+      'extraction',
+      'What is the message of the event with id evt-003?',
+      byId('evt-003').message,
+    ),
+    t('02', 'extraction', 'What service produced event evt-006?', byId('evt-006').service),
+    t(
+      '03',
+      'extraction',
+      'What is the latency_ms of event evt-004?',
+      byId('evt-004').latency_ms,
+      'number',
+    ),
+    t('04', 'extraction', 'What is the timestamp (ts) of event evt-001?', byId('evt-001').ts),
+    t('05', 'extraction', 'What level is event evt-007?', byId('evt-007').level),
+    t(
+      '06',
+      'relational',
+      'What is the message of the event with the highest latency_ms?',
+      slowest.message,
+    ),
+    t('07', 'relational', 'What is the level of the event with id evt-005?', byId('evt-005').level),
+    t(
+      '08',
+      'boolean',
+      'Is there any ERROR event before 10:00? Answer yes or no.',
+      anyErrorBefore10,
+    ),
+    t(
+      '09',
+      'boolean',
+      'Does event evt-008 have a level of WARN? Answer yes or no.',
+      byId('evt-008').level === 'WARN' ? 'yes' : 'no',
+    ),
+    t('10', 'count', 'How many ERROR events are there?', errors.length, 'number'),
+    t('11', 'count', 'How many WARN events are there?', warns.length, 'number'),
+    t(
+      '12',
+      'count',
+      'How many events are from the mailer service?',
+      evts.filter((x) => x.service === 'mailer').length,
+      'number',
+    ),
   ];
 }
 
@@ -178,20 +299,55 @@ function usersTasks(u) {
   for (const x of u) cityCount[x.city] = (cityCount[x.city] || 0) + 1;
   const topCity = Object.entries(cityCount).sort((a, b) => b[1] - a[1])[0][0];
   const avgAge = Math.round((u.reduce((s, x) => s + x.age, 0) / u.length) * 10) / 10;
-  const t = (id, cat, q, exp, m = 'string') =>
-    ({ id: `users-${id}`, dataset: 'users', category: cat, question: q, expected: exp, match: m });
+  const t = (id, cat, q, exp, m = 'string') => ({
+    id: `users-${id}`,
+    dataset: 'users',
+    category: cat,
+    question: q,
+    expected: exp,
+    match: m,
+  });
   return [
-    t('01', 'extraction',  'What is the email address of the user with id 23?',                  byId(23).email),
-    t('02', 'extraction',  'What city does the user with id 41 live in?',                        byId(41).city),
-    t('03', 'extraction',  `What plan is ${byId(7).name} (id 7) on?`,                            byId(7).plan),
-    t('04', 'extraction',  'What is the signup_date of the user with id 50?',                    byId(50).signup_date),
-    t('05', 'reasoning',   'What is the name of the oldest user?',                               oldest.name),
-    t('06', 'reasoning',   'Which city has the most users?',                                     topCity),
-    t('07', 'reasoning',   'Is the user with id 12 active? Answer yes or no.',                   byId(12).active ? 'yes' : 'no'),
-    t('08', 'aggregation', 'How many users are on the enterprise plan?',                         u.filter((x) => x.plan === 'enterprise').length, 'number'),
-    t('09', 'aggregation', 'How many users are active (active = true)?',                         u.filter((x) => x.active).length, 'number'),
-    t('10', 'aggregation', 'How many users signed up in 2024 (signup_date starting with 2024)?', u.filter((x) => x.signup_date.startsWith('2024')).length, 'number'),
-    t('11', 'aggregation', 'What is the average age of all users, rounded to 1 decimal place?',  avgAge, 'number'),
+    t('01', 'extraction', 'What is the email address of the user with id 23?', byId(23).email),
+    t('02', 'extraction', 'What city does the user with id 41 live in?', byId(41).city),
+    t('03', 'extraction', `What plan is ${byId(7).name} (id 7) on?`, byId(7).plan),
+    t('04', 'extraction', 'What is the signup_date of the user with id 50?', byId(50).signup_date),
+    t('05', 'reasoning', 'What is the name of the oldest user?', oldest.name),
+    t('06', 'reasoning', 'Which city has the most users?', topCity),
+    t(
+      '07',
+      'reasoning',
+      'Is the user with id 12 active? Answer yes or no.',
+      byId(12).active ? 'yes' : 'no',
+    ),
+    t(
+      '08',
+      'aggregation',
+      'How many users are on the enterprise plan?',
+      u.filter((x) => x.plan === 'enterprise').length,
+      'number',
+    ),
+    t(
+      '09',
+      'aggregation',
+      'How many users are active (active = true)?',
+      u.filter((x) => x.active).length,
+      'number',
+    ),
+    t(
+      '10',
+      'aggregation',
+      'How many users signed up in 2024 (signup_date starting with 2024)?',
+      u.filter((x) => x.signup_date.startsWith('2024')).length,
+      'number',
+    ),
+    t(
+      '11',
+      'aggregation',
+      'What is the average age of all users, rounded to 1 decimal place?',
+      avgAge,
+      'number',
+    ),
   ];
 }
 
@@ -203,20 +359,71 @@ function configTasks(c) {
   const rateLimited = names.filter((n) => svcs[n].rate_limit?.enabled === true);
   const mostReplicas = names.reduce((a, b) => (svcs[b].replicas > svcs[a].replicas ? b : a));
   const totalReplicas = names.reduce((s, n) => s + svcs[n].replicas, 0);
-  const t = (id, cat, q, exp, m = 'string') =>
-    ({ id: `config-${id}`, dataset: 'config', category: cat, question: q, expected: exp, match: m });
+  const t = (id, cat, q, exp, m = 'string') => ({
+    id: `config-${id}`,
+    dataset: 'config',
+    category: cat,
+    question: q,
+    expected: exp,
+    match: m,
+  });
   return [
-    t('01', 'extraction',  'What is the max_attempts value for the billing service retries?',    svcs.billing.retries.max_attempts, 'number'),
-    t('02', 'extraction',  'What is the timeout_ms of the search service?',                      svcs.search.timeout_ms, 'number'),
-    t('03', 'extraction',  'What is the database pool max for the auth service?',                svcs.auth.database.pool.max, 'number'),
-    t('04', 'extraction',  'What is the log_level of the notifications service?',               svcs.notifications.log_level),
-    t('05', 'extraction',  'Which environment is this configuration for?',                       c.environment),
-    t('06', 'reasoning',   'Which service has retries disabled?',                                retriesOff[0]),
-    t('07', 'reasoning',   'Which service has the most replicas?',                               mostReplicas),
-    t('08', 'reasoning',   'Is global tracing enabled? Answer yes or no.',                       c.global.tracing.enabled ? 'yes' : 'no'),
-    t('09', 'reasoning',   'Which notification channel is disabled?',                            Object.keys(svcs.notifications.channels).find((k) => !svcs.notifications.channels[k].enabled)),
-    t('10', 'aggregation', 'How many services have rate limiting enabled?',                      rateLimited.length, 'number'),
-    t('11', 'aggregation', 'What is the total number of replicas across all services?',          totalReplicas, 'number'),
+    t(
+      '01',
+      'extraction',
+      'What is the max_attempts value for the billing service retries?',
+      svcs.billing.retries.max_attempts,
+      'number',
+    ),
+    t(
+      '02',
+      'extraction',
+      'What is the timeout_ms of the search service?',
+      svcs.search.timeout_ms,
+      'number',
+    ),
+    t(
+      '03',
+      'extraction',
+      'What is the database pool max for the auth service?',
+      svcs.auth.database.pool.max,
+      'number',
+    ),
+    t(
+      '04',
+      'extraction',
+      'What is the log_level of the notifications service?',
+      svcs.notifications.log_level,
+    ),
+    t('05', 'extraction', 'Which environment is this configuration for?', c.environment),
+    t('06', 'reasoning', 'Which service has retries disabled?', retriesOff[0]),
+    t('07', 'reasoning', 'Which service has the most replicas?', mostReplicas),
+    t(
+      '08',
+      'reasoning',
+      'Is global tracing enabled? Answer yes or no.',
+      c.global.tracing.enabled ? 'yes' : 'no',
+    ),
+    t(
+      '09',
+      'reasoning',
+      'Which notification channel is disabled?',
+      Object.keys(svcs.notifications.channels).find((k) => !svcs.notifications.channels[k].enabled),
+    ),
+    t(
+      '10',
+      'aggregation',
+      'How many services have rate limiting enabled?',
+      rateLimited.length,
+      'number',
+    ),
+    t(
+      '11',
+      'aggregation',
+      'What is the total number of replicas across all services?',
+      totalReplicas,
+      'number',
+    ),
   ];
 }
 
@@ -228,20 +435,64 @@ function logsTasks(l) {
   const perSvc = {};
   for (const e of errors) perSvc[e.service] = (perSvc[e.service] || 0) + 1;
   const topErrSvc = Object.entries(perSvc).sort((a, b) => b[1] - a[1])[0][0];
-  const t = (id, cat, q, exp, m = 'string') =>
-    ({ id: `logs-${id}`, dataset: 'logs', category: cat, question: q, expected: exp, match: m });
+  const t = (id, cat, q, exp, m = 'string') => ({
+    id: `logs-${id}`,
+    dataset: 'logs',
+    category: cat,
+    question: q,
+    expected: exp,
+    match: m,
+  });
   return [
-    t('01', 'extraction',  'What is the request_id of the log entry with the highest latency_ms?',  slowest.request_id),
-    t('02', 'extraction',  `What is the message of the entry with request_id ${errors[0].request_id}?`, errors[0].message),
-    t('03', 'extraction',  'What is the timestamp (ts) of the first ERROR entry?',                 errors[0].ts),
-    t('04', 'extraction',  `Which service produced the entry with request_id ${l[59].request_id}?`, l[59].service),
-    t('05', 'reasoning',   'Which service produced the most ERROR entries?',                        topErrSvc),
-    t('06', 'reasoning',   'What level is the entry with the highest latency_ms?',                 slowest.level),
-    t('07', 'reasoning',   'Did any ERROR occur before 09:00? Answer yes or no.',                   errors.some((x) => x.ts.slice(11, 19) < '09:00:00') ? 'yes' : 'no'),
-    t('08', 'aggregation', 'How many ERROR entries are there in total?',                           errors.length, 'number'),
-    t('09', 'aggregation', 'How many ERROR entries occurred at or after 12:00:00?',                errAfterNoon.length, 'number'),
-    t('10', 'aggregation', 'How many entries have status 503?',                                    l.filter((x) => x.status === 503).length, 'number'),
-    t('11', 'aggregation', 'How many WARN entries are there?',                                     l.filter((x) => x.level === 'WARN').length, 'number'),
+    t(
+      '01',
+      'extraction',
+      'What is the request_id of the log entry with the highest latency_ms?',
+      slowest.request_id,
+    ),
+    t(
+      '02',
+      'extraction',
+      `What is the message of the entry with request_id ${errors[0].request_id}?`,
+      errors[0].message,
+    ),
+    t('03', 'extraction', 'What is the timestamp (ts) of the first ERROR entry?', errors[0].ts),
+    t(
+      '04',
+      'extraction',
+      `Which service produced the entry with request_id ${l[59].request_id}?`,
+      l[59].service,
+    ),
+    t('05', 'reasoning', 'Which service produced the most ERROR entries?', topErrSvc),
+    t('06', 'reasoning', 'What level is the entry with the highest latency_ms?', slowest.level),
+    t(
+      '07',
+      'reasoning',
+      'Did any ERROR occur before 09:00? Answer yes or no.',
+      errors.some((x) => x.ts.slice(11, 19) < '09:00:00') ? 'yes' : 'no',
+    ),
+    t('08', 'aggregation', 'How many ERROR entries are there in total?', errors.length, 'number'),
+    t(
+      '09',
+      'aggregation',
+      'How many ERROR entries occurred at or after 12:00:00?',
+      errAfterNoon.length,
+      'number',
+    ),
+    t(
+      '10',
+      'aggregation',
+      'How many entries have status 503?',
+      l.filter((x) => x.status === 503).length,
+      'number',
+    ),
+    t(
+      '11',
+      'aggregation',
+      'How many WARN entries are there?',
+      l.filter((x) => x.level === 'WARN').length,
+      'number',
+    ),
   ];
 }
 
@@ -319,12 +570,14 @@ export function scoreAnswer(task, rawAnswer) {
   const got = normalize(rawAnswer ?? '');
   if (task.match === 'number') {
     const nums = got.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/g);
-    const val = nums ? parseFloat(nums[nums.length - 1]) : NaN;
+    const val = nums ? Number.parseFloat(nums[nums.length - 1]) : Number.NaN;
     return { correct: Number.isFinite(val) && Math.abs(val - Number(task.expected)) <= 0.05, got };
   }
   const want = normalize(String(task.expected));
   if (got === want) return { correct: true, got };
   // Lenient fallback for terse-but-wrapped answers ("the billing service").
-  const token = new RegExp(`(^|[^a-z0-9_@.-])${want.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9_@.-])`);
+  const token = new RegExp(
+    `(^|[^a-z0-9_@.-])${want.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9_@.-])`,
+  );
   return { correct: got.length <= want.length + 24 && token.test(got), got };
 }

@@ -8,11 +8,7 @@
 
 import type { ParsedArgs } from './cli-commands-shared.js';
 import { MODEL_PRICING } from './constants.js';
-import {
-  SessionStats,
-  type CallRecord,
-  type SessionStatsResult,
-} from './mcp/session-stats.js';
+import { type CallRecord, SessionStats, type SessionStatsResult } from './mcp/session-stats.js';
 import { readAllRecords } from './stats/persister.js';
 
 /**
@@ -117,21 +113,27 @@ export function cmdReport(args: ParsedArgs): void {
 
   // Lifetime
   if (lifetime) {
-    w(`  Lifetime:  ${formatTokenCount(lifetime.totalSavedTokens)} tokens saved (${formatCostSaved(lifetime.totalSavedTokens, model)})\n`);
+    w(
+      `  Lifetime:  ${formatTokenCount(lifetime.totalSavedTokens)} tokens saved (${formatCostSaved(lifetime.totalSavedTokens, model)})\n`,
+    );
   } else {
     w('  Lifetime:  0 tokens saved ($0.00)\n');
   }
 
   // This week
   if (weekly && weekly.totalCalls > 0) {
-    w(`  This week: ${formatTokenCount(weekly.totalSavedTokens)} tokens saved (${formatCostSaved(weekly.totalSavedTokens, model)})\n`);
+    w(
+      `  This week: ${formatTokenCount(weekly.totalSavedTokens)} tokens saved (${formatCostSaved(weekly.totalSavedTokens, model)})\n`,
+    );
   } else {
     w('  This week: 0 tokens saved ($0.00)\n');
   }
 
   // Today
   if (daily && daily.totalCalls > 0) {
-    w(`  Today:     ${formatTokenCount(daily.totalSavedTokens)} tokens saved (${formatCostSaved(daily.totalSavedTokens, model)})\n`);
+    w(
+      `  Today:     ${formatTokenCount(daily.totalSavedTokens)} tokens saved (${formatCostSaved(daily.totalSavedTokens, model)})\n`,
+    );
   } else {
     w('  Today:     0 tokens saved ($0.00)\n');
   }
@@ -146,7 +148,9 @@ export function cmdReport(args: ParsedArgs): void {
       const sorted = formats.sort((a, b) => b[1].calls - a[1].calls);
       for (const [fmt, fmtStats] of sorted) {
         const label = formatFormatLabel(fmt);
-        w(`    ${label.padEnd(16)} ${String(fmtStats.avgSavingsPercent).padStart(3)}% avg savings (${String(fmtStats.calls)} calls)\n`);
+        w(
+          `    ${label.padEnd(16)} ${String(fmtStats.avgSavingsPercent).padStart(3)}% avg savings (${String(fmtStats.calls)} calls)\n`,
+        );
       }
     }
   }
@@ -180,11 +184,17 @@ export function cmdReport(args: ParsedArgs): void {
     const total = callsSaved + callsSkipped;
     const savedPct = total > 0 ? Math.round((callsSaved / total) * 100) : 0;
     const skippedPct = total > 0 ? Math.round((callsSkipped / total) * 100) : 0;
-    w(`    Calls that saved tokens: ${String(callsSaved)}/${String(total)} (${String(savedPct)}%)\n`);
-    w(`    Calls skipped (would expand): ${String(callsSkipped)}/${String(total)} (${String(skippedPct)}%)\n`);
+    w(
+      `    Calls that saved tokens: ${String(callsSaved)}/${String(total)} (${String(savedPct)}%)\n`,
+    );
+    w(
+      `    Calls skipped (would expand): ${String(callsSkipped)}/${String(total)} (${String(skippedPct)}%)\n`,
+    );
 
     if (bestSavingsPercent > 0) {
-      w(`    Best compression: ${String(bestSavingsPercent)}% (${bestFormat}, ${String(bestInputTokens)}→${String(bestOutputTokens)} tokens)\n`);
+      w(
+        `    Best compression: ${String(bestSavingsPercent)}% (${bestFormat}, ${String(bestInputTokens)}→${String(bestOutputTokens)} tokens)\n`,
+      );
     }
   }
 

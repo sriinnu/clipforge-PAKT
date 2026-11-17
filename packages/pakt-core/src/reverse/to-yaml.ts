@@ -14,7 +14,7 @@ import type {
   ScalarNode,
   TabularArrayNode,
 } from '../parser/ast.js';
-import { inlineToArray, listToArray, tabularToArray } from './helpers.js';
+import { inlineToArray, isPlainRecord, listToArray, tabularToArray } from './helpers.js';
 
 const INDENT = '  ';
 
@@ -120,7 +120,12 @@ function emitListArray(node: ListArrayNode, lines: string[], depth: number): voi
   const items = listToArray(node);
   lines.push(`${prefix}${node.key}:`);
   for (const item of items) {
-    emitYamlMapping(item, lines, depth + 1);
+    if (isPlainRecord(item) && Object.keys(item).length > 0) {
+      emitYamlMapping(item, lines, depth + 1);
+    } else {
+      // Primitive, array or empty-object element (#59 list shapes).
+      lines.push(`${indent(depth + 1)}- ${formatYamlValue(item)}`);
+    }
   }
 }
 
@@ -162,7 +167,15 @@ function formatYamlValue(value: unknown): string {
   if (typeof value === 'string') {
     return formatYamlString(value);
   }
-  // Fallback for complex types (shouldn't happen in normal flow)
+  if (Array.isArray(value)) {
+    return `[${value.map(formatYamlValue).join(', ')}]`;
+  }
+  if (isPlainRecord(value)) {
+    const pairs = Object.entries(value).map(
+      ([k, v]) => `${formatYamlString(k)}: ${formatYamlValue(v)}`,
+    );
+    return `{${pairs.join(', ')}}`;
+  }
   return String(value);
 }
 

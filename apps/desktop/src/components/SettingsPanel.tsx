@@ -116,10 +116,9 @@ const SettingsPanel: FC<SettingsPanelProps> = ({ onClose }) => {
             <option value="google">Google Gemini (auto)</option>
           </select>
           <p className="desktop-copy">
-            When set, compressed output carries a cache breakpoint hint
-            with the byte offset where the provider's cache marker should
-            sit. Off by default — turn on if you call Anthropic, Bedrock,
-            OpenAI, or Gemini with a long prompt prefix.
+            When set, compressed output carries a cache breakpoint hint with the byte offset where
+            the provider's cache marker should sit. Off by default — turn on if you call Anthropic,
+            Bedrock, OpenAI, or Gemini with a long prompt prefix.
           </p>
         </label>
 

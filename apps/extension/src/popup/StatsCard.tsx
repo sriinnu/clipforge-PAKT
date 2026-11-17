@@ -122,7 +122,10 @@ export function StatsCard({ stats, loading }: StatsCardProps) {
             </span>
           )}
           {stats.lossy && (
-            <span style={{ ...metaItemStyle, color: 'var(--cf-warn, #ffcb6b)' }} title="Output is non-reversible (L4 semantic or PII redact)">
+            <span
+              style={{ ...metaItemStyle, color: 'var(--cf-warn, #ffcb6b)' }}
+              title="Output is non-reversible (L4 semantic or PII redact)"
+            >
               lossy
             </span>
           )}

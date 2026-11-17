@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createPaktInterceptor, optimizeMessages } from '../src/middleware/index.js';
 
 // A big enough JSON blob to exceed the 100-token default threshold
@@ -95,7 +95,10 @@ describe('createPaktInterceptor', () => {
   it('never returns expanded output (guard)', () => {
     // Even if we force a format that doesn't compress well,
     // the interceptor should never make things worse
-    const interceptor = createPaktInterceptor({ minTokens: 1, formats: ['json', 'yaml', 'csv', 'text', 'markdown', 'pakt'] });
+    const interceptor = createPaktInterceptor({
+      minTokens: 1,
+      formats: ['json', 'yaml', 'csv', 'text', 'markdown', 'pakt'],
+    });
     const tiny = '{"x":1}';
     const result = interceptor.processToolResult('tool', tiny);
 

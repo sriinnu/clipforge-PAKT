@@ -12,9 +12,7 @@ import { tokenizeCommand } from '../src/cli-proxy.js';
 
 describe('tokenizeCommand — quote-aware splitting', () => {
   it('splits plain whitespace-delimited tokens', () => {
-    expect(tokenizeCommand('npx my-server --stdio')).toEqual([
-      'npx', 'my-server', '--stdio',
-    ]);
+    expect(tokenizeCommand('npx my-server --stdio')).toEqual(['npx', 'my-server', '--stdio']);
   });
 
   it('handles multiple spaces between tokens', () => {
@@ -22,27 +20,19 @@ describe('tokenizeCommand — quote-aware splitting', () => {
   });
 
   it('preserves spaces inside double-quoted argument', () => {
-    expect(tokenizeCommand('cmd "path with spaces"')).toEqual([
-      'cmd', 'path with spaces',
-    ]);
+    expect(tokenizeCommand('cmd "path with spaces"')).toEqual(['cmd', 'path with spaces']);
   });
 
   it('preserves spaces inside single-quoted argument', () => {
-    expect(tokenizeCommand("cmd '/opt/my tool' --flag")).toEqual([
-      'cmd', '/opt/my tool', '--flag',
-    ]);
+    expect(tokenizeCommand("cmd '/opt/my tool' --flag")).toEqual(['cmd', '/opt/my tool', '--flag']);
   });
 
   it('handles escaped double-quote inside double-quoted string', () => {
-    expect(tokenizeCommand('cmd "say \\"hello\\" world"')).toEqual([
-      'cmd', 'say "hello" world',
-    ]);
+    expect(tokenizeCommand('cmd "say \\"hello\\" world"')).toEqual(['cmd', 'say "hello" world']);
   });
 
   it('handles escaped backslash inside double-quoted string', () => {
-    expect(tokenizeCommand('cmd "C:\\\\Users\\\\foo"')).toEqual([
-      'cmd', 'C:\\Users\\foo',
-    ]);
+    expect(tokenizeCommand('cmd "C:\\\\Users\\\\foo"')).toEqual(['cmd', 'C:\\Users\\foo']);
   });
 
   it('handles adjacent quoted + unquoted segments', () => {

@@ -10,6 +10,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { compress } from '../src/compress.js';
 import { compressL2, extractDictEntries } from '../src/layers/L2-dictionary.js';
+import { RollingDictionary } from '../src/mcp/rolling-dict.js';
 import type {
   BodyNode,
   DocumentNode,
@@ -19,7 +20,6 @@ import type {
   SourcePosition,
 } from '../src/parser/ast.js';
 import type { DictEntry } from '../src/types.js';
-import { RollingDictionary } from '../src/mcp/rolling-dict.js';
 
 // ---------------------------------------------------------------------------
 // AST helpers (mirrors L2-dictionary.test.ts)
@@ -140,11 +140,9 @@ describe('RollingDictionary', () => {
     it('increments turn BEFORE pruning (first turn is never pruned)', () => {
       // Add an entry at turn 1
       const seeds1 = rd.seed(); // turn = 1
-      rd.update(
-        [{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
-        seeds1,
-        { piiSafe: true },
-      );
+      rd.update([{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }], seeds1, {
+        piiSafe: true,
+      });
       // Entry has lastUsedAtTurn = 1
 
       // Immediately seed again — turn goes to 2, cutoff = 2 - 20 = -18
@@ -582,11 +580,9 @@ describe('RollingDictionary', () => {
 
     it('does not increment usage for seeds that had 0 occurrences', () => {
       const seeds1 = rd.seed();
-      rd.update(
-        [{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }],
-        seeds1,
-        { piiSafe: true },
-      );
+      rd.update([{ alias: '$a', expansion: 'developer', occurrences: 3, tokensSaved: 6 }], seeds1, {
+        piiSafe: true,
+      });
 
       // Turn 2: seed but entry has 0 occurrences in the result
       const seeds2 = rd.seed();
@@ -617,7 +613,7 @@ describe('L2 integration with seedAliases', () => {
     // For the seed to actually produce an alias, it needs >= 3 occurrences
     // AND net savings >= minSavings — same as any non-seeded candidate in
     // the greedy simulation.
-    const longValue = 'infrastructure_engineer_role';  // 28 chars => 7 tokens
+    const longValue = 'infrastructure_engineer_role'; // 28 chars => 7 tokens
     // At 3 occ: net = (7-1)*3 - (7+3) = 18 - 10 = 8 >= 3 => aliased
 
     const body: BodyNode[] = [
@@ -663,10 +659,7 @@ describe('L2 integration with seedAliases', () => {
 
   it('seeded values appearing once are NOT aliased', () => {
     // "developer" appears only once — even with seed, threshold is 2
-    const body: BodyNode[] = [
-      kv('role', s('developer')),
-      kv('name', s('Alice')),
-    ];
+    const body: BodyNode[] = [kv('role', s('developer')), kv('name', s('Alice'))];
     const input = doc(body);
 
     const seedMap = new Set(['developer']);
@@ -678,10 +671,7 @@ describe('L2 integration with seedAliases', () => {
 
   it('seed aliases are accepted without error even when empty', () => {
     // Edge case: passing an empty seed map should behave identically to no seeds
-    const body: BodyNode[] = [
-      kv('role', s('developer')),
-      kv('name', s('Alice')),
-    ];
+    const body: BodyNode[] = [kv('role', s('developer')), kv('name', s('Alice'))];
     const input = doc(body);
 
     const emptySeeds = new Set<string>();

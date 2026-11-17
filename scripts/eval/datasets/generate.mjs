@@ -14,21 +14,78 @@ const OUT = dirname(fileURLToPath(import.meta.url));
 
 // Deterministic LCG so re-running reproduces the exact same files.
 let seed = 1337;
-const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+const rnd = () => {
+  seed = (seed * 1103515245 + 12345) % 2147483648;
+  return seed / 2147483648;
+};
 const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
 const int = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
 
 // ---------- tabular-users.json: 50 records x 8 columns ----------
-const FIRST = ['Asha','Ben','Carla','Dev','Elena','Farid','Grace','Hugo','Iris','Jonas','Kavya','Liam','Meera','Noah','Oona','Pavel','Quinn','Ravi','Sara','Tomas','Uma','Viktor','Wendy','Xander','Yara','Zane'];
-const LAST = ['Rao','Kim','Mendes','Patel','Sorokin','Haddad','Liu','Berger','Novak','Eriksen','Iyer','Walsh','Krishnan','Fischer','Byrne','Sokolov','Marsh','Varma','Lindqvist','Costa'];
-const CITIES = ['Austin','Berlin','Chennai','Dublin','Lisbon','Osaka','Toronto'];
-const PLANS = ['free','free','free','pro','pro','enterprise'];
+const FIRST = [
+  'Asha',
+  'Ben',
+  'Carla',
+  'Dev',
+  'Elena',
+  'Farid',
+  'Grace',
+  'Hugo',
+  'Iris',
+  'Jonas',
+  'Kavya',
+  'Liam',
+  'Meera',
+  'Noah',
+  'Oona',
+  'Pavel',
+  'Quinn',
+  'Ravi',
+  'Sara',
+  'Tomas',
+  'Uma',
+  'Viktor',
+  'Wendy',
+  'Xander',
+  'Yara',
+  'Zane',
+];
+const LAST = [
+  'Rao',
+  'Kim',
+  'Mendes',
+  'Patel',
+  'Sorokin',
+  'Haddad',
+  'Liu',
+  'Berger',
+  'Novak',
+  'Eriksen',
+  'Iyer',
+  'Walsh',
+  'Krishnan',
+  'Fischer',
+  'Byrne',
+  'Sokolov',
+  'Marsh',
+  'Varma',
+  'Lindqvist',
+  'Costa',
+];
+const CITIES = ['Austin', 'Berlin', 'Chennai', 'Dublin', 'Lisbon', 'Osaka', 'Toronto'];
+const PLANS = ['free', 'free', 'free', 'pro', 'pro', 'enterprise'];
 
 const users = [];
 const seen = new Set();
 for (let id = 1; id <= 50; id++) {
-  let fn, ln, key;
-  do { fn = pick(FIRST); ln = pick(LAST); key = fn + ln; } while (seen.has(key));
+  let fn;
+  let ln;
+  let key;
+  do {
+    fn = pick(FIRST);
+    ln = pick(LAST);
+    key = fn + ln;
+  } while (seen.has(key));
   seen.add(key);
   const year = pick([2023, 2023, 2024, 2024, 2024, 2025]);
   users.push({
@@ -49,7 +106,7 @@ const cityCount = {};
 for (const u of users) cityCount[u.city] = (cityCount[u.city] || 0) + 1;
 const sortedCities = Object.entries(cityCount).sort((a, b) => b[1] - a[1]);
 if (sortedCities[0][1] === sortedCities[1][1]) users[4].city = sortedCities[0][0];
-writeFileSync(join(OUT, 'tabular-users.json'), JSON.stringify(users, null, 2) + '\n');
+writeFileSync(join(OUT, 'tabular-users.json'), `${JSON.stringify(users, null, 2)}\n`);
 
 // ---------- nested-config.json: hand-authored nested service config ----------
 const config = {
@@ -118,20 +175,32 @@ const config = {
     },
   },
 };
-writeFileSync(join(OUT, 'nested-config.json'), JSON.stringify(config, null, 2) + '\n');
+writeFileSync(join(OUT, 'nested-config.json'), `${JSON.stringify(config, null, 2)}\n`);
 
 // ---------- logs.json: 80 structured entries with repeated keys/values ----------
 const SERVICES = ['api-gateway', 'auth', 'billing', 'search', 'notifications'];
 const MSG = {
   INFO: ['request completed', 'cache hit', 'token issued', 'invoice generated', 'index refreshed'],
-  WARN: ['slow query detected', 'retry scheduled', 'rate limit near threshold', 'stale cache entry'],
-  ERROR: ['upstream timeout', 'database connection refused', 'payment provider error', 'index write failed'],
+  WARN: [
+    'slow query detected',
+    'retry scheduled',
+    'rate limit near threshold',
+    'stale cache entry',
+  ],
+  ERROR: [
+    'upstream timeout',
+    'database connection refused',
+    'payment provider error',
+    'index write failed',
+  ],
   DEBUG: ['payload trace', 'feature flag evaluated'],
 };
 // Fixed level mix: 14 ERROR, 12 WARN, 4 DEBUG, 50 INFO — deterministically shuffled.
 const levels = [
-  ...Array(14).fill('ERROR'), ...Array(12).fill('WARN'),
-  ...Array(4).fill('DEBUG'), ...Array(50).fill('INFO'),
+  ...Array(14).fill('ERROR'),
+  ...Array(12).fill('WARN'),
+  ...Array(4).fill('DEBUG'),
+  ...Array(50).fill('INFO'),
 ];
 for (let i = levels.length - 1; i > 0; i--) {
   const j = Math.floor(rnd() * (i + 1));
@@ -154,7 +223,12 @@ for (let i = 0; i < 80; i++) {
     level,
     service,
     message: pick(MSG[level]),
-    status: level === 'ERROR' ? pick([500, 502, 503]) : level === 'WARN' ? pick([200, 429]) : pick([200, 200, 201]),
+    status:
+      level === 'ERROR'
+        ? pick([500, 502, 503])
+        : level === 'WARN'
+          ? pick([200, 429])
+          : pick([200, 200, 201]),
     latency_ms: level === 'ERROR' ? int(900, 2400) : int(12, 750),
     request_id: `req-${String(1000 + i)}`,
   });
@@ -163,12 +237,19 @@ for (let i = 0; i < 80; i++) {
 let maxIdx = 0;
 for (let i = 1; i < logs.length; i++) if (logs[i].latency_ms >= logs[maxIdx].latency_ms) maxIdx = i;
 logs[maxIdx].latency_ms = 2873;
-writeFileSync(join(OUT, 'logs.json'), JSON.stringify(logs, null, 2) + '\n');
+writeFileSync(join(OUT, 'logs.json'), `${JSON.stringify(logs, null, 2)}\n`);
 
 // Sanity summary printed for the human running this once.
 const errs = logs.filter((l) => l.level === 'ERROR');
 const perSvc = {};
 for (const e of errs) perSvc[e.service] = (perSvc[e.service] || 0) + 1;
 console.log('users:', users.length, '| oldest:', users.find((u) => u.age === 64).name);
-console.log('logs:', logs.length, '| ERROR:', errs.length, '| ERROR after 12:00:', errs.filter((l) => l.ts.slice(11, 13) >= '12').length);
+console.log(
+  'logs:',
+  logs.length,
+  '| ERROR:',
+  errs.length,
+  '| ERROR after 12:00:',
+  errs.filter((l) => l.ts.slice(11, 13) >= '12').length,
+);
 console.log('error per service:', JSON.stringify(perSvc));

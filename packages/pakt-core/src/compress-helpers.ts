@@ -1,5 +1,6 @@
 import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 import { detect } from './detect.js';
+import { applyMetatokenCompression } from './layers/L3-5-metatoken.js';
 import { compressText } from './layers/compress-text.js';
 import {
   applyL3Transforms,
@@ -13,7 +14,6 @@ import {
   markL5,
   revertL3,
 } from './layers/index.js';
-import { applyMetatokenCompression } from './layers/L3-5-metatoken.js';
 import { compressMixed } from './mixed/index.js';
 import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';
@@ -435,9 +435,10 @@ export function injectCompressContentHeader(text: string): string {
   const lines = text.split('\n');
   let lastHeaderIdx = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i]!.startsWith('@')) {
+    const line = lines[i] ?? '';
+    if (line.startsWith('@')) {
       lastHeaderIdx = i;
-    } else if (lines[i]!.trim() !== '') {
+    } else if (line.trim() !== '') {
       break;
     }
   }

@@ -170,6 +170,14 @@ const LIST_ITEM_VALUE_SENTINEL = '_value';
  * // [{ type: 'deploy', success: true }, { type: 'alert', message: 'CPU spike' }]
  * ```
  */
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Convert a ListArrayNode to its JS array. Since #59 items may be primitives,
+ * arrays or objects, so callers must narrow with {@link isPlainRecord}.
+ */
 export function listToArray(node: ListArrayNode): unknown[] {
   return node.items.map((item) => listItemToValue(item));
 }

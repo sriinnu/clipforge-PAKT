@@ -7,18 +7,11 @@
 
 import { compress } from '../compress.js';
 import { detect } from '../detect.js';
-import { countTokens } from '../tokens/index.js';
-import {
-  buildIndexMessage,
-  runFactExtraction,
-  shouldSummarize,
-} from './fact-extraction.js';
-import {
-  compressHistory,
-  deduplicateContent,
-} from './history-strategies.js';
 import { compactCode, looksLikeCode } from '../layers/code-compact.js';
+import { countTokens } from '../tokens/index.js';
 import { extractRelevant } from './extractive.js';
+import { buildIndexMessage, runFactExtraction, shouldSummarize } from './fact-extraction.js';
+import { compressHistory, deduplicateContent } from './history-strategies.js';
 import { messageIsImmutable } from './opaque-blocks.js';
 import { buildSharedDictionary } from './shared-dictionary.js';
 import { ageSingleToolResult, clampToolResult, computeAgingCutoff } from './tool-aging.js';
@@ -110,8 +103,7 @@ export class ContextEngine {
     // Detect provider opaque blocks at ingestion time so every downstream path
     // can check `containsOpaqueBlocks` without re-scanning the content.
     const hasOpaque =
-      msg.containsOpaqueBlocks === true ||
-      messageIsImmutable(msg, this.config.extraOpaqueTypes);
+      msg.containsOpaqueBlocks === true || messageIsImmutable(msg, this.config.extraOpaqueTypes);
 
     const enriched: ContextMessage = {
       ...msg,
@@ -173,18 +165,14 @@ export class ContextEngine {
    * this multiple times as the conversation grows.
    */
   optimize(): OptimizedContext {
-    const originalTokens = this.messages.reduce(
-      (sum, m) => sum + (m.originalTokens ?? 0),
-      0,
-    );
+    const originalTokens = this.messages.reduce((sum, m) => sum + (m.originalTokens ?? 0), 0);
 
     // Clone messages for optimization (don't mutate originals)
-    let optimized = this.messages.map((m) => ({ ...m }));
+    const optimized = this.messages.map((m) => ({ ...m }));
 
     // Layer 0: Tool results already compressed during addToolResult()
     const toolSavings = optimized.reduce(
-      (sum, m) =>
-        sum + (m.paktCompressed ? (m.originalTokens ?? 0) - (m.currentTokens ?? 0) : 0),
+      (sum, m) => sum + (m.paktCompressed ? (m.originalTokens ?? 0) - (m.currentTokens ?? 0) : 0),
       0,
     );
 
@@ -259,8 +247,7 @@ export class ContextEngine {
 
     // Compute headroom against the provider compaction threshold (if set).
     const threshold = this.config.providerCompactionThresholdTokens;
-    const headroomTokens =
-      threshold !== undefined ? threshold - optimizedTokens : undefined;
+    const headroomTokens = threshold !== undefined ? threshold - optimizedTokens : undefined;
 
     const savings: ContextSavings = {
       originalTokens,
@@ -463,13 +450,9 @@ export class ContextEngine {
    */
   private extractFacts(messages: ContextMessage[]): number {
     const cutoff = this.currentTurn - this.config.recentTurns - 2;
-    return runFactExtraction(
-      messages,
-      cutoff,
-      this.contextIndex,
-      this.config.model,
-      () => { this.stats.summarizedTurns++; },
-    );
+    return runFactExtraction(messages, cutoff, this.contextIndex, this.config.model, () => {
+      this.stats.summarizedTurns++;
+    });
   }
 }
 

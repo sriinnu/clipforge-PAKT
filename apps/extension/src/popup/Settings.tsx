@@ -320,16 +320,13 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
             { label: 'Google', value: 'google' as const },
           ]}
           value={settings.cacheTarget ?? 'off'}
-          onChange={(v) =>
-            update({ cacheTarget: v === 'off' ? undefined : v })
-          }
+          onChange={(v) => update({ cacheTarget: v === 'off' ? undefined : v })}
         />
         <span style={settingDescStyle}>
-          When set, the popup shows a <code>cache @Nb</code> hint with the byte offset
-          where your provider's <code>cache_control</code> should sit.{' '}
-          <strong>Bedrock</strong> supports a 1h TTL; <strong>Anthropic</strong>{' '}
-          defaults to 5min; <strong>OpenAI</strong> and <strong>Google</strong> auto-manage
-          prefix caching. Stays in the popup — no network calls.
+          When set, the popup shows a <code>cache @Nb</code> hint with the byte offset where your
+          provider's <code>cache_control</code> should sit. <strong>Bedrock</strong> supports a 1h
+          TTL; <strong>Anthropic</strong> defaults to 5min; <strong>OpenAI</strong> and{' '}
+          <strong>Google</strong> auto-manage prefix caching. Stays in the popup — no network calls.
         </span>
       </div>
 
@@ -363,8 +360,14 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
                   background: isActive ? 'var(--cf-accent-glow)' : 'var(--cf-surface)',
                 }}
               >
-                <span style={{ fontFamily: cfg.ui, fontSize: 13, fontWeight: 500,
-                  color: isActive ? 'var(--cf-accent)' : 'var(--cf-text)' }}>
+                <span
+                  style={{
+                    fontFamily: cfg.ui,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: isActive ? 'var(--cf-accent)' : 'var(--cf-text)',
+                  }}
+                >
                   {cfg.label}
                 </span>
                 <span style={{ ...fontPreviewStyle, fontFamily: cfg.mono }}>
@@ -386,4 +389,3 @@ export function Settings({ onBack: _onBack }: SettingsProps) {
     </div>
   );
 }
-

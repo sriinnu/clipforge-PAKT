@@ -35,7 +35,8 @@ export const DEFAULT_PACKER_ITEMS: readonly PackerSample[] = [
     label: 'Audit log — CSV',
     role: 'tool',
     priority: 4,
-    content: `timestamp,event,user_id,resource,status,duration_ms\n2024-01-15T08:00:01Z,login,user_1042,/auth,success,45\n2024-01-15T08:00:03Z,fetch,user_1042,/api/orders,success,123\n2024-01-15T08:00:05Z,fetch,user_1042,/api/orders/ORD-001,success,89\n2024-01-15T08:01:12Z,login,user_2091,/auth,success,52\n2024-01-15T08:01:14Z,fetch,user_2091,/api/products,success,201\n2024-01-15T08:01:16Z,fetch,user_2091,/api/products/WIDGET-A,success,67\n2024-01-15T08:02:30Z,login,user_3178,/auth,failed,38\n2024-01-15T08:02:31Z,login,user_3178,/auth,failed,35\n2024-01-15T08:02:32Z,login,user_3178,/auth,failed,36\n2024-01-15T08:03:00Z,login,user_1042,/auth,success,49\n2024-01-15T08:03:02Z,update,user_1042,/api/orders/ORD-001,success,445\n2024-01-15T08:04:15Z,fetch,user_2091,/api/orders,success,156\n2024-01-15T08:05:00Z,delete,user_1042,/api/orders/ORD-002,forbidden,12`,
+    content:
+      'timestamp,event,user_id,resource,status,duration_ms\n2024-01-15T08:00:01Z,login,user_1042,/auth,success,45\n2024-01-15T08:00:03Z,fetch,user_1042,/api/orders,success,123\n2024-01-15T08:00:05Z,fetch,user_1042,/api/orders/ORD-001,success,89\n2024-01-15T08:01:12Z,login,user_2091,/auth,success,52\n2024-01-15T08:01:14Z,fetch,user_2091,/api/products,success,201\n2024-01-15T08:01:16Z,fetch,user_2091,/api/products/WIDGET-A,success,67\n2024-01-15T08:02:30Z,login,user_3178,/auth,failed,38\n2024-01-15T08:02:31Z,login,user_3178,/auth,failed,35\n2024-01-15T08:02:32Z,login,user_3178,/auth,failed,36\n2024-01-15T08:03:00Z,login,user_1042,/auth,success,49\n2024-01-15T08:03:02Z,update,user_1042,/api/orders/ORD-001,success,445\n2024-01-15T08:04:15Z,fetch,user_2091,/api/orders,success,156\n2024-01-15T08:05:00Z,delete,user_1042,/api/orders/ORD-002,forbidden,12',
   },
 ];
 

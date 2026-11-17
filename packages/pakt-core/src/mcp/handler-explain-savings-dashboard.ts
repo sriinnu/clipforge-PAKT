@@ -16,15 +16,11 @@ import {
   buildLayerBreakdown,
   generateRecommendation,
 } from '../explain.js';
+import { readAllRecords } from '../stats/persister.js';
 import { dedupCache } from './dedup-cache.js';
 import { PaktToolInputError, assertNonEmptyString } from './handler-validation.js';
 import { rollingDict } from './rolling-dict.js';
-import {
-  SessionStats,
-  type SessionStatsResult,
-  getSessionStats,
-} from './session-stats.js';
-import { readAllRecords } from '../stats/persister.js';
+import { SessionStats, type SessionStatsResult, getSessionStats } from './session-stats.js';
 import type {
   PaktDashboardArgs,
   PaktDashboardResult,

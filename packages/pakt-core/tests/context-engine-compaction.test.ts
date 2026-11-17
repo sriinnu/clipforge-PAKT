@@ -16,10 +16,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  BUILTIN_OPAQUE_TYPES,
   ContextEngine,
   isOpaqueBlock,
   messageIsImmutable,
-  BUILTIN_OPAQUE_TYPES,
 } from '../src/context-engine/index.js';
 import type { ContextMessage } from '../src/context-engine/index.js';
 
@@ -69,7 +69,9 @@ describe('isOpaqueBlock', () => {
   });
 
   it('returns false for tool_use blocks', () => {
-    expect(isOpaqueBlock({ type: 'tool_use', id: 'abc', name: 'read_file', input: {} })).toBe(false);
+    expect(isOpaqueBlock({ type: 'tool_use', id: 'abc', name: 'read_file', input: {} })).toBe(
+      false,
+    );
   });
 
   it('returns true for custom extraOpaqueTypes', () => {
@@ -88,11 +90,13 @@ describe('isOpaqueBlock', () => {
 
 describe('messageIsImmutable', () => {
   it('returns true when containsOpaqueBlocks flag is set', () => {
-    expect(messageIsImmutable({
-      role: 'assistant',
-      content: 'anything',
-      containsOpaqueBlocks: true,
-    })).toBe(true);
+    expect(
+      messageIsImmutable({
+        role: 'assistant',
+        content: 'anything',
+        containsOpaqueBlocks: true,
+      }),
+    ).toBe(true);
   });
 
   it('detects compaction sentinel in string content (compact JSON key)', () => {
@@ -140,7 +144,7 @@ describe('messageIsImmutable', () => {
 describe('opacity guarantee', () => {
   it('passes compaction message byte-identical under aggressive settings', () => {
     const engine = new ContextEngine({
-      maxContextTokens: 200,   // very small budget → aggressive pruning
+      maxContextTokens: 200, // very small budget → aggressive pruning
       recentTurns: 1,
       strategy: 'aggressive',
       toolResultTailLines: 3,
@@ -205,7 +209,7 @@ describe('opacity guarantee', () => {
 
   it('compaction message is never marked summarized', () => {
     const engine = new ContextEngine({
-      maxContextTokens: 100,  // tiny → forces summarization pass
+      maxContextTokens: 100, // tiny → forces summarization pass
       recentTurns: 1,
     });
 
@@ -323,13 +327,13 @@ describe('non-opaque messages still optimised', () => {
     const engine = new ContextEngine({ maxContextTokens: 50_000, recentTurns: 2 });
 
     const repeated = JSON.stringify(
-      Array.from({ length: 20 }, (_, i) => ({ id: i, name: 'Item ' + String(i) })),
+      Array.from({ length: 20 }, (_, i) => ({ id: i, name: `Item ${String(i)}` })),
     );
 
     engine.addMessage({ role: 'user', content: 'q1' });
     engine.addToolResult('search', repeated);
     engine.addMessage({ role: 'user', content: 'q2' });
-    engine.addToolResult('search', repeated);  // duplicate
+    engine.addToolResult('search', repeated); // duplicate
 
     // Compaction block — must not be deduped even if content is identical.
     const compContent = makeCompactionBlock('Session summary.');
@@ -370,7 +374,7 @@ describe('providerCompactionThresholdTokens', () => {
     // Simulate: threshold very small so context already exceeds it.
     const engine = new ContextEngine({
       maxContextTokens: 50_000,
-      providerCompactionThresholdTokens: 1,  // absurdly low
+      providerCompactionThresholdTokens: 1, // absurdly low
     });
 
     engine.addMessage({ role: 'user', content: 'hello' });
@@ -392,7 +396,7 @@ describe('providerCompactionThresholdTokens', () => {
     // threshold < maxContextTokens: aging should kick in at the lower threshold.
     const lowThreshold = new ContextEngine({
       maxContextTokens: 100_000,
-      providerCompactionThresholdTokens: 250,  // very low → forces aging
+      providerCompactionThresholdTokens: 250, // very low → forces aging
       recentTurns: 1,
       toolResultTailLines: 3,
     });
@@ -484,7 +488,11 @@ describe('regression smoke pass', () => {
     const engine = new ContextEngine();
     engine.addMessage({ role: 'user', content: 'q1' });
     expect(engine.getCurrentTurn()).toBe(1);
-    engine.addMessage({ role: 'assistant', content: makeCompactionBlock(), containsOpaqueBlocks: true });
+    engine.addMessage({
+      role: 'assistant',
+      content: makeCompactionBlock(),
+      containsOpaqueBlocks: true,
+    });
     engine.addMessage({ role: 'user', content: 'q2' });
     expect(engine.getCurrentTurn()).toBe(2);
   });
@@ -492,7 +500,7 @@ describe('regression smoke pass', () => {
   it('tool result compression still fires on non-opaque structured data', () => {
     const engine = new ContextEngine({ maxContextTokens: 50_000 });
     const records = JSON.stringify(
-      Array.from({ length: 30 }, (_, i) => ({ id: i, name: 'User_' + String(i), active: true })),
+      Array.from({ length: 30 }, (_, i) => ({ id: i, name: `User_${String(i)}`, active: true })),
     );
     engine.addMessage({ role: 'user', content: 'users?' });
     engine.addToolResult('get_users', records);

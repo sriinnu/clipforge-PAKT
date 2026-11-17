@@ -38,9 +38,9 @@ export function normalizeWhitespace(text: string): string {
       // Preserve leading indent (important for PAKT structure)
       const match = line.match(/^(\s*)(.*)/);
       if (!match) return line;
-      const [, indent, rest] = match;
+      const [, indent = '', rest = ''] = match;
       // Collapse multiple spaces in the content portion only
-      const collapsed = rest?.replace(/ {2,}/g, ' ').trimEnd();
+      const collapsed = rest.replace(/ {2,}/g, ' ').trimEnd();
       return indent + collapsed;
     })
     .join('\n');
@@ -124,9 +124,9 @@ function abbreviatePipeValues(line: string): string {
   // Split by pipe, abbreviate each cell, rejoin
   const match = line.match(/^(\s*)(.*)/);
   if (!match) return line;
-  const [, indent, content] = match;
+  const [, indent = '', content = ''] = match;
 
-  const parts = content?.split('|');
+  const parts = content.split('|');
   const abbreviated = parts.map((part) => {
     const trimmed = part.trim();
     if (trimmed === 'true' || trimmed === 'false' || trimmed === 'null') {

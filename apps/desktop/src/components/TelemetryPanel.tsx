@@ -9,8 +9,8 @@
  */
 
 import type { FC } from 'react';
-import { useTelemetryStats } from '../telemetry/useTelemetryStats';
 import type { TelemetrySnapshot } from '../telemetry/stats-aggregate';
+import { useTelemetryStats } from '../telemetry/useTelemetryStats';
 import { SparklineSvg } from './SparklineSvg';
 import { TelemetrySourceTable, formatTokens } from './TelemetrySourceTable';
 import './telemetry.css';
@@ -24,8 +24,8 @@ const TelemetryEmptyState: FC = () => (
     <p className="desktop-eyebrow">No agent telemetry yet</p>
     <h2 className="telemetry-empty-title">Point your MCP host at pakt</h2>
     <p className="desktop-copy">
-      Once an agent (Claude Code, Cursor, …) routes context through pakt&rsquo;s MCP server,
-      every compression call lands here automatically — no extra wiring.
+      Once an agent (Claude Code, Cursor, …) routes context through pakt&rsquo;s MCP server, every
+      compression call lands here automatically — no extra wiring.
     </p>
     <pre className="telemetry-snippet">
       <code>{SETUP_SNIPPET}</code>
@@ -47,9 +47,7 @@ const StatTile: FC<{ label: string; value: string; hint?: string }> = ({ label, 
 
 /** Dashboard body rendered once a non-empty snapshot exists. */
 const TelemetryDashboard: FC<{ snapshot: TelemetrySnapshot }> = ({ snapshot }) => {
-  const lastCall = snapshot.lastCallAt
-    ? new Date(snapshot.lastCallAt).toLocaleString()
-    : 'never';
+  const lastCall = snapshot.lastCallAt ? new Date(snapshot.lastCallAt).toLocaleString() : 'never';
 
   return (
     <>
@@ -61,8 +59,7 @@ const TelemetryDashboard: FC<{ snapshot: TelemetrySnapshot }> = ({ snapshot }) =
             <span className="telemetry-hero-unit">tokens</span>
           </p>
           <p className="telemetry-stat-hint">
-            {snapshot.todayCalls} call{snapshot.todayCalls === 1 ? '' : 's'} today · last{' '}
-            {lastCall}
+            {snapshot.todayCalls} call{snapshot.todayCalls === 1 ? '' : 's'} today · last {lastCall}
           </p>
         </section>
 
@@ -81,6 +78,7 @@ const TelemetryDashboard: FC<{ snapshot: TelemetrySnapshot }> = ({ snapshot }) =
         </section>
       </div>
 
+      {/* biome-ignore lint/a11y/useSemanticElements: ARIA role on a div avoids fieldset/output default styling */}
       <div className="telemetry-stat-strip" role="group" aria-label="Lifetime metrics">
         <StatTile label="Savings" value={`${snapshot.overallSavingsPercent}%`} hint="weighted" />
         <StatTile
@@ -119,8 +117,8 @@ const TelemetryDashboard: FC<{ snapshot: TelemetrySnapshot }> = ({ snapshot }) =
         <div className="desktop-chip-row telemetry-format-row" aria-label="Savings by format">
           {snapshot.formats.map((f) => (
             <span key={f.format} className="desktop-hero-chip">
-              {f.format} · {f.calls} call{f.calls === 1 ? '' : 's'} ·{' '}
-              {formatTokens(f.savedTokens)} saved
+              {f.format} · {f.calls} call{f.calls === 1 ? '' : 's'} · {formatTokens(f.savedTokens)}{' '}
+              saved
             </span>
           ))}
         </div>
@@ -139,6 +137,7 @@ const TelemetryPanel: FC = () => {
 
   if (status === 'loading' && !snapshot) {
     return (
+      // biome-ignore lint/a11y/useSemanticElements: ARIA role on a div avoids fieldset/output default styling
       <div className="telemetry-loading" role="status">
         <p className="desktop-copy">Reading agent telemetry…</p>
       </div>

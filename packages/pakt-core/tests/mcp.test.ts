@@ -205,20 +205,68 @@ describe('PAKT MCP tools', () => {
        dictionary actually emits — L2 still requires net positive savings
        even for seeded entries. */
     const turn1Payload = buildPayload([
-      { a: 'platform_engineering_team', b: 'platform_engineering_team', c: 'security_engineering_team' },
-      { a: 'security_engineering_team', b: 'platform_engineering_team', c: 'platform_engineering_team' },
-      { a: 'platform_engineering_team', b: 'security_engineering_team', c: 'platform_engineering_team' },
-      { a: 'security_engineering_team', b: 'platform_engineering_team', c: 'security_engineering_team' },
-      { a: 'platform_engineering_team', b: 'platform_engineering_team', c: 'security_engineering_team' },
-      { a: 'security_engineering_team', b: 'security_engineering_team', c: 'platform_engineering_team' },
+      {
+        a: 'platform_engineering_team',
+        b: 'platform_engineering_team',
+        c: 'security_engineering_team',
+      },
+      {
+        a: 'security_engineering_team',
+        b: 'platform_engineering_team',
+        c: 'platform_engineering_team',
+      },
+      {
+        a: 'platform_engineering_team',
+        b: 'security_engineering_team',
+        c: 'platform_engineering_team',
+      },
+      {
+        a: 'security_engineering_team',
+        b: 'platform_engineering_team',
+        c: 'security_engineering_team',
+      },
+      {
+        a: 'platform_engineering_team',
+        b: 'platform_engineering_team',
+        c: 'security_engineering_team',
+      },
+      {
+        a: 'security_engineering_team',
+        b: 'security_engineering_team',
+        c: 'platform_engineering_team',
+      },
     ]);
     const turn2Payload = buildPayload([
-      { a: 'platform_engineering_team', b: 'observability_squad_team', c: 'security_engineering_team' },
-      { a: 'security_engineering_team', b: 'platform_engineering_team', c: 'observability_squad_team' },
-      { a: 'observability_squad_team', b: 'security_engineering_team', c: 'platform_engineering_team' },
-      { a: 'platform_engineering_team', b: 'observability_squad_team', c: 'security_engineering_team' },
-      { a: 'observability_squad_team', b: 'platform_engineering_team', c: 'security_engineering_team' },
-      { a: 'security_engineering_team', b: 'observability_squad_team', c: 'platform_engineering_team' },
+      {
+        a: 'platform_engineering_team',
+        b: 'observability_squad_team',
+        c: 'security_engineering_team',
+      },
+      {
+        a: 'security_engineering_team',
+        b: 'platform_engineering_team',
+        c: 'observability_squad_team',
+      },
+      {
+        a: 'observability_squad_team',
+        b: 'security_engineering_team',
+        c: 'platform_engineering_team',
+      },
+      {
+        a: 'platform_engineering_team',
+        b: 'observability_squad_team',
+        c: 'security_engineering_team',
+      },
+      {
+        a: 'observability_squad_team',
+        b: 'platform_engineering_team',
+        c: 'security_engineering_team',
+      },
+      {
+        a: 'security_engineering_team',
+        b: 'observability_squad_team',
+        c: 'platform_engineering_team',
+      },
     ]);
 
     const turn1 = handlePaktTool('pakt_auto', { text: turn1Payload });

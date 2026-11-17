@@ -34,7 +34,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { VERSION } from './index.js';
 import { createPaktInterceptor } from './middleware/interceptor.js';
 import type { PaktInterceptor } from './middleware/interceptor.js';
-import { ToolCatalog, FACADE_TOOL_DEFINITIONS, slimTool, slimTools } from './proxy/index.js';
+import { FACADE_TOOL_DEFINITIONS, ToolCatalog, slimTool, slimTools } from './proxy/index.js';
 import type { ProviderTool } from './proxy/index.js';
 
 // ---------------------------------------------------------------------------
@@ -146,11 +146,7 @@ export function tokenizeCommand(cmd: string): string[] {
  * @param options - Proxy options including tool passthrough and catalog mode.
  */
 export async function startProxy(wrapCommand: string, options: ProxyOptions = {}): Promise<void> {
-  const {
-    passthroughTools = [],
-    toolsMode = 'full',
-    descriptionCap = 1024,
-  } = options;
+  const { passthroughTools = [], toolsMode = 'full', descriptionCap = 1024 } = options;
 
   const interceptor = createPaktInterceptor({
     minTokens: 100,
@@ -209,7 +205,14 @@ export async function startProxy(wrapCommand: string, options: ProxyOptions = {}
     );
   } else {
     // full or slim: register all real tools (possibly slimmed).
-    registerRealTools(server, client, interceptor, tools as ProviderTool[], toolsMode, descriptionCap);
+    registerRealTools(
+      server,
+      client,
+      interceptor,
+      tools as ProviderTool[],
+      toolsMode,
+      descriptionCap,
+    );
     if (toolsMode === 'slim') {
       logSlimSavings(tools as ProviderTool[], descriptionCap);
     }
@@ -248,9 +251,7 @@ function registerRealTools(
   descriptionCap: number,
 ): void {
   for (const tool of tools) {
-    const effective = mode === 'slim'
-      ? slimTool(tool, { descriptionCap })
-      : tool;
+    const effective = mode === 'slim' ? slimTool(tool, { descriptionCap }) : tool;
 
     server.registerTool(
       effective.name,
@@ -284,19 +285,21 @@ function registerSearchFacade(
       { description: facadeDef.description ?? '' },
       async (toolArgs: Record<string, unknown>) => {
         if (facadeDef.name === 'search_tools') {
-          const query = typeof toolArgs['query'] === 'string' ? toolArgs['query'] : '';
-          const limit = typeof toolArgs['limit'] === 'number' ? toolArgs['limit'] : 10;
+          const query = typeof toolArgs.query === 'string' ? toolArgs.query : '';
+          const limit = typeof toolArgs.limit === 'number' ? toolArgs.limit : 10;
           const results = catalog.search(query, limit);
           return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify({ results, totalInCatalog: catalog.size }, null, 2),
-            }],
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({ results, totalInCatalog: catalog.size }, null, 2),
+              },
+            ],
           };
         }
 
         if (facadeDef.name === 'get_tool_schema') {
-          const name = typeof toolArgs['name'] === 'string' ? toolArgs['name'] : '';
+          const name = typeof toolArgs.name === 'string' ? toolArgs.name : '';
           const schema = catalog.getSchema(name);
           const payload = schema
             ? { tool: schema }
@@ -308,23 +311,26 @@ function registerSearchFacade(
 
         if (facadeDef.name === 'call_tool') {
           // DOCUMENTED LIMITATION — see module JSDoc.
-          const name = typeof toolArgs['name'] === 'string' ? toolArgs['name'] : '(unknown)';
+          const name = typeof toolArgs.name === 'string' ? toolArgs.name : '(unknown)';
           const schema = catalog.getSchema(name);
           return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify({
-                error: 'pakt-proxy search-facade limitation: transparent call_tool rewriting ' +
-                  'requires bidirectional tool-result interception not available in the current ' +
-                  'stdio proxy architecture. Restart with --tools slim or --tools full to call ' +
-                  `"${name}" directly.`,
-                toolName: name,
-                toolSchema: schema ?? null,
-                hint: schema
-                  ? `Schema retrieved. Use --tools slim to invoke "${name}" directly.`
-                  : `"${name}" not in catalog. Use search_tools to find the correct name.`,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify(
+                  {
+                    error: `pakt-proxy search-facade limitation: transparent call_tool rewriting requires bidirectional tool-result interception not available in the current stdio proxy architecture. Restart with --tools slim or --tools full to call "${name}" directly.`,
+                    toolName: name,
+                    toolSchema: schema ?? null,
+                    hint: schema
+                      ? `Schema retrieved. Use --tools slim to invoke "${name}" directly.`
+                      : `"${name}" not in catalog. Use search_tools to find the correct name.`,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -347,7 +353,7 @@ function logSlimSavings(tools: ProviderTool[], descriptionCap: number): void {
   if (savings.savedTokens > 0) {
     process.stderr.write(
       `pakt proxy slim: catalog ${String(savings.originalTokens)} → ${String(savings.slimmedTokens)} tokens` +
-      ` (−${String(savings.savedTokens)}, ${String(savings.savedPercent)}% saved)\n`,
+        ` (−${String(savings.savedTokens)}, ${String(savings.savedPercent)}% saved)\n`,
     );
   }
 }
@@ -384,7 +390,7 @@ async function proxyToolCall(
         if (intercepted.wasPaktCompressed) {
           process.stderr.write(
             `pakt proxy: ${toolName} → ${String(intercepted.savings.totalPercent)}% saved` +
-            ` (${String(intercepted.savings.totalTokens)} tokens)\n`,
+              ` (${String(intercepted.savings.totalTokens)} tokens)\n`,
           );
         }
       } else {
@@ -434,7 +440,7 @@ function installProxyShutdown(
     if (stats.totalSavedTokens > 0) {
       process.stderr.write(
         `\npakt proxy stats: ${String(stats.compressedCalls)}/${String(stats.totalCalls)} calls compressed,` +
-        ` ${String(stats.totalSavedTokens)} tokens saved\n`,
+          ` ${String(stats.totalSavedTokens)} tokens saved\n`,
       );
     }
 

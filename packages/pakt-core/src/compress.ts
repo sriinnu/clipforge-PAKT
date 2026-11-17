@@ -8,7 +8,6 @@
  */
 
 import { computeCacheBreakpoint } from './cache-breakpoint.js';
-import { extractDictBlock, injectCacheDirective } from './dict-external.js';
 import {
   applyContentLayer,
   applyDictionaryLayer,
@@ -23,6 +22,7 @@ import {
   tryCompressSpecialFormats,
 } from './compress-helpers.js';
 import { DEFAULT_MAX_INPUT_BYTES, DEFAULT_OPTIONS } from './constants.js';
+import { extractDictBlock, injectCacheDirective } from './dict-external.js';
 import { parseInput } from './format-parsers/index.js';
 import { applyDeltaEncoding, compressL1, compressText } from './layers/index.js';
 import { serialize } from './serializer/index.js';

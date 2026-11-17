@@ -158,7 +158,7 @@ export function assertValidPaktInput(input: string): void {
 // ---------------------------------------------------------------------------
 
 /** Layer parser callback shape used by the compress / auto subcommands. */
-type LayerParser = (s: string) => Parameters<typeof compress>[1]['layers'];
+type LayerParser = (s: string) => NonNullable<Parameters<typeof compress>[1]>['layers'];
 
 /**
  * Resolve shared compression flags into `compress()` / `compressMixed()` options.

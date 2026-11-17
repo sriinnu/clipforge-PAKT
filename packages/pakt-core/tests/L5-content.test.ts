@@ -6,12 +6,11 @@
  * of the L5 content layer transforms.
  */
 import { describe, expect, it } from 'vitest';
-import { compress } from '../src/index.js';
 import { injectCompressContentHeader } from '../src/compress-helpers.js';
+import { compress } from '../src/index.js';
 import {
   applyL5Transforms,
   expandUrls,
-  expandWords,
   hasL5Marker,
   reverseL5Transforms,
 } from '../src/layers/L5-content.js';
@@ -322,12 +321,7 @@ describe('L5 integration with compress()', () => {
 
 describe('injectCompressContentHeader edge cases', () => {
   it('inserts after @warning lossy (L4 header present)', () => {
-    const input = [
-      '@from json',
-      '@warning lossy',
-      '',
-      'data: 1',
-    ].join('\n');
+    const input = ['@from json', '@warning lossy', '', 'data: 1'].join('\n');
     const result = injectCompressContentHeader(input);
     const lines = result.split('\n');
     // @compress content should appear after @warning lossy
@@ -340,13 +334,7 @@ describe('injectCompressContentHeader edge cases', () => {
   });
 
   it('handles multiple @compress headers (inserts after the last @-header)', () => {
-    const input = [
-      '@from json',
-      '@compress dict',
-      '@compress semantic',
-      '',
-      'data: 1',
-    ].join('\n');
+    const input = ['@from json', '@compress dict', '@compress semantic', '', 'data: 1'].join('\n');
     const result = injectCompressContentHeader(input);
     const lines = result.split('\n');
     expect(lines).toContain('@compress content');
@@ -357,13 +345,7 @@ describe('injectCompressContentHeader edge cases', () => {
   });
 
   it('handles @dict block right after headers', () => {
-    const input = [
-      '@from json',
-      '@dict',
-      '  $a: application',
-      '',
-      'data: 1',
-    ].join('\n');
+    const input = ['@from json', '@dict', '  $a: application', '', 'data: 1'].join('\n');
     const result = injectCompressContentHeader(input);
     const lines = result.split('\n');
     expect(lines).toContain('@compress content');
@@ -383,12 +365,7 @@ describe('injectCompressContentHeader edge cases', () => {
   });
 
   it('no-ops when @compress content already present', () => {
-    const input = [
-      '@from json',
-      '@compress content',
-      '',
-      'data: 1',
-    ].join('\n');
+    const input = ['@from json', '@compress content', '', 'data: 1'].join('\n');
     const result = injectCompressContentHeader(input);
     // Should be identical — no duplicate insertion
     expect(result).toBe(input);

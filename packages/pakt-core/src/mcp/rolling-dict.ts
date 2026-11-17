@@ -116,8 +116,7 @@ export class RollingDictionary {
        order is reproducible even if two entries were discovered in the
        same turn. */
     const sorted = [...this.entries.entries()].sort(
-      (a, b) =>
-        a[1].discoveredAtTurn - b[1].discoveredAtTurn || a[0].localeCompare(b[0]),
+      (a, b) => a[1].discoveredAtTurn - b[1].discoveredAtTurn || a[0].localeCompare(b[0]),
     );
 
     const seeds = new Set<string>();

@@ -69,11 +69,7 @@ export function clampToolResult(content: string, maxBytes: number): string {
  * @param tailLines - Number of tail lines to keep (line-based path).
  * @param model     - Model identifier for token counting.
  */
-export function ageSingleToolResult(
-  msg: ContextMessage,
-  tailLines: number,
-  model: string,
-): number {
+export function ageSingleToolResult(msg: ContextMessage, tailLines: number, model: string): number {
   const before = msg.currentTokens ?? 0;
   const lines = msg.content.split('\n');
 
@@ -115,10 +111,7 @@ export function ageSingleToolResult(
  * @param messages - Full message array to inspect.
  * @param ceiling  - Effective token ceiling.
  */
-export function computeAgingCutoff(
-  messages: ContextMessage[],
-  ceiling: number,
-): number {
+export function computeAgingCutoff(messages: ContextMessage[], ceiling: number): number {
   let running = 0;
   let cutoffIdx = -1;
 

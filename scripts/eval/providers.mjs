@@ -172,7 +172,8 @@ export function mockProvider() {
       } else {
         const base = String(task.expected);
         const variant = index % 3;
-        text = variant === 0 ? `${base.toUpperCase()}.` : variant === 1 ? `"${base}"` : `  ${base}  `;
+        text =
+          variant === 0 ? `${base.toUpperCase()}.` : variant === 1 ? `"${base}"` : `  ${base}  `;
       }
       return { text, usage: { input: 0, output: 0 } };
     },
@@ -227,7 +228,9 @@ function parseClaudeOutput(stdout) {
     throw new Error(`claude CLI reported is_error=true: ${JSON.stringify(parsed).slice(0, 300)}`);
   }
   if (typeof parsed.result !== 'string') {
-    throw new Error(`claude CLI output missing .result string: ${JSON.stringify(parsed).slice(0, 300)}`);
+    throw new Error(
+      `claude CLI output missing .result string: ${JSON.stringify(parsed).slice(0, 300)}`,
+    );
   }
   return parsed.result;
 }
@@ -264,13 +267,20 @@ function parseCodexOutput(stdout) {
       // Common fields codex might use — update if official schema differs.
       const text = parsed.result ?? parsed.output ?? parsed.content ?? parsed.text;
       if (typeof text === 'string' && text.trim()) return text.trim();
-    } catch { /* fall through to plain-text path */ }
+    } catch {
+      /* fall through to plain-text path */
+    }
   }
 
   // Attempt 2: plain text — strip known prefixes, take last non-empty line.
   const lines = trimmed
     .split('\n')
-    .map((l) => l.replace(/^\[codex\]\s*/i, '').replace(/^assistant:\s*/i, '').trim())
+    .map((l) =>
+      l
+        .replace(/^\[codex\]\s*/i, '')
+        .replace(/^assistant:\s*/i, '')
+        .trim(),
+    )
     .filter(Boolean);
   const answer = lines[lines.length - 1] ?? '';
   if (!answer) throw new Error('codex CLI: no extractable answer in output');
@@ -344,7 +354,9 @@ export function cliProvider({ cli, model }) {
       }
 
       // Hard failure — return sentinel so the run continues without crashing.
-      console.error(`  [cli/${cli}] Hard failure after ${CLI_RETRIES} attempts: ${lastErr.message}`);
+      console.error(
+        `  [cli/${cli}] Hard failure after ${CLI_RETRIES} attempts: ${lastErr.message}`,
+      );
       return { text: CLI_FAILURE_SENTINEL, usage: { input: 0, output: 0 } };
     },
   };
@@ -365,7 +377,8 @@ export function cliProvider({ cli, model }) {
  * @returns {Promise<{stdout: string, stderr: string}>}
  */
 async function spawnCli(cli, model, prompt) {
-  let bin, args;
+  let bin;
+  let args;
 
   if (cli === 'claude') {
     bin = 'claude';

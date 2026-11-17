@@ -268,11 +268,7 @@ describe('L3 restoreUnicode hardening', () => {
     // Metadata has one valid entry and several garbled ones:
     // "badentry" has no = or :, "2:2" has no =, "=2014" has no position
     // The valid entry 1:1=2014 targets line 1 ("a--b"), col 1 (the "--")
-    const input = [
-      '@target l3',
-      'a--b',
-      '# @l3u 1:1=2014,badentry,2:2,=2014',
-    ].join('\n');
+    const input = ['@target l3', 'a--b', '# @l3u 1:1=2014,badentry,2:2,=2014'].join('\n');
     const reversed = reverseL3Transforms(input);
     // The valid entry (1:1=2014) should still restore the em-dash
     expect(reversed).toContain('a\u2014b');
@@ -283,11 +279,7 @@ describe('L3 restoreUnicode hardening', () => {
   it('skips entries with NaN line or col values', () => {
     // "abc:5=2014" — line parses as NaN
     // "1:xyz=2019" — col parses as NaN
-    const input = [
-      '@target l3',
-      'hello--world',
-      '# @l3u abc:5=2014,1:xyz=2019',
-    ].join('\n');
+    const input = ['@target l3', 'hello--world', '# @l3u abc:5=2014,1:xyz=2019'].join('\n');
     const reversed = reverseL3Transforms(input);
     // Both entries should be skipped; text should remain as-is minus meta line
     expect(reversed).toContain('hello--world');
@@ -296,11 +288,7 @@ describe('L3 restoreUnicode hardening', () => {
 
   it('skips entries with out-of-range line or col', () => {
     // line 99 is beyond the line count; col 999 is beyond line length
-    const input = [
-      '@target l3',
-      'short',
-      '# @l3u 99:0=2014,0:999=2014',
-    ].join('\n');
+    const input = ['@target l3', 'short', '# @l3u 99:0=2014,0:999=2014'].join('\n');
     const reversed = reverseL3Transforms(input);
     // Both entries skipped; no corruption
     expect(reversed).toContain('short');
@@ -309,11 +297,7 @@ describe('L3 restoreUnicode hardening', () => {
 
   it('returns text without metadata line when metadata is completely garbled', () => {
     // The entire metadata content is nonsense
-    const input = [
-      '@target l3',
-      'plain text here',
-      '# @l3u totally!garbled!nonsense',
-    ].join('\n');
+    const input = ['@target l3', 'plain text here', '# @l3u totally!garbled!nonsense'].join('\n');
     const reversed = reverseL3Transforms(input);
     // Should return the text without the garbled metadata line, not crash
     expect(reversed).toContain('plain text here');

@@ -19,10 +19,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { VERSION } from './index.js';
-import { createPaktInterceptor } from './middleware/interceptor.js';
-import type { PaktInterceptor } from './middleware/interceptor.js';
 import { registerPaktTools } from './mcp/server.js';
 import { getSessionStats, setSessionId } from './mcp/session-stats.js';
+import { createPaktInterceptor } from './middleware/interceptor.js';
+import type { PaktInterceptor } from './middleware/interceptor.js';
 import {
   compactSessions,
   detectProject,
@@ -68,9 +68,7 @@ function installShutdownHandlers(
       // Best effort
     }
 
-    const closePromises: Promise<void>[] = [
-      server.close().catch(() => {}),
-    ];
+    const closePromises: Promise<void>[] = [server.close().catch(() => {})];
     if (client) closePromises.push(client.close().catch(() => {}));
 
     void Promise.all(closePromises).finally(() => process.exit(exitCode));
@@ -101,7 +99,13 @@ async function wrapServer(
   const clientTransport = new StdioClientTransport({
     command: cmd,
     args,
-    env: wrapEnv ? { ...process.env, ...wrapEnv } : undefined,
+    env: wrapEnv
+      ? Object.fromEntries(
+          Object.entries({ ...process.env, ...wrapEnv }).filter(
+            (e): e is [string, string] => e[1] !== undefined,
+          ),
+        )
+      : undefined,
   });
   const client = new Client({ name: 'pakt-proxy', version: VERSION });
   await client.connect(clientTransport);
@@ -174,8 +178,7 @@ export interface ServeOptions {
  */
 export async function startServe(options?: ServeOptions | string): Promise<void> {
   // Backward compat: old signature was startServe(agentName?: string)
-  const opts: ServeOptions =
-    typeof options === 'string' ? { agentName: options } : options ?? {};
+  const opts: ServeOptions = typeof options === 'string' ? { agentName: options } : (options ?? {});
 
   const server = new McpServer({ name: 'pakt', version: VERSION });
 

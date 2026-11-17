@@ -12,12 +12,8 @@
  * - `handleFacadeRequest` returns `handled: false` for non-facade requests
  */
 
-import { describe, expect, it, beforeEach } from 'vitest';
-import {
-  FACADE_TOOL_DEFINITIONS,
-  ToolCatalog,
-  handleFacadeRequest,
-} from '../src/proxy/index.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { FACADE_TOOL_DEFINITIONS, ToolCatalog, handleFacadeRequest } from '../src/proxy/index.js';
 import { FAT_CATALOG } from './fixtures/fat-catalog.js';
 
 // ---------------------------------------------------------------------------

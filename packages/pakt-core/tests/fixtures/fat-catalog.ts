@@ -157,7 +157,10 @@ export const FAT_CATALOG: ProviderTool[] = [
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
       issue_number: { type: 'number', description: 'The number of the issue to update.' },
-      title: { type: 'string', description: 'New title for the issue. Leave undefined to keep existing.' },
+      title: {
+        type: 'string',
+        description: 'New title for the issue. Leave undefined to keep existing.',
+      },
       state: { type: 'string', description: 'Set to open or closed.', enum: ['open', 'closed'] },
     },
     ['owner', 'repo', 'issue_number'],
@@ -218,10 +221,19 @@ export const FAT_CATALOG: ProviderTool[] = [
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
       title: { type: 'string', description: 'The title of the pull request. Required.' },
-      head: { type: 'string', description: 'The name of the branch where your changes are implemented.' },
-      base: { type: 'string', description: 'The name of the branch you want the changes pulled into.' },
+      head: {
+        type: 'string',
+        description: 'The name of the branch where your changes are implemented.',
+      },
+      base: {
+        type: 'string',
+        description: 'The name of the branch you want the changes pulled into.',
+      },
       body: { type: 'string', description: 'The description of the pull request in Markdown.' },
-      draft: { type: 'boolean', description: 'Indicates whether the pull request is a draft. Default false.' } as { type: string; description: string },
+      draft: {
+        type: 'boolean',
+        description: 'Indicates whether the pull request is a draft. Default false.',
+      } as { type: string; description: string },
     },
     ['owner', 'repo', 'title', 'head', 'base'],
   ),
@@ -235,9 +247,19 @@ export const FAT_CATALOG: ProviderTool[] = [
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
       sha: { type: 'string', description: 'SHA or branch to start listing commits from.' },
-      author: { type: 'string', description: 'GitHub login or email address by which to filter by commit author.' },
-      since: { type: 'string', description: 'Only show results that were last updated after the given time. ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ.' },
-      until: { type: 'string', description: 'Only commits before this date will be returned. ISO 8601 format.' },
+      author: {
+        type: 'string',
+        description: 'GitHub login or email address by which to filter by commit author.',
+      },
+      since: {
+        type: 'string',
+        description:
+          'Only show results that were last updated after the given time. ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ.',
+      },
+      until: {
+        type: 'string',
+        description: 'Only commits before this date will be returned. ISO 8601 format.',
+      },
       ...COMMON_PAGINATION,
     },
     ['owner', 'repo'],
@@ -265,8 +287,15 @@ export const FAT_CATALOG: ProviderTool[] = [
     {
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
-      path: { type: 'string', description: 'The file path within the repository. Use forward slashes.' },
-      ref: { type: 'string', description: 'The branch, tag, or commit SHA to get contents from. Defaults to the repository default branch.' },
+      path: {
+        type: 'string',
+        description: 'The file path within the repository. Use forward slashes.',
+      },
+      ref: {
+        type: 'string',
+        description:
+          'The branch, tag, or commit SHA to get contents from. Defaults to the repository default branch.',
+      },
     },
     ['owner', 'repo', 'path'],
   ),
@@ -283,8 +312,14 @@ export const FAT_CATALOG: ProviderTool[] = [
       path: { type: 'string', description: 'The file path to create or update.' },
       message: { type: 'string', description: 'The commit message describing the change.' },
       content: { type: 'string', description: 'The new file content, base64-encoded.' },
-      sha: { type: 'string', description: 'Required when updating. The blob SHA of the file being replaced.' },
-      branch: { type: 'string', description: 'The branch to commit to. Defaults to the repository default branch.' },
+      sha: {
+        type: 'string',
+        description: 'Required when updating. The blob SHA of the file being replaced.',
+      },
+      branch: {
+        type: 'string',
+        description: 'The branch to commit to. Defaults to the repository default branch.',
+      },
     },
     ['owner', 'repo', 'path', 'message', 'content'],
   ),
@@ -338,7 +373,10 @@ export const FAT_CATALOG: ProviderTool[] = [
       'Qualifiers like filename:, extension:, path:, language:, repo:, and org: can be ' +
       'combined to narrow results. Rate limits are stricter for unauthenticated requests.',
     {
-      query: { type: 'string', description: 'The search keywords and qualifiers, e.g. "addClass in:file language:js".' },
+      query: {
+        type: 'string',
+        description: 'The search keywords and qualifiers, e.g. "addClass in:file language:js".',
+      },
       ...COMMON_PAGINATION,
     },
     ['query'],
@@ -352,7 +390,11 @@ export const FAT_CATALOG: ProviderTool[] = [
       'state:, type:) to build complex queries.',
     {
       query: { type: 'string', description: 'The search query string with optional qualifiers.' },
-      sort: { type: 'string', description: 'Sort by: comments, reactions, created, updated.', enum: ['comments', 'reactions', 'created', 'updated'] },
+      sort: {
+        type: 'string',
+        description: 'Sort by: comments, reactions, created, updated.',
+        enum: ['comments', 'reactions', 'created', 'updated'],
+      },
       order: { type: 'string', description: 'Sort direction: asc or desc.', enum: ['asc', 'desc'] },
       ...COMMON_PAGINATION,
     },
@@ -367,7 +409,10 @@ export const FAT_CATALOG: ProviderTool[] = [
     {
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
-      protected: { type: 'boolean', description: 'Setting to true returns only protected branches.' } as { type: string; description: string },
+      protected: {
+        type: 'boolean',
+        description: 'Setting to true returns only protected branches.',
+      } as { type: string; description: string },
       ...COMMON_PAGINATION,
     },
     ['owner', 'repo'],
@@ -395,7 +440,10 @@ export const FAT_CATALOG: ProviderTool[] = [
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
       branch: { type: 'string', description: 'The name of the new branch to create.' },
-      sha: { type: 'string', description: 'The SHA of the commit to branch from. Must be a full 40-character SHA.' },
+      sha: {
+        type: 'string',
+        description: 'The SHA of the commit to branch from. Must be a full 40-character SHA.',
+      },
     },
     ['owner', 'repo', 'branch', 'sha'],
   ),
@@ -406,9 +454,20 @@ export const FAT_CATALOG: ProviderTool[] = [
       'including description, visibility, stars, forks, default branch, and topics. ' +
       'Can be filtered by type (all, owner, member) and sorted by various criteria.',
     {
-      username: { type: 'string', description: 'The GitHub username or organization name whose repositories to list.' },
-      type: { type: 'string', description: 'Limit results to repositories of the specified type. Default: owner.', enum: ['all', 'owner', 'member'] },
-      sort: { type: 'string', description: 'The property to sort by: created, updated, pushed, full_name.', enum: ['created', 'updated', 'pushed', 'full_name'] },
+      username: {
+        type: 'string',
+        description: 'The GitHub username or organization name whose repositories to list.',
+      },
+      type: {
+        type: 'string',
+        description: 'Limit results to repositories of the specified type. Default: owner.',
+        enum: ['all', 'owner', 'member'],
+      },
+      sort: {
+        type: 'string',
+        description: 'The property to sort by: created, updated, pushed, full_name.',
+        enum: ['created', 'updated', 'pushed', 'full_name'],
+      },
       ...COMMON_PAGINATION,
     },
     ['username'],
@@ -421,10 +480,23 @@ export const FAT_CATALOG: ProviderTool[] = [
       'template, and adding a license. Returns the full repository object including the ' +
       'clone URL and SSH URL.',
     {
-      name: { type: 'string', description: 'The name of the repository. Required. Must be URL-safe (alphanumeric, hyphens, underscores).' },
-      description: { type: 'string', description: 'A short description of the repository. Optional but recommended.' },
-      private: { type: 'boolean', description: 'Set to true to create a private repository. Default false (public).' } as { type: string; description: string },
-      auto_init: { type: 'boolean', description: 'Set to true to initialize the repository with a README.' } as { type: string; description: string },
+      name: {
+        type: 'string',
+        description:
+          'The name of the repository. Required. Must be URL-safe (alphanumeric, hyphens, underscores).',
+      },
+      description: {
+        type: 'string',
+        description: 'A short description of the repository. Optional but recommended.',
+      },
+      private: {
+        type: 'boolean',
+        description: 'Set to true to create a private repository. Default false (public).',
+      } as { type: string; description: string },
+      auto_init: {
+        type: 'boolean',
+        description: 'Set to true to initialize the repository with a README.',
+      } as { type: string; description: string },
     },
     ['name'],
   ),
@@ -438,7 +510,11 @@ export const FAT_CATALOG: ProviderTool[] = [
     {
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
-      organization: { type: 'string', description: 'Optional. The organization to fork into. If not specified, forks into the authenticated user account.' },
+      organization: {
+        type: 'string',
+        description:
+          'Optional. The organization to fork into. If not specified, forks into the authenticated user account.',
+      },
     },
     ['owner', 'repo'],
   ),
@@ -452,7 +528,10 @@ export const FAT_CATALOG: ProviderTool[] = [
     {
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
-      issue_number: { type: 'number', description: 'The number of the issue or pull request to comment on.' },
+      issue_number: {
+        type: 'number',
+        description: 'The number of the issue or pull request to comment on.',
+      },
       body: { type: 'string', description: 'The comment body in GitHub-flavored Markdown.' },
     },
     ['owner', 'repo', 'issue_number', 'body'],
@@ -467,7 +546,10 @@ export const FAT_CATALOG: ProviderTool[] = [
       owner: { type: 'string', description: OWNER_DESC },
       repo: { type: 'string', description: REPO_DESC },
       issue_number: { type: 'number', description: 'The issue number to list comments for.' },
-      since: { type: 'string', description: 'Only comments updated at or after this time are returned. ISO 8601 format.' },
+      since: {
+        type: 'string',
+        description: 'Only comments updated at or after this time are returned. ISO 8601 format.',
+      },
       ...COMMON_PAGINATION,
     },
     ['owner', 'repo', 'issue_number'],
@@ -526,7 +608,10 @@ export const FAT_CATALOG: ProviderTool[] = [
       type: 'object',
       properties: {
         path: { type: 'string', description: 'Absolute path to the directory to list.' },
-        recursive: { type: 'boolean', description: 'If true, recursively lists subdirectories.' } as { type: string; description: string },
+        recursive: {
+          type: 'boolean',
+          description: 'If true, recursively lists subdirectories.',
+        } as { type: string; description: string },
       },
       required: ['path'],
       additionalProperties: false,
@@ -544,7 +629,10 @@ export const FAT_CATALOG: ProviderTool[] = [
       type: 'object',
       properties: {
         source: { type: 'string', description: 'The current path of the file or directory.' },
-        destination: { type: 'string', description: 'The target path to move the file or directory to.' },
+        destination: {
+          type: 'string',
+          description: 'The target path to move the file or directory to.',
+        },
       },
       required: ['source', 'destination'],
       additionalProperties: false,
@@ -562,8 +650,14 @@ export const FAT_CATALOG: ProviderTool[] = [
       type: 'object',
       properties: {
         path: { type: 'string', description: 'Starting directory for the recursive search.' },
-        pattern: { type: 'string', description: 'Glob pattern to match against file and directory names.' },
-        exclude_patterns: { type: 'string', description: 'Comma-separated glob patterns to exclude from results.' },
+        pattern: {
+          type: 'string',
+          description: 'Glob pattern to match against file and directory names.',
+        },
+        exclude_patterns: {
+          type: 'string',
+          description: 'Comma-separated glob patterns to exclude from results.',
+        },
       },
       required: ['path', 'pattern'],
       additionalProperties: false,
@@ -580,9 +674,18 @@ export const FAT_CATALOG: ProviderTool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        command: { type: 'string', description: 'The shell command to execute. Must be a single line.' },
-        cwd: { type: 'string', description: 'Working directory for the command. Defaults to the server root.' },
-        timeout_ms: { type: 'number', description: 'Maximum execution time in milliseconds. Default 30000. Maximum 120000.' },
+        command: {
+          type: 'string',
+          description: 'The shell command to execute. Must be a single line.',
+        },
+        cwd: {
+          type: 'string',
+          description: 'Working directory for the command. Defaults to the server root.',
+        },
+        timeout_ms: {
+          type: 'number',
+          description: 'Maximum execution time in milliseconds. Default 30000. Maximum 120000.',
+        },
       },
       required: ['command'],
       additionalProperties: false,
@@ -628,9 +731,18 @@ export const FAT_CATALOG: ProviderTool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        url: { type: 'string', description: 'The full URL to fetch, including the scheme (https:// or http://).' },
-        timeout_ms: { type: 'number', description: 'Request timeout in milliseconds. Default 10000.' },
-        headers: { type: 'object', description: 'Optional HTTP headers to include in the request.' } as { type: string; description: string },
+        url: {
+          type: 'string',
+          description: 'The full URL to fetch, including the scheme (https:// or http://).',
+        },
+        timeout_ms: {
+          type: 'number',
+          description: 'Request timeout in milliseconds. Default 10000.',
+        },
+        headers: {
+          type: 'object',
+          description: 'Optional HTTP headers to include in the request.',
+        } as { type: string; description: string },
       },
       required: ['url'],
       additionalProperties: false,

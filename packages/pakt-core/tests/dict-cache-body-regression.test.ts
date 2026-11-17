@@ -10,8 +10,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { injectCacheDirective, stripCacheDirectives } from '../src/dict-external.js';
 import { compress, decompress } from '../src/index.js';
-import { stripCacheDirectives, injectCacheDirective } from '../src/dict-external.js';
 
 // ---------------------------------------------------------------------------
 // Direct stripCacheDirectives unit tests
@@ -24,8 +24,8 @@ describe('stripCacheDirectives — body @cache lines survive', () => {
       '@dict',
       '  $a: some_value',
       '@end',
-      '@cache prefix-end',   // <-- valid header, should be stripped
-      '@cache prefix-end',   // <-- first body line (position after header ends), must survive
+      '@cache prefix-end', // <-- valid header, should be stripped
+      '@cache prefix-end', // <-- first body line (position after header ends), must survive
       'some body content',
     ].join('\n');
 
@@ -56,7 +56,7 @@ describe('stripCacheDirectives — body @cache lines survive', () => {
       '@dict',
       '  $a: hello',
       '@end',
-      '@cache prefix-end',   // immediately after @end — treated as header
+      '@cache prefix-end', // immediately after @end — treated as header
       'more text',
       'final line',
     ].join('\n');
@@ -72,7 +72,7 @@ describe('stripCacheDirectives — body @cache lines survive', () => {
     // If @cache appears before any @dict block, it's a body line
     const pakt = [
       '@from text',
-      '@cache something',      // before @dict — should NOT be stripped
+      '@cache something', // before @dict — should NOT be stripped
       '@dict',
       '  $a: value',
       '@end',
@@ -89,7 +89,7 @@ describe('stripCacheDirectives — body @cache lines survive', () => {
       '@dict',
       '  $a: developer',
       '@end',
-      '@cache prefix-end',   // valid header — should be stripped
+      '@cache prefix-end', // valid header — should be stripped
       'key: $a',
     ].join('\n');
 
@@ -110,7 +110,7 @@ describe('injectCacheDirective — does not inject into body', () => {
       '@dict',
       '  $a: dev',
       '@end',
-      '@cache prefix-end',   // already injected — no-op
+      '@cache prefix-end', // already injected — no-op
       'key: $a',
     ].join('\n');
 
@@ -128,10 +128,10 @@ describe('roundtrip: text/markdown payloads with @cache mid-body', () => {
   it('markdown payload containing @cache mid-body roundtrips intact', () => {
     // Craft a text payload that contains @cache somewhere in the body
     // and compress it with a cacheTarget so a real @cache header is injected.
-    const REPETITIVE = Array.from(
+    const REPETITIVE = `${Array.from(
       { length: 8 },
       (_, i) => `entry ${String(i)}: platform_reliability_squad platform_reliability_squad`,
-    ).join('\n') + '\n@cache some-annotation\nend of file';
+    ).join('\n')}\n@cache some-annotation\nend of file`;
 
     // compress with text format (no structural compression, but @cache directive may be added)
     const result = compress(REPETITIVE, { fromFormat: 'text', target: 'anthropic' });

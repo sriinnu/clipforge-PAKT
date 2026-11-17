@@ -11,11 +11,7 @@
  * here so existing `from './cli-commands.js'` imports keep working.
  */
 
-import {
-  parseDictPlacement,
-  resolveExternalDict,
-  writeDictBlock,
-} from './cli-commands-dict.js';
+import { parseDictPlacement, resolveExternalDict, writeDictBlock } from './cli-commands-dict.js';
 import {
   type ParsedArgs,
   assertValidPaktInput,
@@ -55,7 +51,7 @@ export { cmdStats } from './cli-commands-stats.js';
 export function cmdCompress(
   args: ParsedArgs,
   readInput: (file: string | undefined) => string,
-  parseLayers: (s: string) => Parameters<typeof compress>[1]['layers'],
+  parseLayers: (s: string) => NonNullable<Parameters<typeof compress>[1]>['layers'],
 ): void {
   const input = readInput(args.file);
   const options = buildCompressionOptions(args, parseLayers);
@@ -160,7 +156,9 @@ export function cmdInspect(
   }) as PaktInspectResult;
 
   process.stdout.write(`Format:               ${result.detectedFormat}\n`);
-  process.stdout.write(`Confidence:           ${String(Math.round(result.confidence * 100))}%\n`);
+  process.stdout.write(
+    `Confidence:           ${String(Math.round(Number(result.confidence) * 100))}%\n`,
+  );
   process.stdout.write(`Reason:               ${result.reason}\n`);
   process.stdout.write(`Input tokens:         ${String(result.inputTokens)}\n`);
   process.stdout.write(`Recommended action:   ${result.recommendedAction}\n`);
@@ -263,7 +261,7 @@ export function cmdSavings(
 export function cmdAuto(
   args: ParsedArgs,
   readInput: (file: string | undefined) => string,
-  parseLayers: (s: string) => Parameters<typeof compress>[1]['layers'],
+  parseLayers: (s: string) => NonNullable<Parameters<typeof compress>[1]>['layers'],
 ): void {
   const input = readInput(args.file);
 

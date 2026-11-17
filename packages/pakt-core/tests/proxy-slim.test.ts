@@ -13,12 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  applySlimMode,
-  slimTool,
-  slimTools,
-  truncateAtSentence,
-} from '../src/proxy/index.js';
+import { applySlimMode, slimTool, slimTools, truncateAtSentence } from '../src/proxy/index.js';
 import type { ProviderTool } from '../src/proxy/index.js';
 import { FAT_CATALOG } from './fixtures/fat-catalog.js';
 
@@ -72,7 +67,7 @@ describe('slimTool — schema boilerplate', () => {
     };
     const slimmed = slimTool(tool);
     expect(slimmed.input_schema).toBeDefined();
-    expect(slimmed.input_schema!['additionalProperties']).toBeUndefined();
+    expect(slimmed.input_schema!.additionalProperties).toBeUndefined();
   });
 
   it('strips top-level type:"object" from input_schema', () => {
@@ -86,7 +81,7 @@ describe('slimTool — schema boilerplate', () => {
       },
     };
     const slimmed = slimTool(tool);
-    expect(slimmed.input_schema!['type']).toBeUndefined();
+    expect(slimmed.input_schema!.type).toBeUndefined();
   });
 
   it('strips null values from property definitions', () => {
@@ -99,7 +94,6 @@ describe('slimTool — schema boilerplate', () => {
           query: {
             type: 'string',
             description: 'Query string.',
-            // biome-ignore lint/suspicious/noExplicitAny: deliberate null injection for test
             enum: null as any,
           },
         },
@@ -107,9 +101,9 @@ describe('slimTool — schema boilerplate', () => {
       },
     };
     const slimmed = slimTool(tool);
-    const prop = slimmed.input_schema!.properties!['query'];
+    const prop = slimmed.input_schema!.properties!.query;
     expect(prop).toBeDefined();
-    expect(prop!['enum']).toBeUndefined();
+    expect(prop!.enum).toBeUndefined();
   });
 
   it('does not mutate the original tool', () => {
@@ -152,7 +146,7 @@ describe('slimTool — description truncation', () => {
   it('removes empty description fields', () => {
     const tool: ProviderTool = { name: 'tool', description: '' };
     const slimmed = slimTool(tool);
-    expect(slimmed['description']).toBeUndefined();
+    expect(slimmed.description).toBeUndefined();
   });
 });
 
@@ -211,14 +205,14 @@ describe('applySlimMode', () => {
       tools: FAT_CATALOG.slice(0, 5),
       messages: [{ role: 'user', content: 'Hello' }],
     };
-    const originalTools = JSON.stringify(body['tools']);
+    const originalTools = JSON.stringify(body.tools);
     const savings = applySlimMode(body);
 
     expect(savings.savedTokens).toBeGreaterThanOrEqual(0);
     // Body was mutated
-    expect(JSON.stringify(body['tools'])).not.toBe(originalTools);
+    expect(JSON.stringify(body.tools)).not.toBe(originalTools);
     // Other fields untouched
-    expect(body['model']).toBe('claude-3-5-sonnet');
+    expect(body.model).toBe('claude-3-5-sonnet');
   });
 
   it('returns zero savings and does not touch body without tools key', () => {
@@ -282,7 +276,7 @@ describe('pass-through integrity', () => {
     // Properties must survive
     expect(Object.keys(slimmed.input_schema!.properties ?? {})).toContain('owner');
     // Enum must survive
-    const stateProp = slimmed.input_schema!.properties!['state'];
+    const stateProp = slimmed.input_schema!.properties!.state;
     expect(stateProp?.enum).toEqual(['open', 'closed', 'all']);
   });
 });

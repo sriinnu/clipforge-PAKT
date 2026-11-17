@@ -14,7 +14,7 @@ import type {
   ScalarNode,
   TabularArrayNode,
 } from '../parser/ast.js';
-import { inlineToArray, listToArray } from './helpers.js';
+import { inlineToArray, isPlainRecord, listToArray } from './helpers.js';
 
 /**
  * Convert PAKT AST body nodes to a Markdown string.
@@ -189,6 +189,11 @@ function listArrayToMarkdown(node: ListArrayNode): string {
   const items = listToArray(node);
   const lines = [`**${node.key}**:`];
   for (const item of items) {
+    if (!isPlainRecord(item)) {
+      // Primitive or array element (#59 list shapes).
+      lines.push(`- ${formatMdValue(item)}`);
+      continue;
+    }
     const entries = Object.entries(item);
     if (entries.length === 0) {
       lines.push('- (empty)');
@@ -231,6 +236,9 @@ function formatMdValue(value: unknown): string {
   }
   if (typeof value === 'string') {
     return value.length === 0 ? '*(empty)*' : value;
+  }
+  if (Array.isArray(value) || isPlainRecord(value)) {
+    return `\`${JSON.stringify(value)}\``;
   }
   return String(value);
 }

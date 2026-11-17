@@ -468,7 +468,8 @@ function parseListArray(
         reportError(
           s,
           'Expected `}` immediately after `{` in list empty-object sentinel',
-          posOf(braceOpenTok),
+          braceOpenTok.line,
+          braceOpenTok.column,
         );
         while (peek(s).type !== 'NEWLINE' && peek(s).type !== 'EOF') advance(s);
       }
