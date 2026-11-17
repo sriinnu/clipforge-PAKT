@@ -34,6 +34,9 @@
     "active": true,
     "targets": "all",
     "copyright": "\u00a9 2026 Sriinnu",
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    },
     "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
   },
   "plugins": {}
