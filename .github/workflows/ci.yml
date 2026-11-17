@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   lint:
-    name: Lint (advisory)
+    name: Lint & typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -30,7 +30,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm lint:advisory
+      - run: pnpm lint
+
+      # Apps resolve @sriinnu/pakt types from its built dist.
+      - run: pnpm build:core
+
+      - run: pnpm typecheck
 
   test:
     name: Test

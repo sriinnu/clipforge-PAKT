@@ -31,6 +31,7 @@
     "dev:desktop": "pnpm --filter @sriinnu/clipforge-desktop tauri dev",
     "start:mcp": "pnpm --filter @sriinnu/pakt build && node packages/pakt-core/dist/cli.js serve --stdio",
     "lint": "biome check .",
+    "typecheck": "tsc --noEmit -p packages/pakt-core && tsc --noEmit -p apps/desktop && tsc --noEmit -p apps/extension && tsc --noEmit -p apps/playground",
     "lint:advisory": "biome check . || true",
     "lint:strict": "biome check .",
     "lint:fix": "biome check --write .",
