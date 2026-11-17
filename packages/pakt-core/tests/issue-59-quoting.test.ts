@@ -68,3 +68,15 @@ describe('issue #59: validate/repair count quoted commas correctly', () => {
     expect(repair(doc)).toBe(doc);
   });
 });
+
+describe('issue #59 follow-up: keys inside mixed list items', () => {
+  it.each([
+    [['ok', 'hello, world', { '1': 2, 'a]': 1 }]],
+    [['x', { '1': 2 }]],
+    [['x', { a: 1, 'b]': 2 }]],
+    [['x', { a: 1, '2': [1, 2] }]],
+    [{ k: ['x', { '10': { '20': 'y' } }] }],
+  ])('%j', (value) => {
+    expect(roundtrip(value)).toEqual(value);
+  });
+});

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Numeric and quoted keys inside mixed list items** ([#59](https://github.com/sriinnu/clipforge-PAKT/issues/59) follow-up). An object in a mixed array whose keys were numeric (`{"1": 2}`, or a nested `{"10": {...}}`) or quoted after the first key (`{"a": 1, "b]": 2}`) lost those keys on decompress. The list-item parser now accepts the same key tokens as the top-level body.
+
 ## [0.12.1] - 2026-11-17
 
 ### Fixed

@@ -408,6 +408,29 @@ function parseInlineArray(
  * @param indent - Current indentation level
  * @returns Parsed list array node
  */
+/**
+ * True when the current token opens a keyed node inside a list item: a bare
+ * key, a quoted key (`"a]": 1`), or a numeric key (`1: 2`, or a bare `10`
+ * object header). A NUMBER followed by anything else is not a key
+ * (issue #59 follow-up).
+ */
+function isKeyStart(s: ParserState): boolean {
+  const t = peek(s).type;
+  if (t === 'KEY' || t === 'QUOTED_STRING') return true;
+  if (t !== 'NUMBER') return false;
+  const next = s.tokens[s.pos + 1]?.type;
+  return (
+    next === 'COLON' ||
+    next === 'BRACKET_OPEN' ||
+    next === 'BRACE_OPEN' ||
+    // A bare numeric object header (`10` with children below). Scalar list
+    // items are always written as `_value: …`, so this cannot be a value.
+    next === 'NEWLINE' ||
+    next === 'EOF' ||
+    next === 'COMMENT'
+  );
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: list array parsing tracks dash-items with nested body recursion
 function parseListArray(
   s: ParserState,
@@ -453,7 +476,7 @@ function parseListArray(
       continue;
     }
 
-    if (peek(s).type === 'KEY' || peek(s).type === 'QUOTED_STRING') {
+    if (isKeyStart(s)) {
       const node = parseKeyedNode(s, itemIndent);
       if (node) children.push(node);
     }
@@ -469,7 +492,7 @@ function parseListArray(
         children.push({ type: 'comment', text: ct.value, inline: false, position: posOf(ct) });
         continue;
       }
-      if (peek(s).type === 'KEY') {
+      if (isKeyStart(s)) {
         const node = parseKeyedNode(s, childIndent);
         if (node) children.push(node);
         continue;
