@@ -19,12 +19,14 @@ import type { ContextMessage } from './types.js';
 /**
  * Walk `messages` and replace repeated content with a short reference note.
  *
- * Uses a `first-200-chars + length` hash as the duplicate key — cheap and
- * collision-resistant enough for conversation-scale payloads. Opaque messages
- * (provider compaction blocks) are always skipped.
+ * The duplicate key is the full content string, so only byte-identical
+ * content is collapsed. (A `first-200-chars + length` key used to merge
+ * different files sharing a header and length.) Strings are shared by
+ * reference, so the map costs no copies. Opaque messages (provider
+ * compaction blocks) are always skipped.
  *
  * @param messages     - Message array to dedup in place (cloned externally).
- * @param contentHashes - Persistent hash → first-turn map owned by the engine.
+ * @param contentHashes - Persistent content → first-turn map owned by the engine.
  * @param model        - Model identifier for token counting.
  * @returns Tokens saved by deduplication.
  */
@@ -41,8 +43,8 @@ export function deduplicateContent(
     // SAFETY: never dedup a message that carries provider opaque blocks.
     if (msg.containsOpaqueBlocks) continue;
 
-    // Simple content hash: first 200 chars + total length.
-    const hash = `${msg.content.slice(0, 200)}:${String(msg.content.length)}`;
+    // Exact key: the full content (see the doc comment for why not a prefix hash).
+    const hash = msg.content;
 
     const firstSeen = contentHashes.get(hash);
     if (firstSeen !== undefined && firstSeen < (msg.turn ?? 0)) {
