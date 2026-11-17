@@ -24,8 +24,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { utf8ByteLength } from '../utils/utf8-length.js';
 import type { PaktResult } from '../types.js';
+import { utf8ByteLength } from '../utils/utf8-length.js';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -180,9 +180,8 @@ export function buildAnthropicCacheHints(
     };
   }
 
-  const cacheCtrl: AnthropicCacheControl = opts.ttl !== undefined
-    ? { type: 'ephemeral', ttl: opts.ttl }
-    : { type: 'ephemeral' };
+  const cacheCtrl: AnthropicCacheControl =
+    opts.ttl !== undefined ? { type: 'ephemeral', ttl: opts.ttl } : { type: 'ephemeral' };
 
   let breakpointsUsed = 0;
   const out: AnthropicCacheHints = { breakpointsUsed: 0 };
@@ -190,7 +189,7 @@ export function buildAnthropicCacheHints(
   // ---- dict block path (dictPlacement: 'system') -------------------------
   if (result.dictBlock !== undefined && result.dictBlock.length > 0) {
     const estimatedTokens = Math.floor(
-      utf8ByteLength(result.dictBlock, Infinity) / 4,
+      utf8ByteLength(result.dictBlock, Number.POSITIVE_INFINITY) / 4,
     );
     if (estimatedTokens < minPrefixTokens) {
       out.reason =
@@ -276,7 +275,7 @@ export function buildOpenAICacheHints(
   // The most stable prefix anchor is the dict block (unchanged across turns
   // when the same compression run is reused).
   if (result.dictBlock !== undefined && result.dictBlock.length > 0) {
-    const dictByteLen = utf8ByteLength(result.dictBlock, Infinity);
+    const dictByteLen = utf8ByteLength(result.dictBlock, Number.POSITIVE_INFINITY);
     const estimatedTokens = Math.floor(dictByteLen / 4);
     const key = stableKey(result.dictBlock);
 
@@ -295,11 +294,8 @@ export function buildOpenAICacheHints(
 
   // Fall back to the cache breakpoint region (inline dict in compressed string).
   if (result.cacheBreakpoint !== undefined && result.cacheBreakpoint.byteOffset > 0) {
-    const { prefixText } = splitAtByteOffset(
-      result.compressed,
-      result.cacheBreakpoint.byteOffset,
-    );
-    const byteLen = utf8ByteLength(prefixText, Infinity);
+    const { prefixText } = splitAtByteOffset(result.compressed, result.cacheBreakpoint.byteOffset);
+    const byteLen = utf8ByteLength(prefixText, Number.POSITIVE_INFINITY);
     const estimatedTokens = Math.floor(byteLen / 4);
     const key = stableKey(prefixText);
 

@@ -279,7 +279,15 @@ export type {
 // Proxy tool-catalog optimization (slim mode + search facade)
 // ---------------------------------------------------------------------------
 
-export { slimTool, slimTools, applySlimMode, truncateAtSentence, ToolCatalog, FACADE_TOOL_DEFINITIONS, handleFacadeRequest } from './proxy/index.js';
+export {
+  slimTool,
+  slimTools,
+  applySlimMode,
+  truncateAtSentence,
+  ToolCatalog,
+  FACADE_TOOL_DEFINITIONS,
+  handleFacadeRequest,
+} from './proxy/index.js';
 export type { FacadeHandleResult } from './proxy/index.js';
 export type {
   ProviderTool,

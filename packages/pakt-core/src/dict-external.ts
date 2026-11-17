@@ -68,12 +68,15 @@ function chomp(line: string): string {
  */
 function findBodyStart(lines: string[]): number {
   let inDict = false;
-  let dictSeen = false;   // true after the @dict...@end block has been closed
-  let cacheSeen = false;  // true after the single valid @cache header is consumed
+  let dictSeen = false; // true after the @dict...@end block has been closed
+  let cacheSeen = false; // true after the single valid @cache header is consumed
   for (let i = 0; i < lines.length; i++) {
     const line = chomp(lines[i] ?? '');
     if (inDict) {
-      if (line === '@end') { inDict = false; dictSeen = true; }
+      if (line === '@end') {
+        inDict = false;
+        dictSeen = true;
+      }
       continue;
     }
     if (line === '@dict' || line.startsWith('@dict ')) {

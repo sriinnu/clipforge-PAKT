@@ -55,8 +55,12 @@ function scoreEntry(entry: CatalogEntry, queryTokens: string[]): number {
     // Name match is weighted 3×, description 1×.
     // Only match when a catalog token contains the query token (prefix/exact),
     // never the reverse — prevents short stop-words from scoring everything.
-    const nameHits = nameTokens.filter((t) => t === qt || t.startsWith(qt) || (qt.startsWith(t) && qt.length >= 4)).length;
-    const descHits = descTokens.filter((t) => t === qt || t.startsWith(qt) || (qt.startsWith(t) && qt.length >= 4)).length;
+    const nameHits = nameTokens.filter(
+      (t) => t === qt || t.startsWith(qt) || (qt.startsWith(t) && qt.length >= 4),
+    ).length;
+    const descHits = descTokens.filter(
+      (t) => t === qt || t.startsWith(qt) || (qt.startsWith(t) && qt.length >= 4),
+    ).length;
     score += nameHits * 3 + descHits;
   }
   return score;
@@ -347,7 +351,11 @@ function extractToolCall(body: Record<string, unknown>): ExtractedToolCall | nul
         if (fn && typeof fn['name'] === 'string') {
           let args: Record<string, unknown> = {};
           if (typeof fn['arguments'] === 'string') {
-            try { args = JSON.parse(fn['arguments']) as Record<string, unknown>; } catch { /* pass */ }
+            try {
+              args = JSON.parse(fn['arguments']) as Record<string, unknown>;
+            } catch {
+              /* pass */
+            }
           } else if (fn['arguments'] && typeof fn['arguments'] === 'object') {
             args = fn['arguments'] as Record<string, unknown>;
           }

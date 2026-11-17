@@ -58,9 +58,7 @@ export const SparklineSvg: FC<SparklineSvgProps> = ({
   const first = points[0];
   const last = points[points.length - 1];
   const areaPath =
-    first && last
-      ? `${linePath} L${last[0]} ${height - PAD} L${first[0]} ${height - PAD} Z`
-      : '';
+    first && last ? `${linePath} L${last[0]} ${height - PAD} L${first[0]} ${height - PAD} Z` : '';
 
   return (
     <svg

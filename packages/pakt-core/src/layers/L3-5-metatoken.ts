@@ -25,15 +25,8 @@
  */
 
 import { countTokens } from '../tokens/index.js';
-import {
-  buildCharOffsets,
-  encodeForModel,
-  getEncoderForModel,
-} from './L3-5-metatoken-encode.js';
-import {
-  replaceSpanInBody,
-  verifyBodyRoundtrip,
-} from './L3-5-metatoken-rewrite.js';
+import { buildCharOffsets, encodeForModel, getEncoderForModel } from './L3-5-metatoken-encode.js';
+import { replaceSpanInBody, verifyBodyRoundtrip } from './L3-5-metatoken-rewrite.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -73,16 +66,16 @@ interface MetatokenCandidate {
 
 /** One selected meta-token alias, returned for testing and reporting. */
 export interface MetatokenEntry {
-  span: string;       // Literal text span aliased
-  alias: string;      // Assigned alias string, e.g. `$c`
+  span: string; // Literal text span aliased
+  alias: string; // Assigned alias string, e.g. `$c`
   occurrences: number;
   netSavings: number;
 }
 
 /** Result of {@link applyMetatokenCompression}. */
 export interface MetatokenResult {
-  pakt: string;                            // Updated PAKT (unchanged on no-op)
-  savedTokens: number;                     // Real token reduction (0 on no-op)
+  pakt: string; // Updated PAKT (unchanged on no-op)
+  savedTokens: number; // Real token reduction (0 on no-op)
   selected: ReadonlyArray<MetatokenEntry>; // Aliases selected (empty on no-op)
 }
 
@@ -121,14 +114,18 @@ let _verifyGateAbandonCountInternal = 0;
  * Exported for observability in tests only. Never read in production code paths.
  * @internal @test-only
  */
-export function getVerifyGateAbandonCount(): number { return _verifyGateAbandonCountInternal; }
+export function getVerifyGateAbandonCount(): number {
+  return _verifyGateAbandonCountInternal;
+}
 
 /**
  * Reset the lossless-gate abandon counter to zero.
  * For test isolation — call in `beforeEach` / `afterEach`.
  * @internal @test-only
  */
-export function resetVerifyGateAbandonCount(): void { _verifyGateAbandonCountInternal = 0; }
+export function resetVerifyGateAbandonCount(): void {
+  _verifyGateAbandonCountInternal = 0;
+}
 
 // -- Dict parsing ------------------------------------------------------------
 
@@ -146,11 +143,21 @@ function parseDictInfo(pakt: string): {
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = (lines[i] ?? '').trim();
-    if (trimmed === '@dict') { inDict = true; continue; }
-    if (inDict && trimmed === '@end') { dictEndLineIdx = i; inDict = false; continue; }
+    if (trimmed === '@dict') {
+      inDict = true;
+      continue;
+    }
+    if (inDict && trimmed === '@end') {
+      dictEndLineIdx = i;
+      inDict = false;
+      continue;
+    }
     if (inDict) {
       const m = trimmed.match(/^\$([a-z]{1,2}):\s+(.+)$/);
-      if (m?.[2]) { existingExpansions.add(m[2].trim()); nextAliasIndex++; }
+      if (m?.[2]) {
+        existingExpansions.add(m[2].trim());
+        nextAliasIndex++;
+      }
     }
   }
 
@@ -241,7 +248,11 @@ function discoverCandidates(
   for (const c of candidates) {
     let dominated = false;
     for (const k of kept) {
-      if (k.span.length > c.span.length && k.span.includes(c.span) && k.occurrences >= c.occurrences) {
+      if (
+        k.span.length > c.span.length &&
+        k.span.includes(c.span) &&
+        k.occurrences >= c.occurrences
+      ) {
         dominated = true;
         break;
       }
@@ -271,10 +282,7 @@ function discoverCandidates(
  * @param model - Target model for BPE token counting (default `'gpt-4o'`)
  * @returns {@link MetatokenResult}
  */
-export function applyMetatokenCompression(
-  pakt: string,
-  model = 'gpt-4o',
-): MetatokenResult {
+export function applyMetatokenCompression(pakt: string, model = 'gpt-4o'): MetatokenResult {
   const noOp: MetatokenResult = { pakt, savedTokens: 0, selected: [] };
 
   if (!pakt.includes('@dict')) return noOp;

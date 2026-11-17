@@ -21,7 +21,13 @@
  */
 
 import { countTokens } from '../tokens/index.js';
-import type { ProviderTool, SlimToolOptions, ToolInputSchema, ToolSchemaProperty, ToolSlimSavings } from './types.js';
+import type {
+  ProviderTool,
+  SlimToolOptions,
+  ToolInputSchema,
+  ToolSchemaProperty,
+  ToolSlimSavings,
+} from './types.js';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -222,9 +228,7 @@ export function slimTools(
   const originalTokens = countTokens(originalJson);
   const slimmedTokens = countTokens(slimmedJson);
   const savedTokens = Math.max(0, originalTokens - slimmedTokens);
-  const savedPercent = originalTokens > 0
-    ? Math.round((savedTokens / originalTokens) * 100)
-    : 0;
+  const savedPercent = originalTokens > 0 ? Math.round((savedTokens / originalTokens) * 100) : 0;
 
   return {
     slimmedTools,

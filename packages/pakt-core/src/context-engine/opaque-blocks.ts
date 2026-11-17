@@ -35,10 +35,7 @@ import type { ContextMessage } from './types.js';
  * @see https://platform.claude.com/docs/en/build-with-claude/compaction
  * @see https://platform.claude.com/docs/en/build-with-claude/context-editing
  */
-export const BUILTIN_OPAQUE_TYPES: ReadonlySet<string> = new Set([
-  'compaction',
-  'clear_tool_uses',
-]);
+export const BUILTIN_OPAQUE_TYPES: ReadonlySet<string> = new Set(['compaction', 'clear_tool_uses']);
 
 // ---------------------------------------------------------------------------
 // Content-block shape
@@ -136,14 +133,12 @@ export function messageIsImmutable(
     for (const typeName of BUILTIN_OPAQUE_TYPES) {
       // Match both compact and spaced JSON: "type":"compaction"
       // or "type": "compaction"
-      if (content.includes(`"type":"${typeName}"`) ||
-          content.includes(`"type": "${typeName}"`)) {
+      if (content.includes(`"type":"${typeName}"`) || content.includes(`"type": "${typeName}"`)) {
         return true;
       }
     }
     for (const typeName of extraOpaqueTypes) {
-      if (content.includes(`"type":"${typeName}"`) ||
-          content.includes(`"type": "${typeName}"`)) {
+      if (content.includes(`"type":"${typeName}"`) || content.includes(`"type": "${typeName}"`)) {
         return true;
       }
     }

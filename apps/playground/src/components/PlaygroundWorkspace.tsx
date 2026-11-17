@@ -64,7 +64,9 @@ function PiiDetectionBadge({
   const kinds = [...new Set(matches.map((m) => m.kind))].join(', ');
   return (
     <p className="pii-warning-line">
-      <span>PII detected: {kinds} ({matches.length} match{matches.length === 1 ? '' : 'es'})</span>
+      <span>
+        PII detected: {kinds} ({matches.length} match{matches.length === 1 ? '' : 'es'})
+      </span>
       <button
         type="button"
         className="ghost"
@@ -288,9 +290,7 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
         {cacheBreakpoint && output ? (
           <article className="card stat-card">
             <span className="stat-label">Prompt cache hint</span>
-            <strong>
-              {`@ byte ${cacheBreakpoint.byteOffset.toLocaleString()}`}
-            </strong>
+            <strong>{`@ byte ${cacheBreakpoint.byteOffset.toLocaleString()}`}</strong>
             <p>
               {`Place cache marker here for ${cacheBreakpoint.target}. `}
               {cacheBreakpoint.recommendedTTLSeconds > 0
@@ -307,9 +307,8 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
             <span className="stat-label">Prompt cache hint</span>
             <strong>Unavailable for {detectedFormat}</strong>
             <p>
-              Cache hints require a structured input (JSON, YAML, CSV).
-              Markdown / text payloads route through mixed-content
-              compression, which doesn't emit a prefix anchor.
+              Cache hints require a structured input (JSON, YAML, CSV). Markdown / text payloads
+              route through mixed-content compression, which doesn't emit a prefix anchor.
             </p>
           </article>
         ) : null}
@@ -318,8 +317,8 @@ export function PlaygroundWorkspace(props: PlaygroundWorkspaceProps) {
             <span className="stat-label">Lossy output</span>
             <strong>Non-reversible</strong>
             <p>
-              L4 semantic compression or PII redaction was applied. Round-trip
-              will not produce the exact original payload.
+              L4 semantic compression or PII redaction was applied. Round-trip will not produce the
+              exact original payload.
             </p>
           </article>
         ) : null}

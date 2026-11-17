@@ -1,5 +1,6 @@
 import { DEFAULT_LAYERS, DEFAULT_OPTIONS } from './constants.js';
 import { detect } from './detect.js';
+import { applyMetatokenCompression } from './layers/L3-5-metatoken.js';
 import { compressText } from './layers/compress-text.js';
 import {
   applyL3Transforms,
@@ -13,7 +14,6 @@ import {
   markL5,
   revertL3,
 } from './layers/index.js';
-import { applyMetatokenCompression } from './layers/L3-5-metatoken.js';
 import { compressMixed } from './mixed/index.js';
 import type { CommentNode } from './parser/ast.js';
 import { serialize } from './serializer/index.js';

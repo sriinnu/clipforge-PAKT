@@ -8,8 +8,8 @@
  * state and handlers live in the parent.
  */
 
-import { type FC, type RefObject, useMemo } from 'react';
 import type { PaktFormat, PaktLayers } from '@sriinnu/pakt';
+import { type FC, type RefObject, useMemo } from 'react';
 import type { CompactorRunResult, CompactorState } from '../hooks/useCompactor';
 import { MenuBarBottomGrid } from './MenuBarBottomGrid';
 import { MenuBarCommandCard } from './MenuBarCommandCard';

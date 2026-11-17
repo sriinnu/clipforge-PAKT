@@ -432,7 +432,9 @@ export default function App() {
         />
       ) : viewMode === 'packer' ? (
         <PackerView />
-      ) : <ContextEngineView />}
+      ) : (
+        <ContextEngineView />
+      )}
 
       {error ? (
         <div className="error-banner" role="alert">

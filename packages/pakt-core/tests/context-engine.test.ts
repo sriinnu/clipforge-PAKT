@@ -5,7 +5,7 @@
  * progressive history compression, content deduplication, fact extraction,
  * and overall savings calculation.
  */
-import { describe, expect, it, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ContextEngine, createContextEngine } from '../src/context-engine/index.js';
 
 describe('ContextEngine', () => {
@@ -83,9 +83,13 @@ describe('ContextEngine', () => {
   // -----------------------------------------------------------------------
 
   it('deduplicates identical content across turns', () => {
-    const repeated = JSON.stringify(Array.from({ length: 20 }, (_, i) => ({
-      id: i, name: 'Item ' + i, status: 'active',
-    })));
+    const repeated = JSON.stringify(
+      Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        name: 'Item ' + i,
+        status: 'active',
+      })),
+    );
 
     engine.addMessage({ role: 'user', content: 'show items' });
     engine.addToolResult('read_file', repeated);
@@ -106,11 +110,17 @@ describe('ContextEngine', () => {
       engine.addMessage({ role: 'user', content: 'turn ' + i });
       // Add a JSON tool result that can be compressed
       if (i < 4) {
-        engine.addToolResult('api_call', JSON.stringify(
-          Array.from({ length: 15 }, (_, j) => ({
-            id: j, value: 'item_' + j, active: true, type: 'standard',
-          })),
-        ));
+        engine.addToolResult(
+          'api_call',
+          JSON.stringify(
+            Array.from({ length: 15 }, (_, j) => ({
+              id: j,
+              value: 'item_' + j,
+              active: true,
+              type: 'standard',
+            })),
+          ),
+        );
       }
       engine.addMessage({ role: 'assistant', content: 'response for turn ' + i });
     }
@@ -135,7 +145,8 @@ describe('ContextEngine', () => {
       engine2.addMessage({ role: 'user', content: 'question ' + i });
       engine2.addMessage({
         role: 'assistant',
-        content: 'I decided to use React for the frontend because it fits our team better. We also need to add authentication for the API.',
+        content:
+          'I decided to use React for the frontend because it fits our team better. We also need to add authentication for the API.',
       });
     }
 
@@ -167,9 +178,10 @@ describe('ContextEngine', () => {
 
   it('savings breakdown sums correctly', () => {
     engine.addMessage({ role: 'user', content: 'test' });
-    engine.addToolResult('api', JSON.stringify(
-      Array.from({ length: 20 }, (_, i) => ({ id: i, name: 'x'.repeat(50) })),
-    ));
+    engine.addToolResult(
+      'api',
+      JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ id: i, name: 'x'.repeat(50) }))),
+    );
 
     const { savings } = engine.optimize();
     const breakdownSum =
@@ -195,7 +207,9 @@ describe('ContextEngine', () => {
 
     // Older turn: tool result with many lines (will be truncated).
     aged.addMessage({ role: 'user', content: 'first request' });
-    const longTool = Array.from({ length: 80 }, (_, i) => `line ${String(i)} payload data`).join('\n');
+    const longTool = Array.from({ length: 80 }, (_, i) => `line ${String(i)} payload data`).join(
+      '\n',
+    );
     aged.addToolResult('run_command', longTool);
     aged.addMessage({ role: 'assistant', content: 'done with first' });
 
@@ -219,7 +233,10 @@ describe('ContextEngine', () => {
   it('does not age tool results when within budget', () => {
     const fits = new ContextEngine({ maxContextTokens: 100_000, toolResultTailLines: 5 });
     fits.addMessage({ role: 'user', content: 'q' });
-    fits.addToolResult('run_command', Array.from({ length: 50 }, (_, i) => `line ${String(i)}`).join('\n'));
+    fits.addToolResult(
+      'run_command',
+      Array.from({ length: 50 }, (_, i) => `line ${String(i)}`).join('\n'),
+    );
     fits.addMessage({ role: 'assistant', content: 'a' });
 
     const { savings, messages } = fits.optimize();
@@ -236,12 +253,18 @@ describe('ContextEngine', () => {
 
     // Turn 1: long tool result.
     eng.addMessage({ role: 'user', content: 'first' });
-    eng.addToolResult('cmd', Array.from({ length: 60 }, (_, i) => `t1-line-${String(i)}`).join('\n'));
+    eng.addToolResult(
+      'cmd',
+      Array.from({ length: 60 }, (_, i) => `t1-line-${String(i)}`).join('\n'),
+    );
     eng.addMessage({ role: 'assistant', content: 'reply 1' });
 
     // Turn 2: also long.
     eng.addMessage({ role: 'user', content: 'second' });
-    eng.addToolResult('cmd', Array.from({ length: 60 }, (_, i) => `t2-line-${String(i)}`).join('\n'));
+    eng.addToolResult(
+      'cmd',
+      Array.from({ length: 60 }, (_, i) => `t2-line-${String(i)}`).join('\n'),
+    );
     eng.addMessage({ role: 'assistant', content: 'reply 2' });
 
     const { messages } = eng.optimize();
@@ -289,9 +312,7 @@ describe('ContextEngine', () => {
 
     const { messages, savings } = big.optimize();
     expect(savings.breakdown.toolResultAging).toBeGreaterThan(0);
-    const aged = messages.find(
-      (m) => m.role === 'tool' && m.content.includes('characters elided'),
-    );
+    const aged = messages.find((m) => m.role === 'tool' && m.content.includes('characters elided'));
     expect(aged).toBeDefined();
   });
 
@@ -337,7 +358,10 @@ describe('ContextEngine', () => {
     noUsers.addMessage({ role: 'system', content: 'sys' });
     // toolResult requires currentTurn but we simulate by appending raw.
     for (let i = 0; i < 5; i++) {
-      noUsers.addToolResult('cmd', Array.from({ length: 30 }, (_, j) => `line-${String(j)}`).join('\n'));
+      noUsers.addToolResult(
+        'cmd',
+        Array.from({ length: 30 }, (_, j) => `line-${String(j)}`).join('\n'),
+      );
     }
 
     const { savings } = noUsers.optimize();
@@ -351,9 +375,10 @@ describe('ContextEngine', () => {
 
   it('tracks cumulative stats across optimize() calls', () => {
     engine.addMessage({ role: 'user', content: 'first' });
-    engine.addToolResult('api', JSON.stringify(
-      Array.from({ length: 20 }, (_, i) => ({ id: i, role: 'dev', active: true })),
-    ));
+    engine.addToolResult(
+      'api',
+      JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ id: i, role: 'dev', active: true }))),
+    );
     engine.optimize();
 
     engine.addMessage({ role: 'user', content: 'second' });

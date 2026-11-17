@@ -127,8 +127,7 @@ export function useCompression(
           if (!result.reversible) lossy = true;
         }
         const durationMs = Math.round(performance.now() - startedAt);
-        const cacheUnavailableFor =
-          settings.cacheTarget && mixedPath ? detectedFormat : undefined;
+        const cacheUnavailableFor = settings.cacheTarget && mixedPath ? detectedFormat : undefined;
 
         setStats({
           before: originalTokens,

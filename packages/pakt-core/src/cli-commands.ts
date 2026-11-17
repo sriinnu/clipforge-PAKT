@@ -11,11 +11,7 @@
  * here so existing `from './cli-commands.js'` imports keep working.
  */
 
-import {
-  parseDictPlacement,
-  resolveExternalDict,
-  writeDictBlock,
-} from './cli-commands-dict.js';
+import { parseDictPlacement, resolveExternalDict, writeDictBlock } from './cli-commands-dict.js';
 import {
   type ParsedArgs,
   assertValidPaktInput,

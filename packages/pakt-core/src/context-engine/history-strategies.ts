@@ -95,11 +95,7 @@ export function compressHistory(
     if (msg.containsOpaqueBlocks) continue;
 
     const detected = detect(msg.content);
-    if (
-      detected.format === 'json' ||
-      detected.format === 'yaml' ||
-      detected.format === 'csv'
-    ) {
+    if (detected.format === 'json' || detected.format === 'yaml' || detected.format === 'csv') {
       const result = compress(msg.content, { fromFormat: detected.format });
       if (result.compressedTokens < (msg.currentTokens ?? 0)) {
         const before = msg.currentTokens ?? 0;

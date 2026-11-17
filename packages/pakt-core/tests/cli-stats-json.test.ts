@@ -21,9 +21,9 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ParsedArgs } from '../src/cli-commands-shared.js';
 import { cmdStats } from '../src/cli-commands-stats.js';
 import type { StatsJsonOutput } from '../src/cli-commands-stats.js';
-import type { ParsedArgs } from '../src/cli-commands-shared.js';
 import { resetStatsDir, setDisabled } from '../src/stats/persister.js';
 
 // ---------------------------------------------------------------------------
@@ -108,9 +108,7 @@ function writeSessionFile(
     );
   }
   if (opts?.withFooter) {
-    lines.push(
-      JSON.stringify({ t: 'f', endedAt: Date.now(), totalCalls: records.length }),
-    );
+    lines.push(JSON.stringify({ t: 'f', endedAt: Date.now(), totalCalls: records.length }));
   }
   writeFileSync(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf8');
 }
@@ -218,9 +216,30 @@ describe('pakt stats --json — populated stats', () => {
   beforeEach(() => {
     const now = Date.now();
     writeSessionFile(tempDir, 'sess-test-00000001', [
-      { format: 'json', inputTokens: 1000, outputTokens: 400, savedTokens: 600, savingsPercent: 60, timestamp: now - 5000 },
-      { format: 'json', inputTokens: 500, outputTokens: 200, savedTokens: 300, savingsPercent: 60, timestamp: now - 4000 },
-      { format: 'yaml', inputTokens: 800, outputTokens: 600, savedTokens: 200, savingsPercent: 25, timestamp: now - 3000 },
+      {
+        format: 'json',
+        inputTokens: 1000,
+        outputTokens: 400,
+        savedTokens: 600,
+        savingsPercent: 60,
+        timestamp: now - 5000,
+      },
+      {
+        format: 'json',
+        inputTokens: 500,
+        outputTokens: 200,
+        savedTokens: 300,
+        savingsPercent: 60,
+        timestamp: now - 4000,
+      },
+      {
+        format: 'yaml',
+        inputTokens: 800,
+        outputTokens: 600,
+        savedTokens: 200,
+        savingsPercent: 25,
+        timestamp: now - 3000,
+      },
     ]);
   });
 
@@ -243,9 +262,9 @@ describe('pakt stats --json — populated stats', () => {
     const parsed: StatsJsonOutput = JSON.parse(raw) as StatsJsonOutput;
 
     expect(parsed.totalCalls).toBe(3);
-    expect(parsed.totalInputTokens).toBe(2300);   // 1000+500+800
-    expect(parsed.totalOutputTokens).toBe(1200);  // 400+200+600
-    expect(parsed.totalSavedTokens).toBe(1100);   // 600+300+200
+    expect(parsed.totalInputTokens).toBe(2300); // 1000+500+800
+    expect(parsed.totalOutputTokens).toBe(1200); // 400+200+600
+    expect(parsed.totalSavedTokens).toBe(1100); // 600+300+200
   });
 
   it('includes byFormat breakdown', async () => {
@@ -285,10 +304,23 @@ describe('pakt stats --json — populated stats', () => {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
 
     const required = [
-      'schemaVersion', 'scope', 'model', 'sessionDuration',
-      'totalCalls', 'callsByAction', 'totalInputTokens', 'totalOutputTokens',
-      'totalSavedTokens', 'overallSavingsPercent', 'byFormat', 'topFormat',
-      'estimatedCostSaved', 'lastCallAt', 'activeSessions', 'latencyMs', 'lossy',
+      'schemaVersion',
+      'scope',
+      'model',
+      'sessionDuration',
+      'totalCalls',
+      'callsByAction',
+      'totalInputTokens',
+      'totalOutputTokens',
+      'totalSavedTokens',
+      'overallSavingsPercent',
+      'byFormat',
+      'topFormat',
+      'estimatedCostSaved',
+      'lastCallAt',
+      'activeSessions',
+      'latencyMs',
+      'lossy',
     ] as const;
 
     for (const field of required) {
@@ -342,13 +374,37 @@ describe('pakt stats --json --agent', () => {
   it('filters records to the named agent', async () => {
     const now = Date.now();
 
-    writeSessionFile(tempDir, 'sess-alice-00000001', [
-      { format: 'json', inputTokens: 1000, outputTokens: 400, savedTokens: 600, savingsPercent: 60, timestamp: now },
-    ], { agentName: 'alice' });
+    writeSessionFile(
+      tempDir,
+      'sess-alice-00000001',
+      [
+        {
+          format: 'json',
+          inputTokens: 1000,
+          outputTokens: 400,
+          savedTokens: 600,
+          savingsPercent: 60,
+          timestamp: now,
+        },
+      ],
+      { agentName: 'alice' },
+    );
 
-    writeSessionFile(tempDir, 'sess-bob-00000002', [
-      { format: 'json', inputTokens: 2000, outputTokens: 800, savedTokens: 1200, savingsPercent: 60, timestamp: now },
-    ], { agentName: 'bob' });
+    writeSessionFile(
+      tempDir,
+      'sess-bob-00000002',
+      [
+        {
+          format: 'json',
+          inputTokens: 2000,
+          outputTokens: 800,
+          savedTokens: 1200,
+          savingsPercent: 60,
+          timestamp: now,
+        },
+      ],
+      { agentName: 'bob' },
+    );
 
     const args = makeArgs({
       flags: new Set(['json']),
@@ -371,7 +427,14 @@ describe('pakt stats text path (no --json)', () => {
   it('emits human-readable text when --json not set', async () => {
     const now = Date.now();
     writeSessionFile(tempDir, 'sess-text-00000001', [
-      { format: 'json', inputTokens: 500, outputTokens: 200, savedTokens: 300, savingsPercent: 60, timestamp: now },
+      {
+        format: 'json',
+        inputTokens: 500,
+        outputTokens: 200,
+        savedTokens: 300,
+        savingsPercent: 60,
+        timestamp: now,
+      },
     ]);
 
     const args = makeArgs(); // no json flag
@@ -387,7 +450,14 @@ describe('pakt stats text path (no --json)', () => {
   it('text output is byte-identical to previous format', async () => {
     const now = Date.now();
     writeSessionFile(tempDir, 'sess-text-00000002', [
-      { format: 'yaml', inputTokens: 800, outputTokens: 640, savedTokens: 160, savingsPercent: 20, timestamp: now },
+      {
+        format: 'yaml',
+        inputTokens: 800,
+        outputTokens: 640,
+        savedTokens: 160,
+        savingsPercent: 20,
+        timestamp: now,
+      },
     ]);
 
     const args = makeArgs();
@@ -424,27 +494,21 @@ describe('pakt stats --json — single-shot mode (stdin pipe)', () => {
 
   it('scope is "single-shot" in single-shot mode', async () => {
     const args = makeArgs({ flags: new Set(['json']) });
-    const raw = await captureStdout(() =>
-      cmdStats(args, () => '{"key":"value"}'),
-    );
+    const raw = await captureStdout(() => cmdStats(args, () => '{"key":"value"}'));
     const parsed: StatsJsonOutput = JSON.parse(raw) as StatsJsonOutput;
     expect(parsed.scope).toBe('single-shot');
   });
 
   it('totalCalls is 1 after compressing one input', async () => {
     const args = makeArgs({ flags: new Set(['json']) });
-    const raw = await captureStdout(() =>
-      cmdStats(args, () => '{"a":1,"b":2,"c":3}'),
-    );
+    const raw = await captureStdout(() => cmdStats(args, () => '{"a":1,"b":2,"c":3}'));
     const parsed: StatsJsonOutput = JSON.parse(raw) as StatsJsonOutput;
     expect(parsed.totalCalls).toBe(1);
   });
 
   it('activeSessions is empty in single-shot mode', async () => {
     const args = makeArgs({ flags: new Set(['json']) });
-    const raw = await captureStdout(() =>
-      cmdStats(args, () => '{"x":1}'),
-    );
+    const raw = await captureStdout(() => cmdStats(args, () => '{"x":1}'));
     const parsed: StatsJsonOutput = JSON.parse(raw) as StatsJsonOutput;
     expect(parsed.activeSessions).toEqual([]);
   });

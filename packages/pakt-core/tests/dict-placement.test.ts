@@ -170,9 +170,9 @@ describe('CLI --dict-placement / --dict', () => {
       stdoutChunks.push(String(chunk));
       return true;
     }) as ReturnType<typeof vi.spyOn>;
-    stderrSpy = vi
-      .spyOn(process.stderr, 'write')
-      .mockImplementation(() => true) as ReturnType<typeof vi.spyOn>;
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true) as ReturnType<
+      typeof vi.spyOn
+    >;
   });
 
   afterEach(() => {

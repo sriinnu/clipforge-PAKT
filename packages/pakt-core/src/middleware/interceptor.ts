@@ -51,12 +51,19 @@ export interface PaktInterceptor {
 export function createPaktInterceptor(config?: InterceptorConfig): PaktInterceptor {
   const cfg = { ...DEFAULTS, ...config };
   const allowedFormats = new Set<string>(cfg.formats);
-  const skip = (text: string, reason: string): InterceptorResult =>
-    ({ text, wasPaktCompressed: false, savings: ZERO_SAVINGS, skipReason: reason });
+  const skip = (text: string, reason: string): InterceptorResult => ({
+    text,
+    wasPaktCompressed: false,
+    savings: ZERO_SAVINGS,
+    skipReason: reason,
+  });
 
   let stats: InterceptorStats = {
-    totalCalls: 0, compressedCalls: 0,
-    totalOriginalTokens: 0, totalCompressedTokens: 0, totalSavedTokens: 0,
+    totalCalls: 0,
+    compressedCalls: 0,
+    totalOriginalTokens: 0,
+    totalCompressedTokens: 0,
+    totalSavedTokens: 0,
   };
 
   function processToolResult(toolName: string, rawResult: string): InterceptorResult {
@@ -65,13 +72,18 @@ export function createPaktInterceptor(config?: InterceptorConfig): PaktIntercept
     if (rawResult.length > cfg.maxInputSize) return skip(rawResult, 'exceeds maxInputSize');
 
     const detection = detect(rawResult);
-    if (!allowedFormats.has(detection.format)) return skip(rawResult, `format '${detection.format}' not in allowed list`);
+    if (!allowedFormats.has(detection.format))
+      return skip(rawResult, `format '${detection.format}' not in allowed list`);
 
     const originalTokens = countTokens(rawResult, cfg.targetModel);
     if (originalTokens < cfg.minTokens) return skip(rawResult, 'below minTokens threshold');
 
-    const result = compress(rawResult, { fromFormat: detection.format as PaktFormat, targetModel: cfg.targetModel });
-    if (result.compressedTokens >= originalTokens) return skip(rawResult, 'compression did not reduce tokens');
+    const result = compress(rawResult, {
+      fromFormat: detection.format as PaktFormat,
+      targetModel: cfg.targetModel,
+    });
+    if (result.compressedTokens >= originalTokens)
+      return skip(rawResult, 'compression did not reduce tokens');
 
     const saved = originalTokens - result.compressedTokens;
     stats.compressedCalls++;
@@ -84,7 +96,15 @@ export function createPaktInterceptor(config?: InterceptorConfig): PaktIntercept
   return {
     processToolResult,
     getStats: () => ({ ...stats }),
-    resetStats: () => { stats = { totalCalls: 0, compressedCalls: 0, totalOriginalTokens: 0, totalCompressedTokens: 0, totalSavedTokens: 0 }; },
+    resetStats: () => {
+      stats = {
+        totalCalls: 0,
+        compressedCalls: 0,
+        totalOriginalTokens: 0,
+        totalCompressedTokens: 0,
+        totalSavedTokens: 0,
+      };
+    },
   };
 }
 
@@ -92,7 +112,10 @@ export function createPaktInterceptor(config?: InterceptorConfig): PaktIntercept
  * Process a messages array for an LLM API call.
  * Finds tool-result messages with structured content, compresses them in-place.
  */
-export function optimizeMessages(messages: ToolResultMessage[], config?: InterceptorConfig): OptimizeResult {
+export function optimizeMessages(
+  messages: ToolResultMessage[],
+  config?: InterceptorConfig,
+): OptimizeResult {
   const interceptor = createPaktInterceptor(config);
 
   for (const msg of messages) {

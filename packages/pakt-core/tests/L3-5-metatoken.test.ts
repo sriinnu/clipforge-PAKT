@@ -10,10 +10,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { compress, decompress } from '../src/index.js';
-import {
-  applyMetatokenCompression,
-  type MetatokenResult,
-} from '../src/layers/L3-5-metatoken.js';
+import { applyMetatokenCompression } from '../src/layers/L3-5-metatoken.js';
 import { countTokens } from '../src/tokens/index.js';
 
 // ---------------------------------------------------------------------------
@@ -51,8 +48,16 @@ const REPETITIVE_LOG = Array.from(
  * Hostile fixture: random short distinct values, nothing to alias.
  */
 const HOSTILE = JSON.stringify({
-  x1: 'aBc', x2: 'DeF', x3: 'GhI', x4: 'JkL', x5: 'MnO',
-  y1: '123', y2: '456', y3: '789', y4: 'XyZ', y5: 'PqR',
+  x1: 'aBc',
+  x2: 'DeF',
+  x3: 'GhI',
+  x4: 'JkL',
+  x5: 'MnO',
+  y1: '123',
+  y2: '456',
+  y3: '789',
+  y4: 'XyZ',
+  y5: 'PqR',
 });
 
 // ---------------------------------------------------------------------------
@@ -101,14 +106,9 @@ describe('applyMetatokenCompression — unit tests', () => {
     // Craft a PAKT body with a cross-boundary pattern repeated many times
     const spanValue = 'platform_eng_squad';
     const bodyLines = Array.from({ length: 6 }, () => `  team: ${spanValue}`).join('\n');
-    const pakt = [
-      '@from json',
-      '@dict',
-      '  $a: existing_alias_value',
-      '@end',
-      '',
-      bodyLines,
-    ].join('\n');
+    const pakt = ['@from json', '@dict', '  $a: existing_alias_value', '@end', '', bodyLines].join(
+      '\n',
+    );
 
     const result = applyMetatokenCompression(pakt, 'gpt-4o');
 
@@ -174,9 +174,12 @@ describe('L3.5 compress → decompress roundtrip', () => {
 
   it('JSON roundtrip: data preserved for flat objects', () => {
     const input = JSON.stringify({
-      team: 'platform_engineering', role: 'platform_engineering',
-      dept: 'platform_engineering', unit: 'platform_engineering',
-      group: 'platform_engineering', section: 'platform_engineering',
+      team: 'platform_engineering',
+      role: 'platform_engineering',
+      dept: 'platform_engineering',
+      unit: 'platform_engineering',
+      group: 'platform_engineering',
+      section: 'platform_engineering',
     });
     const result = compress(input, { layers: { metatoken: true } });
     const dec = decompress(result.compressed, 'json');
@@ -266,7 +269,7 @@ const paktSafeChars = (): string[] => {
   const out: string[] = [];
   for (let c = 65; c <= 90; c++) out.push(String.fromCharCode(c)); // A-Z
   for (let c = 97; c <= 122; c++) out.push(String.fromCharCode(c)); // a-z
-  for (let c = 48; c <= 57; c++) out.push(String.fromCharCode(c));  // 0-9
+  for (let c = 48; c <= 57; c++) out.push(String.fromCharCode(c)); // 0-9
   return out;
 };
 
@@ -280,15 +283,10 @@ const safeKey = () =>
 const safeValue = () =>
   fc
     .string({ unit: fc.constantFrom(...paktSafeChars()), minLength: 1, maxLength: 12 })
-    .filter(
-      (s) =>
-        /^[A-Za-z]/.test(s) &&
-        !['true', 'false', 'null'].includes(s.toLowerCase()),
-    );
+    .filter((s) => /^[A-Za-z]/.test(s) && !['true', 'false', 'null'].includes(s.toLowerCase()));
 
 /** Simple JSON object with leaf values. */
-const simpleJsonObj = () =>
-  fc.dictionary(safeKey(), safeValue(), { minKeys: 2, maxKeys: 6 });
+const simpleJsonObj = () => fc.dictionary(safeKey(), safeValue(), { minKeys: 2, maxKeys: 6 });
 
 describe('property: metatoken compress → decompress roundtrip', () => {
   it('JSON objects roundtrip with metatoken on', () => {
@@ -323,21 +321,18 @@ describe('property: metatoken compress → decompress roundtrip', () => {
 
   it('repetitive JSON (repeat same object values) always roundtrips', () => {
     fc.assert(
-      fc.property(
-        fc.tuple(safeValue(), safeValue()),
-        ([v1, v2]) => {
-          // Build a JSON with many repetitions of v1/v2 to trigger L3.5
-          const data: Record<string, string> = {};
-          for (let i = 0; i < 8; i++) {
-            data[`k${String(i)}`] = i % 2 === 0 ? `${v1}_suffix` : `${v2}_suffix`;
-          }
-          const text = JSON.stringify(data);
-          const compressed = compress(text, { layers: { metatoken: true } });
-          const dec = decompress(compressed.compressed, 'json');
-          if (dec.format === 'text') return; // trivial passthrough
-          expect(JSON.parse(dec.text)).toEqual(data);
-        },
-      ),
+      fc.property(fc.tuple(safeValue(), safeValue()), ([v1, v2]) => {
+        // Build a JSON with many repetitions of v1/v2 to trigger L3.5
+        const data: Record<string, string> = {};
+        for (let i = 0; i < 8; i++) {
+          data[`k${String(i)}`] = i % 2 === 0 ? `${v1}_suffix` : `${v2}_suffix`;
+        }
+        const text = JSON.stringify(data);
+        const compressed = compress(text, { layers: { metatoken: true } });
+        const dec = decompress(compressed.compressed, 'json');
+        if (dec.format === 'text') return; // trivial passthrough
+        expect(JSON.parse(dec.text)).toEqual(data);
+      }),
       { numRuns: FC_RUNS },
     );
   });
@@ -367,8 +362,14 @@ describe('L3.5 regression: unquoted ${letter} placeholder corruption', () => {
 
   it('regression: _suffix span replacement does not create phantom keys', () => {
     const data: Record<string, string> = {
-      k0: 'A_suffix', k1: 'B_suffix', k2: 'A_suffix', k3: 'B_suffix',
-      k4: 'A_suffix', k5: 'B_suffix', k6: 'A_suffix', k7: 'B_suffix',
+      k0: 'A_suffix',
+      k1: 'B_suffix',
+      k2: 'A_suffix',
+      k3: 'B_suffix',
+      k4: 'A_suffix',
+      k5: 'B_suffix',
+      k6: 'A_suffix',
+      k7: 'B_suffix',
     };
     const text = JSON.stringify(data);
     const compressed = compress(text, { layers: { metatoken: true } });
@@ -423,10 +424,7 @@ describe('L3.5 cache-stability: append-only aliases', () => {
       const m = entry.trim().match(/^\$([a-z]{1,2}):\s/);
       if (!m?.[1]) continue;
       const ch = m[1];
-      const idx =
-        ch.length === 1
-          ? ch.charCodeAt(0) - 97
-          : 26 + (ch.charCodeAt(1) - 97);
+      const idx = ch.length === 1 ? ch.charCodeAt(0) - 97 : 26 + (ch.charCodeAt(1) - 97);
       // Indices must be strictly increasing (each alias used once)
       expect(idx).toBeGreaterThan(prevIdx);
       prevIdx = idx;

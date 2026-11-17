@@ -20,7 +20,10 @@ import type { ContextFact, ContextIndex, ContextMessage } from './types.js';
  * Ordered roughly by specificity; the first match per pattern wins.
  */
 const FACT_PATTERNS: Array<{ pattern: RegExp; category: ContextFact['category'] }> = [
-  { pattern: /(?:decided|chose|picked|selected|going with|let's use)\s+(.{10,80})/i, category: 'decision' },
+  {
+    pattern: /(?:decided|chose|picked|selected|going with|let's use)\s+(.{10,80})/i,
+    category: 'decision',
+  },
   { pattern: /(?:the (?:bug|issue|error|problem) (?:is|was))\s+(.{10,80})/i, category: 'error' },
   { pattern: /(?:fixed|resolved|solved)\s+(.{10,80})/i, category: 'action' },
   { pattern: /(?:created|added|built|implemented|wrote)\s+(.{10,80})/i, category: 'action' },
@@ -142,10 +145,7 @@ export function runFactExtraction(
  * @param index - Current context index.
  * @param model - Model identifier for token counting.
  */
-export function buildIndexMessage(
-  index: ContextIndex,
-  model: string,
-): ContextMessage | null {
+export function buildIndexMessage(index: ContextIndex, model: string): ContextMessage | null {
   if (index.facts.length === 0) return null;
 
   const grouped = new Map<string, ContextFact[]>();

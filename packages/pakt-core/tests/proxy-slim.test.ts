@@ -13,12 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  applySlimMode,
-  slimTool,
-  slimTools,
-  truncateAtSentence,
-} from '../src/proxy/index.js';
+import { applySlimMode, slimTool, slimTools, truncateAtSentence } from '../src/proxy/index.js';
 import type { ProviderTool } from '../src/proxy/index.js';
 import { FAT_CATALOG } from './fixtures/fat-catalog.js';
 

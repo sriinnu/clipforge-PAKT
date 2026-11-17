@@ -8,10 +8,15 @@
 
 import { useState } from 'react';
 import { TARGET_MODELS } from '../app-constants';
-import { type PackerRunResult, runPacker } from '../pakt-runtime';
 import { DEFAULT_PACKER_ITEMS, type PackerSample, toPackerRunItems } from '../packer-samples';
+import { type PackerRunResult, runPacker } from '../pakt-runtime';
 
-const PRIORITY_LABELS: Record<number, string> = { 10: 'High', 8: 'Medium-high', 6: 'Medium', 4: 'Low' };
+const PRIORITY_LABELS: Record<number, string> = {
+  10: 'High',
+  8: 'Medium-high',
+  6: 'Medium',
+  4: 'Low',
+};
 const PRIORITY_OPTIONS = [
   { value: 10, label: 'High (10)' },
   { value: 8, label: 'Medium-high (8)' },
@@ -88,9 +93,17 @@ export function PackerView() {
           </label>
           <label className="inline-control">
             Model
-            <select value={model} onChange={(e) => { setModel(e.target.value); setResult(null); }}>
+            <select
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setResult(null);
+              }}
+            >
               {TARGET_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
               ))}
             </select>
           </label>
@@ -109,12 +122,17 @@ export function PackerView() {
                     onChange={(e) => updatePriority(item.id, Number(e.target.value))}
                   >
                     {PRIORITY_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
                     ))}
                   </select>
                 </label>
               </div>
-              <pre className="packer-item-preview">{item.content.slice(0, 200)}{item.content.length > 200 ? '…' : ''}</pre>
+              <pre className="packer-item-preview">
+                {item.content.slice(0, 200)}
+                {item.content.length > 200 ? '…' : ''}
+              </pre>
             </div>
           ))}
         </div>
@@ -126,29 +144,45 @@ export function PackerView() {
             onClick={() => void handlePack()}
             disabled={loading}
           >
-            {loading ? 'Packing…' : `Pack ${items.length} documents into ${budget.toLocaleString()} tokens`}
+            {loading
+              ? 'Packing…'
+              : `Pack ${items.length} documents into ${budget.toLocaleString()} tokens`}
           </button>
         </div>
       </section>
 
-      {error ? <div className="error-banner" role="alert">{error}</div> : null}
+      {error ? (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      ) : null}
 
       {result ? (
         <>
           <div className="stats-grid">
             <article className={`card stat-card ${utilizationTone(result.totalTokens, budget)}`}>
               <span className="stat-label">Budget used</span>
-              <strong>{result.totalTokens.toLocaleString()} / {budget.toLocaleString()} tokens</strong>
-              <p>{pct(result.totalTokens / budget * 100)} utilization · {result.remainingBudget.toLocaleString()} remaining</p>
+              <strong>
+                {result.totalTokens.toLocaleString()} / {budget.toLocaleString()} tokens
+              </strong>
+              <p>
+                {pct((result.totalTokens / budget) * 100)} utilization ·{' '}
+                {result.remainingBudget.toLocaleString()} remaining
+              </p>
             </article>
             <article className="card stat-card tone-saving">
               <span className="stat-label">Compression savings</span>
               <strong>{pct(result.stats.overallSavingsPercent)} saved</strong>
-              <p>{result.stats.originalTotalTokens.toLocaleString()} → {result.stats.compressedTotalTokens.toLocaleString()} tokens across packed items</p>
+              <p>
+                {result.stats.originalTotalTokens.toLocaleString()} →{' '}
+                {result.stats.compressedTotalTokens.toLocaleString()} tokens across packed items
+              </p>
             </article>
             <article className="card stat-card">
               <span className="stat-label">Items packed / dropped</span>
-              <strong>{result.stats.packedCount} packed · {result.stats.droppedCount} dropped</strong>
+              <strong>
+                {result.stats.packedCount} packed · {result.stats.droppedCount} dropped
+              </strong>
               <p>
                 {result.stats.droppedCount === 0
                   ? 'All items fit within the budget.'
@@ -168,12 +202,21 @@ export function PackerView() {
                 <div key={p.id} className="packer-result-item">
                   <div className="packer-result-header">
                     <strong>{orig?.label ?? p.id}</strong>
-                    <span className="meta-badge">{PRIORITY_LABELS[orig?.priority ?? 0] ?? String(orig?.priority)}</span>
-                    {p.wasCompressed
-                      ? <span className="meta-badge tone-saving">{pct(p.savingsPercent)} saved · {p.compressedTokens} tok</span>
-                      : <span className="meta-badge">kept raw · {p.compressedTokens} tok</span>}
+                    <span className="meta-badge">
+                      {PRIORITY_LABELS[orig?.priority ?? 0] ?? String(orig?.priority)}
+                    </span>
+                    {p.wasCompressed ? (
+                      <span className="meta-badge tone-saving">
+                        {pct(p.savingsPercent)} saved · {p.compressedTokens} tok
+                      </span>
+                    ) : (
+                      <span className="meta-badge">kept raw · {p.compressedTokens} tok</span>
+                    )}
                   </div>
-                  <pre className="workflow-code packer-compressed">{p.compressed.slice(0, 400)}{p.compressed.length > 400 ? '\n…' : ''}</pre>
+                  <pre className="workflow-code packer-compressed">
+                    {p.compressed.slice(0, 400)}
+                    {p.compressed.length > 400 ? '\n…' : ''}
+                  </pre>
                 </div>
               );
             })}
@@ -191,9 +234,12 @@ export function PackerView() {
                   <div key={d.id} className="packer-result-item packer-dropped">
                     <div className="packer-result-header">
                       <strong>{orig?.label ?? d.id}</strong>
-                      <span className="meta-badge">{PRIORITY_LABELS[orig?.priority ?? 0] ?? String(orig?.priority)}</span>
+                      <span className="meta-badge">
+                        {PRIORITY_LABELS[orig?.priority ?? 0] ?? String(orig?.priority)}
+                      </span>
                       <span className="meta-badge recommendation-warning">
-                        {d.reason === 'over_budget' ? 'over budget' : d.reason} · needed {d.tokensNeeded} tok
+                        {d.reason === 'over_budget' ? 'over budget' : d.reason} · needed{' '}
+                        {d.tokensNeeded} tok
                       </span>
                     </div>
                   </div>

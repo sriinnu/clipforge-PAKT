@@ -59,11 +59,7 @@ export function escapeForQuotedValue(s: string): string {
  * @param placeholder - Replacement string (e.g. `${b}`)
  * @returns Updated body text with properly quoted values
  */
-export function replaceSpanInBody(
-  bodyText: string,
-  span: string,
-  placeholder: string,
-): string {
+export function replaceSpanInBody(bodyText: string, span: string, placeholder: string): string {
   if (!bodyText.includes(span)) return bodyText;
 
   const outputLines: string[] = [];
