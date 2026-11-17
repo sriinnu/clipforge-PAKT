@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-11-17
+
 ### Fixed
 
 - **Numeric and quoted keys inside mixed list items** ([#59](https://github.com/sriinnu/clipforge-PAKT/issues/59) follow-up). An object in a mixed array whose keys were numeric (`{"1": 2}`, or a nested `{"10": {...}}`) or quoted after the first key (`{"a": 1, "b]": 2}`) lost those keys on decompress. The list-item parser now accepts the same key tokens as the top-level body.
+- **Dependencies:** patched 46 transitive Dependabot alerts (hono and @hono/node-server at runtime via the MCP SDK; undici, vitest, browserslist and source-map-js in dev and build) through `pnpm.overrides`. esbuild is pinned to 0.27.3 because later versions break the desktop build for `safari14`.
 
 ## [0.12.1] - 2026-11-17
 
