@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-17
+
 ### Added
 
 - **`@sriinnu/pakt/meta` lightweight subpath export.** Tokenizer-free metadata — layer profiles (`PAKT_LAYER_PROFILES`, `getPaktLayerProfile`, `createProfiledPaktOptions`, `DEFAULT_SEMANTIC_BUDGET`), compressibility scoring (`estimateCompressibility`), and tokenizer-family info (`getTokenizerFamilyInfo`) — so a bundler can keep the multi-megabyte BPE tokenizer out of a browser main bundle. Additive; the package root is unchanged.
