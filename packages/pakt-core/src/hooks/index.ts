@@ -9,10 +9,12 @@
  *
  *   pre-compact    save session state; stdout = summary instructions
  *   session-start  on source "compact", re-inject the saved state
+ *   post-tool-use  Bash spill (shadow by default; see bash-spill.ts)
  *
  * @internal Node.js only.
  */
 
+import { type PostToolUseInput, bashSpill } from './bash-spill.js';
 import {
   compactionInstructions,
   loadState,
@@ -21,8 +23,8 @@ import {
   stateFromTranscript,
 } from './state.js';
 
-export type HookEvent = 'pre-compact' | 'session-start';
-export const HOOK_EVENTS: readonly HookEvent[] = ['pre-compact', 'session-start'];
+export type HookEvent = 'pre-compact' | 'session-start' | 'post-tool-use';
+export const HOOK_EVENTS: readonly HookEvent[] = ['pre-compact', 'session-start', 'post-tool-use'];
 
 export interface HookResult {
   /** Text for stdout; empty for no output. */
@@ -65,6 +67,7 @@ export function runHook(event: string, stdin: string): HookResult {
     const input = JSON.parse(stdin) as HookInput;
     if (event === 'pre-compact') return preCompact(input);
     if (event === 'session-start') return sessionStart(input);
+    if (event === 'post-tool-use') return { stdout: bashSpill(input as PostToolUseInput) };
     return NONE;
   } catch {
     return NONE;
