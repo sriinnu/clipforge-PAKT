@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-17
+
+### Added
+
+- **Spill-at-append and `pakt_recall`** ([#73](https://github.com/sriinnu/clipforge-PAKT/pull/73)). A tool result over a token threshold is replaced once, when it's appended, by its first lines plus a `pakt_recall` id, and the full text goes to a spill store (`MemorySpillStore`, or `FileSpillStore` under `~/.pakt/spill`, 0600, pruned after 7 days unused). The gist never changes afterwards, so the prompt-cache prefix stays byte-stable. New MCP tool `pakt_recall {id, startLine?, endLine?}`; `ContextEngine` gains `spillThresholdTokens` and `engine.recall(id)`.
+- **`pakt hook pre-compact` / `pakt hook session-start`** ([#74](https://github.com/sriinnu/clipforge-PAKT/pull/74)). Claude Code hooks. Before a compaction, they save the session's state since the last compaction (files edited and read, recent requests, spill ids, branch) and give the summarizer instructions. After a compaction, they re-inject a note of at most 2K characters. Every handler fails open.
+- **`pakt doctor`** ([#75](https://github.com/sriinnu/clipforge-PAKT/pull/75)). Shows where Claude Code tokens go, from local transcripts including subagents: spend split between main thread and subagents and by component, cache behaviour, simulated `CLAUDE_CODE_AUTO_COMPACT_WINDOW` savings, and which tools stay resident in context. It makes recommendations only and never edits settings.
+- **`pakt hook post-tool-use`** ([#76](https://github.com/sriinnu/clipforge-PAKT/pull/76)). Spills large, successful Bash output as its first and last lines plus a `pakt_recall` id. Shadow mode is the default (it only writes a ledger row); `PAKT_SPILL_MODE=live` turns it on. Errors, stderr, interrupted commands and other tools are never spilled.
+
+### Fixed
+
+- **Context engine** ([#72](https://github.com/sriinnu/clipforge-PAKT/pull/72)): the dedup key is now exact, and a prefix-stability guard was added. Cache replay harnesses are in `scripts/eval/`.
+- **CI** ([#67](https://github.com/sriinnu/clipforge-PAKT/pull/67), [#71](https://github.com/sriinnu/clipforge-PAKT/pull/71)): lint and typecheck now block merges; desktop builds run on macos-15 runners with a macOS 13 floor and esbuild 0.28.
+
 ## [0.12.2] - 2026-11-17
 
 ### Fixed
