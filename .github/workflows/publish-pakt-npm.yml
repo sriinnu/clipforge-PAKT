@@ -100,6 +100,11 @@ jobs:
       - name: Run package tests
         run: pnpm --filter @sriinnu/pakt test
 
+      # npm 11 drops manifest fields it would have auto-corrected (a `./bin`
+      # path removed the `pakt` CLI from the staged 0.12.0). Refuse to stage.
+      - name: Verify manifest needs no npm corrections
+        run: node scripts/release/verify-pakt-manifest.mjs
+
       - name: Stage on npm
         if: ${{ github.event_name == 'push' || github.event.inputs.publish_npm == 'true' }}
         working-directory: packages/pakt-core

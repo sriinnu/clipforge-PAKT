@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-17
+
+### Fixed
+
+- **`pakt` CLI missing from the npm package.** npm 11 drops a `bin` path written as `./bin/pakt.js` instead of normalizing it as npm 10 did, so the staged 0.12.0 had no `pakt` command; it was rejected and never published. The path is now `bin/pakt.js`, and the publish workflow runs `scripts/release/verify-pakt-manifest.mjs`, which fails whenever npm would auto-correct the manifest.
+
 ## [0.12.0] - 2026-11-17
 
 ### Added
