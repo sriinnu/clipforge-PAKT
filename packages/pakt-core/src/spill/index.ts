@@ -46,6 +46,8 @@ export interface SpillOptions {
   headLines?: number;
   /** Hard cap on inline characters, for very long lines. @default 4000 */
   maxHeadChars?: number;
+  /** Lines from the end kept inline too (errors live at the tail). @default 0 */
+  tailLines?: number;
   /** Tokenizer model. @default 'gpt-4o' */
   model?: string;
   /** Precomputed token count of `content`, to skip a recount. */
@@ -90,17 +92,22 @@ export function spillGist(
   originalTokens: number,
   headLines = 20,
   maxHeadChars = 4000,
+  tailLines = 0,
 ): string {
   const lines = content.split('\n');
   let head = lines.slice(0, headLines).join('\n');
   if (head.length > maxHeadChars) head = head.slice(0, maxHeadChars);
-  const keptLines = head.split('\n').length;
-  const more = lines.length - keptLines;
-  return [
-    head,
+  const keptHead = head.split('\n').length;
+  // Tail only from lines the head didn't already show; errors and summaries
+  // (test failures, exit status) usually sit at the end.
+  const tailCount = Math.max(0, Math.min(tailLines, lines.length - keptHead));
+  let tail = tailCount > 0 ? lines.slice(lines.length - tailCount).join('\n') : '';
+  if (tail.length > maxHeadChars) tail = tail.slice(tail.length - maxHeadChars);
+  const more = lines.length - keptHead - tailCount;
+  const marker =
     `[pakt spilled ${id}: ${originalTokens} tokens, ${lines.length} lines` +
-      `${more > 0 ? `, ${more} more not shown` : ''}. Full text: pakt_recall {"id":"${id}"}]`,
-  ].join('\n');
+    `${more > 0 ? `, ${more} ${tail ? 'middle lines' : 'more'} not shown` : ''}. Full text: pakt_recall {"id":"${id}"}]`;
+  return tail ? [head, marker, tail].join('\n') : [head, marker].join('\n');
 }
 
 /**
@@ -115,7 +122,14 @@ export function spill(content: string, store: SpillStore, opts: SpillOptions = {
     return { content, spilled: false, originalTokens, tokens: originalTokens };
   }
   const id = spillId(content);
-  const gist = spillGist(content, id, originalTokens, opts.headLines, opts.maxHeadChars);
+  const gist = spillGist(
+    content,
+    id,
+    originalTokens,
+    opts.headLines,
+    opts.maxHeadChars,
+    opts.tailLines,
+  );
   const gistTokens = countTokens(gist, model);
   if (gistTokens >= originalTokens) {
     return { content, spilled: false, originalTokens, tokens: originalTokens };
