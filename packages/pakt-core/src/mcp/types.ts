@@ -20,6 +20,8 @@ import type {
   PaktInspectArgsFromContract,
   PaktInspectResultFromContract,
   PaktMcpContract,
+  PaktRecallArgsFromContract,
+  PaktRecallResultFromContract,
   PaktSavingsArgsFromContract,
   PaktSavingsResultFromContract,
   PaktStatsArgsFromContract,
@@ -78,6 +80,8 @@ export type PaktSavingsArgs = PaktSavingsArgsFromContract;
 export type PaktSavingsResult = PaktSavingsResultFromContract;
 export type PaktDashboardArgs = PaktDashboardArgsFromContract;
 export type PaktDashboardResult = PaktDashboardResultFromContract;
+export type PaktRecallArgs = PaktRecallArgsFromContract;
+export type PaktRecallResult = PaktRecallResultFromContract;
 /**
  * MCP-facing explain result. Nested objects (layerBreakdown, structuralAnalysis,
  * dictionaryAnalysis) are serialized as JSON strings to conform to the flat
@@ -138,7 +142,8 @@ export type PaktToolArgs =
   | PaktStatsArgs
   | PaktExplainArgs
   | PaktSavingsArgs
-  | PaktDashboardArgs;
+  | PaktDashboardArgs
+  | PaktRecallArgs;
 
 /** Union of all valid MCP tool result types. */
 export type PaktToolResult =
@@ -148,5 +153,6 @@ export type PaktToolResult =
   | PaktStatsResult
   | PaktExplainResult
   | PaktSavingsResult
-  | PaktDashboardResult;
+  | PaktDashboardResult
+  | PaktRecallResult;
 export type { PaktMcpContract };

@@ -8,6 +8,8 @@
  * maximizing signal — because less context means better accuracy.
  */
 
+import type { SpillStore } from '../spill/index.js';
+
 // ---------------------------------------------------------------------------
 // Message types (API-agnostic)
 // ---------------------------------------------------------------------------
@@ -40,6 +42,8 @@ export interface ContextMessage {
    * byte-identical to the API.
    */
   containsOpaqueBlocks?: boolean;
+  /** Spill id when this tool result was replaced by a gist at append time. */
+  spillId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +185,21 @@ export interface ContextEngineConfig {
    * @default true
    */
   sharedDictionary?: boolean;
+
+  /**
+   * Spill-at-append. A tool result still above this many tokens after PAKT
+   * compression is replaced, once at append time, by its first lines plus a
+   * `pakt_recall` pointer; the full text goes to `spillStore` and comes back
+   * via `engine.recall(id)`. The gist never changes afterwards, so the prompt
+   * cache prefix stays stable. `undefined` (the default) disables spilling.
+   */
+  spillThresholdTokens?: number;
+
+  /** Where spilled content is kept. @default a new in-memory store */
+  spillStore?: SpillStore;
+
+  /** Lines of a spilled result kept inline. @default 20 */
+  spillHeadLines?: number;
 }
 
 // ---------------------------------------------------------------------------

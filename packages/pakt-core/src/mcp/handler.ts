@@ -12,6 +12,7 @@
  *  - `handler-auto.ts`                     — `pakt_auto`
  *  - `handler-inspect-stats.ts`            — `pakt_inspect`, `pakt_stats`
  *  - `handler-explain-savings-dashboard.ts`— `pakt_explain`, `pakt_savings`, `pakt_dashboard`
+ *  - `handler-recall.ts`                   — `pakt_recall`
  *
  * @example
  * ```ts
@@ -35,6 +36,7 @@ import {
   handleSavings,
 } from './handler-explain-savings-dashboard.js';
 import { handleInspect, handleStats } from './handler-inspect-stats.js';
+import { handleRecall } from './handler-recall.js';
 import { PaktToolInputError } from './handler-validation.js';
 import type {
   PaktAutoArgs,
@@ -42,6 +44,7 @@ import type {
   PaktDashboardArgs,
   PaktExplainArgs,
   PaktInspectArgs,
+  PaktRecallArgs,
   PaktSavingsArgs,
   PaktStatsArgs,
   PaktToolName,
@@ -80,6 +83,8 @@ export function handlePaktTool(name: PaktToolName, args: Record<string, unknown>
       return handleSavings(args as unknown as PaktSavingsArgs);
     case 'pakt_dashboard':
       return handleDashboard(args as unknown as PaktDashboardArgs);
+    case 'pakt_recall':
+      return handleRecall(args as unknown as PaktRecallArgs);
     default: {
       const _exhaustive: never = name;
       throw new Error(`Unknown PAKT MCP tool: "${String(_exhaustive)}"`);
