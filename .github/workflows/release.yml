@@ -23,11 +23,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+        # macos-13 and macos-14 images are retired (jobs queue forever or fail in 1s with
+        # "configuration 'macos-14-arm64-us-default' is not supported"). Both Mac targets
+        # build on arm64 macos-15; Intel is a Rust cross-compile, so no Intel runner needed.
+          - os: macos-15
             label: macOS-Silicon
             rust-target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
-          - os: macos-13
+          - os: macos-15
             label: macOS-Intel
             rust-target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
