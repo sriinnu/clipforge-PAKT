@@ -37,6 +37,8 @@ import {
 // proxy code is migrated into cli-proxy.ts (P0-1 deferred refactor).
 import { startProxy } from './cli-proxy.js';
 import { startServe } from './cli-serve.js';
+import { runDoctor } from './doctor/claude-code.js';
+import { formatDoctor } from './doctor/format.js';
 import { runHook } from './hooks/index.js';
 import { VERSION } from './index.js';
 import type { PaktLayers } from './types.js';
@@ -83,6 +85,7 @@ Usage:
   pakt stats --compact              Compact old sessions into archive
   pakt stats --reset                Clear all stats
   pakt report                       Human-readable savings report
+  pakt doctor [--days N] [--json]   Where Claude Code tokens go + recommendations
   pakt hook <event>                 Claude Code hook (pre-compact | session-start); JSON on stdin
   pakt report --model <model>       Report with cost estimates for a specific model
   pakt --version                    Print version
@@ -338,6 +341,21 @@ async function main(): Promise<void> {
     case 'report':
       cmdReport(args);
       break;
+    case 'doctor': {
+      const days = Number(args.options.get('days') ?? 30);
+      const report = await runDoctor({
+        days: Number.isFinite(days) && days > 0 ? days : 30,
+        ...(args.options.get('root') ? { root: args.options.get('root') } : {}),
+      });
+      const envWindow = Number(process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW);
+      const current = Number.isFinite(envWindow) && envWindow > 0 ? envWindow : undefined;
+      process.stdout.write(
+        args.flags.has('json')
+          ? `${JSON.stringify(report, null, 2)}\n`
+          : formatDoctor(report, current),
+      );
+      return;
+    }
     case 'hook': {
       // Claude Code hook entry point. Fails open: never non-zero, never throws.
       let stdin = '';
