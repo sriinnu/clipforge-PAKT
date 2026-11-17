@@ -44,6 +44,9 @@ export const MIN_SUFFIX_OCCURRENCES = 3;
  */
 export const SUBSTRING_WINDOW_SIZES = [32, 24, 20, 16, 12, 10, 8, 6];
 
+/** Smallest entry of {@link SUBSTRING_WINDOW_SIZES}. */
+const MIN_SUBSTRING_WINDOW = Math.min(...SUBSTRING_WINDOW_SIZES);
+
 /**
  * Below this share of values being "short" (< 12 chars) the adaptive ladder
  * leaves the small-window tail alone. Above it, an extra `5`-char window is
@@ -97,8 +100,7 @@ export function computeAdaptiveWindowSizes(values: readonly string[]): number[] 
 
   // Nothing useful can be mined if the longest value is below the smallest
   // viable window — return an empty ladder so callers skip the loop entirely.
-  const minWindow = SUBSTRING_WINDOW_SIZES[SUBSTRING_WINDOW_SIZES.length - 1];
-  if (maxLen < minWindow) return [];
+  if (maxLen < MIN_SUBSTRING_WINDOW) return [];
 
   const sizes = new Set<number>();
 

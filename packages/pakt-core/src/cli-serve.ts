@@ -99,7 +99,13 @@ async function wrapServer(
   const clientTransport = new StdioClientTransport({
     command: cmd,
     args,
-    env: wrapEnv ? { ...process.env, ...wrapEnv } : undefined,
+    env: wrapEnv
+      ? Object.fromEntries(
+          Object.entries({ ...process.env, ...wrapEnv }).filter(
+            (e): e is [string, string] => e[1] !== undefined,
+          ),
+        )
+      : undefined,
   });
   const client = new Client({ name: 'pakt-proxy', version: VERSION });
   await client.connect(clientTransport);
