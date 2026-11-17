@@ -21,14 +21,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+        # macos-13 and macos-14 images are retired (jobs queue forever or fail in 1s with
+        # "configuration 'macos-14-arm64-us-default' is not supported"). Both Mac targets
+        # build on arm64 macos-15; Intel is a Rust cross-compile, so no Intel runner needed.
+          - os: macos-15
             label: macOS-Silicon
-          - os: macos-13
+            rust-target: aarch64-apple-darwin
+            args: '--target aarch64-apple-darwin'
+          - os: macos-15
             label: macOS-Intel
+            rust-target: x86_64-apple-darwin
+            args: '--target x86_64-apple-darwin'
           - os: windows-latest
             label: Windows
+            rust-target: ''
+            args: ''
           - os: ubuntu-latest
             label: Linux
+            rust-target: ''
+            args: ''
 
     runs-on: ${{ matrix.os }}
 
@@ -44,6 +55,8 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # stable as of 2026-09-29
+        with:
+          targets: ${{ matrix.rust-target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
@@ -70,4 +83,4 @@ jobs:
 
       - name: Build Tauri app
         working-directory: apps/desktop
-        run: pnpm tauri build
+        run: pnpm tauri build ${{ matrix.args }}
