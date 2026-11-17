@@ -130,4 +130,14 @@ describe('FileSpillStore + pakt_recall', () => {
     const store = new FileSpillStore(dir);
     expect(store.get('sp_aaaaaaaaaaaaaaaa')).toBeUndefined();
   });
+
+  it('a recall refreshes retention so in-use spills survive pruning', () => {
+    dir = mkdtempSync(join(tmpdir(), 'pakt-spill-'));
+    const path = join(dir, 'sp_bbbbbbbbbbbbbbbb.txt');
+    writeFileSync(path, 'still needed');
+    const sixDays = new Date(Date.now() - 6 * 24 * 3600 * 1000);
+    utimesSync(path, sixDays, sixDays);
+    expect(new FileSpillStore(dir).get('sp_bbbbbbbbbbbbbbbb')).toBe('still needed');
+    expect(Date.now() - statSync(path).mtimeMs).toBeLessThan(60_000);
+  });
 });

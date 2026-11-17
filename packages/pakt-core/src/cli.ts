@@ -37,6 +37,7 @@ import {
 // proxy code is migrated into cli-proxy.ts (P0-1 deferred refactor).
 import { startProxy } from './cli-proxy.js';
 import { startServe } from './cli-serve.js';
+import { runHook } from './hooks/index.js';
 import { VERSION } from './index.js';
 import type { PaktLayers } from './types.js';
 
@@ -82,6 +83,7 @@ Usage:
   pakt stats --compact              Compact old sessions into archive
   pakt stats --reset                Clear all stats
   pakt report                       Human-readable savings report
+  pakt hook <event>                 Claude Code hook (pre-compact | session-start); JSON on stdin
   pakt report --model <model>       Report with cost estimates for a specific model
   pakt --version                    Print version
   pakt --help                       Show this help
@@ -336,6 +338,16 @@ async function main(): Promise<void> {
     case 'report':
       cmdReport(args);
       break;
+    case 'hook': {
+      // Claude Code hook entry point. Fails open: never non-zero, never throws.
+      let stdin = '';
+      try {
+        stdin = readFileSync(0, 'utf8');
+      } catch {}
+      const { stdout } = runHook(args.file ?? '', stdin);
+      if (stdout) process.stdout.write(stdout);
+      return;
+    }
     default:
       process.stderr.write(`Unknown command: "${args.command}"\n\n`);
       process.stdout.write(HELP);

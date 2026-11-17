@@ -8,7 +8,15 @@
  * are pruned when the store is opened.
  */
 
-import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { SPILL_ID_PATTERN, type SpillStore } from './index.js';
@@ -38,8 +46,15 @@ export class FileSpillStore implements SpillStore {
   get(id: string): string | undefined {
     // The id pattern is the path-traversal guard: only sp_<16 hex> resolves.
     if (!SPILL_ID_PATTERN.test(id)) return undefined;
+    const path = join(this.dir, `${id}.txt`);
     try {
-      return readFileSync(join(this.dir, `${id}.txt`), 'utf8');
+      const text = readFileSync(path, 'utf8');
+      // A recall marks the spill as in use, so retention counts from last use.
+      try {
+        const now = new Date();
+        utimesSync(path, now, now);
+      } catch {}
+      return text;
     } catch {
       return undefined;
     }
