@@ -1,6 +1,6 @@
 {
   "name": "@sriinnu/pakt",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "PAKT compression engine — lossless-first L1-L3 compression with opt-in L4 semantic packing for LLM token optimization",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -29,7 +29,7 @@
     }
   },
   "bin": {
-    "pakt": "./bin/pakt.js"
+    "pakt": "bin/pakt.js"
   },
   "files": ["bin", "dist", "LICENSE", "README.md"],
   "sideEffects": false,
@@ -48,7 +48,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sriinnu/clipforge-PAKT.git",
+    "url": "git+https://github.com/sriinnu/clipforge-PAKT.git",
     "directory": "packages/pakt-core"
   },
   "homepage": "https://github.com/sriinnu/clipforge-PAKT#readme",

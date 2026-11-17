@@ -27,8 +27,11 @@
  * ```
  */
 
+/** Injected from package.json at build time (tsup/vitest `define`). */
+declare const __PAKT_VERSION__: string;
+
 /** Library version */
-export const VERSION = '0.10.0';
+export const VERSION: string = __PAKT_VERSION__;
 
 // ---------------------------------------------------------------------------
 // Core functions
