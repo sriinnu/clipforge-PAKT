@@ -19,7 +19,7 @@ import type {
   TabularArrayNode,
   TabularRowNode,
 } from '../parser/ast.js';
-import { formatScalar, formatTabularCell } from './format-scalar.js';
+import { formatInlineCell, formatScalar, formatTabularCell } from './format-scalar.js';
 
 const INDENT = '  ';
 
@@ -27,9 +27,7 @@ const INDENT = '  ';
 function formatKey(key: string): string {
   if (
     key.length === 0 ||
-    key.includes(' ') ||
-    key.includes(':') ||
-    key.includes('|') ||
+    /[ :|,[\]{}%]/.test(key) ||
     key.includes('\n') ||
     key.includes('\t') ||
     key.includes('\r') ||
@@ -207,7 +205,7 @@ function emitTabularRow(row: TabularRowNode, lines: string[], depth: number): vo
 /** Emit an inline array: `key [count]: val1,val2,val3`. */
 function emitInlineArray(node: InlineArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
-  const values = node.values.map((v) => formatScalar(v)).join(',');
+  const values = node.values.map(formatInlineCell).join(',');
   lines.push(`${prefix}${formatKey(node.key)} [${node.count}]: ${values}`);
 }
 
@@ -268,7 +266,7 @@ function emitListItemFirstChild(
       emitBody(node.children, lines, depth + 2);
       return;
     case 'inlineArray': {
-      const values = node.values.map((v) => formatScalar(v)).join(',');
+      const values = node.values.map(formatInlineCell).join(',');
       lines.push(`${prefix}- ${formatKey(node.key)} [${node.count}]: ${values}`);
       return;
     }

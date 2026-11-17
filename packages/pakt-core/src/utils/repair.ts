@@ -3,6 +3,8 @@
  * Best-effort auto-repair for malformed PAKT documents.
  */
 
+import { splitOutsideQuotes } from './split-quoted.js';
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -156,7 +158,7 @@ function fixCountMismatches(lines: string[]): string[] {
     // Inline array: key [N]: val1,val2,...
     const inlineMatch = trimmed.match(/^(\w[\w.]*)\s*\[\d+\]\s*:\s*(.+)$/);
     if (inlineMatch && !inlineMatch[2]?.match(/^\s*$/)) {
-      const items = (inlineMatch[2] ?? '').split(',').map((v) => v.trim());
+      const items = splitOutsideQuotes(inlineMatch[2] ?? '', ',').map((v) => v.trim());
       result[i] = `${prefix}${inlineMatch[1]} [${items.length}]: ${inlineMatch[2]}`;
       continue;
     }

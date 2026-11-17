@@ -4,6 +4,7 @@
  * Handles objects, arrays (tabular, inline, list), and keyed nodes.
  */
 
+import { splitOutsideQuotes } from '../utils/split-quoted.js';
 import { inferScalar } from './ast-helpers.js';
 import type {
   BodyNode,
@@ -29,6 +30,7 @@ import {
   reportError,
   skipNewlines,
 } from './parser.js';
+import { scanQuotedString } from './token-matchers.js';
 
 // ---------------------------------------------------------------------------
 // Body parsing
@@ -74,7 +76,9 @@ export function parseBody(s: ParserState, indent: number): BodyNode[] {
       continue;
     }
     if (cur.type === 'DICT_START' || cur.type === 'DICT_END' || cur.type === 'DASH') break;
-    if (cur.type === 'KEY' || cur.type === 'QUOTED_STRING') {
+    /* NUMBER covers numeric keys (`{"1": x}` serializes as `1: x`); at
+       line start in a body nothing else can be a bare number. */
+    if (cur.type === 'KEY' || cur.type === 'QUOTED_STRING' || cur.type === 'NUMBER') {
       const node = parseKeyedNode(s, indent);
       if (node) nodes.push(node);
       continue;
@@ -99,11 +103,9 @@ export function parseBody(s: ParserState, indent: number): BodyNode[] {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: keyed node parsing determines type from lookahead tokens
 function parseKeyedNode(s: ParserState, currentIndentLevel: number): BodyNode | null {
   const keyTok = advance(s);
-  // Quoted keys: strip surrounding quotes and unescape
-  const key =
-    keyTok.type === 'QUOTED_STRING'
-      ? keyTok.value.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-      : keyTok.value;
+  // Quoted keys arrive already unescaped by scanQuotedString; unescaping
+  // again here dropped backslashes from keys like `\"` (issue #59).
+  const key = keyTok.value;
   const startPos = posOf(keyTok);
 
   // Array annotation: key [N]...
@@ -229,7 +231,8 @@ function parseTabularArray(
   const fields: string[] = [];
   while (peek(s).type !== 'BRACE_CLOSE' && peek(s).type !== 'EOF') {
     const ft = peek(s);
-    if (ft.type === 'KEY' || ft.type === 'NUMBER') fields.push(advance(s).value);
+    if (ft.type === 'KEY' || ft.type === 'NUMBER' || ft.type === 'QUOTED_STRING')
+      fields.push(advance(s).value);
     else if (ft.type === 'PIPE') advance(s);
     else break;
   }
@@ -337,6 +340,38 @@ function parseSplitInlineArray(s: ParserState): ScalarNode[] {
   return values;
 }
 
+/**
+ * Split an inline-array payload on commas that sit outside double quotes.
+ * Quoted elements are unescaped and flagged `quoted: true` so that values
+ * such as `"1"` stay strings and `"hello, world"` stays one element.
+ *
+ * @param text - Raw payload after `key [N]: ` (comment already stripped)
+ * @param position - Source position attributed to every element
+ * @returns The scalar elements, in source order
+ */
+function splitInlineValues(text: string, position: SourcePosition): ScalarNode[] {
+  return splitOutsideQuotes(text, ',').map((raw) => {
+    const part = raw.trim();
+    if (part.startsWith('"')) {
+      try {
+        const { token, end } = scanQuotedString(part, 0, position.line, position.offset);
+        if (end === part.length) {
+          return {
+            type: 'scalar',
+            scalarType: 'string',
+            value: token.value,
+            quoted: true,
+            position,
+          };
+        }
+      } catch {
+        /* Unterminated quote: fall through and keep the raw text. */
+      }
+    }
+    return inferScalar(part, position);
+  });
+}
+
 function parseInlineArray(
   s: ParserState,
   key: string,
@@ -350,7 +385,7 @@ function parseInlineArray(
     /* Fast path: tokenizer emitted the whole comma-separated payload as
        a single VALUE token (standard case, no leading quote). */
     const valTok = advance(s);
-    values = valTok.value.split(',').map((part) => inferScalar(part.trim(), posOf(valTok)));
+    values = splitInlineValues(valTok.value, posOf(valTok));
   } else {
     /* Split path: tokenizer carved up the payload on quotes. */
     values = parseSplitInlineArray(s);

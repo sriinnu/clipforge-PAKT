@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Playground first-load slashed ~93%.** The main-thread code now imports metadata from `@sriinnu/pakt/meta` and loads the full engine only inside the web worker, so the initial JS bundle drops from ~3.5 MB to ~233 KB (gzip ~74 KB); the BPE tokenizer stays off the main thread.
 
+### Fixed
+
+- **Lossless JSON round-trip with PAKT delimiters ([#59](https://github.com/sriinnu/clipforge-PAKT/issues/59)).** Reported via fuzzing by the [UCSB PLSE group](https://ucsbplse.github.io/).
+  - Inline arrays split quote-aware: quoted items no longer keep literal quotes, and `"hello, world"` stays one element.
+  - Object keys containing `, [ ] { } %` are now quoted on output; numeric keys (`{"1": …}`) are no longer dropped; quoted keys no longer lose backslashes to a double unescape.
+  - Tabular cells containing `, [ ] { } %` are quoted, and quoted tabular field names now parse.
+  - `validate()` no longer reports E007 on quoted commas, and `repair()` no longer rewrites a correct inline count.
+  - The round-trip fuzzer now draws strings and keys from all printable ASCII instead of delimiter-free identifiers.
+
 ## [0.11.0] - 2026-06-26
 
 ### Added
