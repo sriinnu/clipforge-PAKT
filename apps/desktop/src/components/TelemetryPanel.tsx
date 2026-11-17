@@ -78,6 +78,7 @@ const TelemetryDashboard: FC<{ snapshot: TelemetrySnapshot }> = ({ snapshot }) =
         </section>
       </div>
 
+      {/* biome-ignore lint/a11y/useSemanticElements: ARIA role on a div avoids fieldset/output default styling */}
       <div className="telemetry-stat-strip" role="group" aria-label="Lifetime metrics">
         <StatTile label="Savings" value={`${snapshot.overallSavingsPercent}%`} hint="weighted" />
         <StatTile
@@ -136,6 +137,7 @@ const TelemetryPanel: FC = () => {
 
   if (status === 'loading' && !snapshot) {
     return (
+      // biome-ignore lint/a11y/useSemanticElements: ARIA role on a div avoids fieldset/output default styling
       <div className="telemetry-loading" role="status">
         <p className="desktop-copy">Reading agent telemetry…</p>
       </div>

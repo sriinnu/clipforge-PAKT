@@ -285,8 +285,8 @@ function registerSearchFacade(
       { description: facadeDef.description ?? '' },
       async (toolArgs: Record<string, unknown>) => {
         if (facadeDef.name === 'search_tools') {
-          const query = typeof toolArgs['query'] === 'string' ? toolArgs['query'] : '';
-          const limit = typeof toolArgs['limit'] === 'number' ? toolArgs['limit'] : 10;
+          const query = typeof toolArgs.query === 'string' ? toolArgs.query : '';
+          const limit = typeof toolArgs.limit === 'number' ? toolArgs.limit : 10;
           const results = catalog.search(query, limit);
           return {
             content: [
@@ -299,7 +299,7 @@ function registerSearchFacade(
         }
 
         if (facadeDef.name === 'get_tool_schema') {
-          const name = typeof toolArgs['name'] === 'string' ? toolArgs['name'] : '';
+          const name = typeof toolArgs.name === 'string' ? toolArgs.name : '';
           const schema = catalog.getSchema(name);
           const payload = schema
             ? { tool: schema }
@@ -311,7 +311,7 @@ function registerSearchFacade(
 
         if (facadeDef.name === 'call_tool') {
           // DOCUMENTED LIMITATION — see module JSDoc.
-          const name = typeof toolArgs['name'] === 'string' ? toolArgs['name'] : '(unknown)';
+          const name = typeof toolArgs.name === 'string' ? toolArgs.name : '(unknown)';
           const schema = catalog.getSchema(name);
           return {
             content: [
@@ -319,11 +319,7 @@ function registerSearchFacade(
                 type: 'text' as const,
                 text: JSON.stringify(
                   {
-                    error:
-                      'pakt-proxy search-facade limitation: transparent call_tool rewriting ' +
-                      'requires bidirectional tool-result interception not available in the current ' +
-                      'stdio proxy architecture. Restart with --tools slim or --tools full to call ' +
-                      `"${name}" directly.`,
+                    error: `pakt-proxy search-facade limitation: transparent call_tool rewriting requires bidirectional tool-result interception not available in the current stdio proxy architecture. Restart with --tools slim or --tools full to call "${name}" directly.`,
                     toolName: name,
                     toolSchema: schema ?? null,
                     hint: schema

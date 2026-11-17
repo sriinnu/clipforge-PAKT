@@ -135,43 +135,43 @@ export function parseStatsLine(
     return null;
   }
 
-  switch (obj['t']) {
+  switch (obj.t) {
     case 'h':
       return {
         t: 'h',
-        agent: str(obj['agent'], 'agent'),
-        pid: num(obj['pid']),
-        startedAt: num(obj['startedAt']),
-        ...(typeof obj['project'] === 'string' ? { project: obj['project'] } : {}),
+        agent: str(obj.agent, 'agent'),
+        pid: num(obj.pid),
+        startedAt: num(obj.startedAt),
+        ...(typeof obj.project === 'string' ? { project: obj.project } : {}),
       };
     case 'r': {
-      if (!ACTIONS.has(obj['action'] as string)) return null;
-      const durationMs = obj['durationMs'];
+      if (!ACTIONS.has(obj.action as string)) return null;
+      const durationMs = obj.durationMs;
       return {
-        action: obj['action'] as CallRecord['action'],
-        format: str(obj['format'], 'unknown'),
-        inputTokens: num(obj['inputTokens']),
-        outputTokens: num(obj['outputTokens']),
-        savedTokens: num(obj['savedTokens']),
-        savingsPercent: num(obj['savingsPercent']),
-        reversible: obj['reversible'] !== false,
-        timestamp: num(obj['timestamp']),
+        action: obj.action as CallRecord['action'],
+        format: str(obj.format, 'unknown'),
+        inputTokens: num(obj.inputTokens),
+        outputTokens: num(obj.outputTokens),
+        savedTokens: num(obj.savedTokens),
+        savingsPercent: num(obj.savingsPercent),
+        reversible: obj.reversible !== false,
+        timestamp: num(obj.timestamp),
         ...(typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0
           ? { durationMs }
           : {}),
       };
     }
     case 'f':
-      return { t: 'f', endedAt: num(obj['endedAt']), totalCalls: num(obj['totalCalls']) };
+      return { t: 'f', endedAt: num(obj.endedAt), totalCalls: num(obj.totalCalls) };
     case 'd':
       return {
         t: 'd',
-        date: str(obj['date'], ''),
-        format: str(obj['format'], 'unknown'),
-        calls: num(obj['calls']),
-        inputTokens: num(obj['inputTokens']),
-        outputTokens: num(obj['outputTokens']),
-        savedTokens: num(obj['savedTokens']),
+        date: str(obj.date, ''),
+        format: str(obj.format, 'unknown'),
+        calls: num(obj.calls),
+        inputTokens: num(obj.inputTokens),
+        outputTokens: num(obj.outputTokens),
+        savedTokens: num(obj.savedTokens),
       };
     default:
       return null;

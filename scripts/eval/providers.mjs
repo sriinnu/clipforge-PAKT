@@ -377,7 +377,8 @@ export function cliProvider({ cli, model }) {
  * @returns {Promise<{stdout: string, stderr: string}>}
  */
 async function spawnCli(cli, model, prompt) {
-  let bin, args;
+  let bin;
+  let args;
 
   if (cli === 'claude') {
     bin = 'claude';

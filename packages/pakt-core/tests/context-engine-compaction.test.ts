@@ -327,7 +327,7 @@ describe('non-opaque messages still optimised', () => {
     const engine = new ContextEngine({ maxContextTokens: 50_000, recentTurns: 2 });
 
     const repeated = JSON.stringify(
-      Array.from({ length: 20 }, (_, i) => ({ id: i, name: 'Item ' + String(i) })),
+      Array.from({ length: 20 }, (_, i) => ({ id: i, name: `Item ${String(i)}` })),
     );
 
     engine.addMessage({ role: 'user', content: 'q1' });
@@ -500,7 +500,7 @@ describe('regression smoke pass', () => {
   it('tool result compression still fires on non-opaque structured data', () => {
     const engine = new ContextEngine({ maxContextTokens: 50_000 });
     const records = JSON.stringify(
-      Array.from({ length: 30 }, (_, i) => ({ id: i, name: 'User_' + String(i), active: true })),
+      Array.from({ length: 30 }, (_, i) => ({ id: i, name: `User_${String(i)}`, active: true })),
     );
     engine.addMessage({ role: 'user', content: 'users?' });
     engine.addToolResult('get_users', records);

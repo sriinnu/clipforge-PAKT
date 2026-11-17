@@ -428,7 +428,7 @@ export function renderMarkdown(run) {
     const suiteRecords = run.records.filter((r) => r.suite === suite);
 
     if (suites.size > 1) {
-      lines.push(`---`);
+      lines.push('---');
       lines.push('');
       lines.push(`## Suite: \`${suite}\``);
       lines.push('');
@@ -501,8 +501,7 @@ export function renderMarkdown(run) {
   }
   lines.push('');
   lines.push(
-    `## Estimated cost per full live run ` +
-      `(Fable 5: $${PRICING.inputPerMTok}/MTok in, $${PRICING.outputPerMTok}/MTok out)`,
+    `## Estimated cost per full live run (Fable 5: $${PRICING.inputPerMTok}/MTok in, $${PRICING.outputPerMTok}/MTok out)`,
   );
   lines.push('');
   lines.push(`- Estimated input tokens: ~${run.cost.inputTokens.toLocaleString('en-US')}`);
@@ -547,7 +546,7 @@ export function writeReport(run, outDir) {
   const stamp = run.startedAt.replace(/[:.]/g, '-');
   const jsonPath = join(outDir, `${stamp}.json`);
   const mdPath = join(outDir, 'latest.md');
-  writeFileSync(jsonPath, JSON.stringify(run, null, 2) + '\n');
+  writeFileSync(jsonPath, `${JSON.stringify(run, null, 2)}\n`);
   writeFileSync(mdPath, renderMarkdown(run));
   return { jsonPath, mdPath };
 }

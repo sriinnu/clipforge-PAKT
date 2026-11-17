@@ -128,11 +128,10 @@ describe('roundtrip: text/markdown payloads with @cache mid-body', () => {
   it('markdown payload containing @cache mid-body roundtrips intact', () => {
     // Craft a text payload that contains @cache somewhere in the body
     // and compress it with a cacheTarget so a real @cache header is injected.
-    const REPETITIVE =
-      Array.from(
-        { length: 8 },
-        (_, i) => `entry ${String(i)}: platform_reliability_squad platform_reliability_squad`,
-      ).join('\n') + '\n@cache some-annotation\nend of file';
+    const REPETITIVE = `${Array.from(
+      { length: 8 },
+      (_, i) => `entry ${String(i)}: platform_reliability_squad platform_reliability_squad`,
+    ).join('\n')}\n@cache some-annotation\nend of file`;
 
     // compress with text format (no structural compression, but @cache directive may be added)
     const result = compress(REPETITIVE, { fromFormat: 'text', target: 'anthropic' });

@@ -46,7 +46,7 @@ describe('ContextEngine', () => {
 
   it('compresses large JSON tool results automatically', () => {
     const records = Array.from({ length: 30 }, (_, i) => ({
-      name: 'User_' + i,
+      name: `User_${i}`,
       role: 'developer',
       active: true,
       department: 'engineering',
@@ -86,7 +86,7 @@ describe('ContextEngine', () => {
     const repeated = JSON.stringify(
       Array.from({ length: 20 }, (_, i) => ({
         id: i,
-        name: 'Item ' + i,
+        name: `Item ${i}`,
         status: 'active',
       })),
     );
@@ -107,7 +107,7 @@ describe('ContextEngine', () => {
   it('compresses old turns beyond recentTurns window', () => {
     // Add 6 turns (recentTurns=3, so turns 1-3 are old)
     for (let i = 0; i < 6; i++) {
-      engine.addMessage({ role: 'user', content: 'turn ' + i });
+      engine.addMessage({ role: 'user', content: `turn ${i}` });
       // Add a JSON tool result that can be compressed
       if (i < 4) {
         engine.addToolResult(
@@ -115,14 +115,14 @@ describe('ContextEngine', () => {
           JSON.stringify(
             Array.from({ length: 15 }, (_, j) => ({
               id: j,
-              value: 'item_' + j,
+              value: `item_${j}`,
               active: true,
               type: 'standard',
             })),
           ),
         );
       }
-      engine.addMessage({ role: 'assistant', content: 'response for turn ' + i });
+      engine.addMessage({ role: 'assistant', content: `response for turn ${i}` });
     }
 
     const { savings } = engine.optimize();
@@ -142,7 +142,7 @@ describe('ContextEngine', () => {
     });
 
     for (let i = 0; i < 5; i++) {
-      engine2.addMessage({ role: 'user', content: 'question ' + i });
+      engine2.addMessage({ role: 'user', content: `question ${i}` });
       engine2.addMessage({
         role: 'assistant',
         content:
@@ -407,7 +407,7 @@ describe('ContextEngine', () => {
     const minEngine = new ContextEngine({ strategy: 'minimal', recentTurns: 1 });
 
     for (let i = 0; i < 5; i++) {
-      minEngine.addMessage({ role: 'user', content: 'question ' + i });
+      minEngine.addMessage({ role: 'user', content: `question ${i}` });
       minEngine.addMessage({ role: 'assistant', content: 'answer '.repeat(30) });
     }
 

@@ -435,9 +435,10 @@ export function injectCompressContentHeader(text: string): string {
   const lines = text.split('\n');
   let lastHeaderIdx = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i]!.startsWith('@')) {
+    const line = lines[i] ?? '';
+    if (line.startsWith('@')) {
       lastHeaderIdx = i;
-    } else if (lines[i]!.trim() !== '') {
+    } else if (line.trim() !== '') {
       break;
     }
   }

@@ -250,8 +250,8 @@ export function handleFacadeRequest(
   const { name, args } = toolCall;
 
   if (name === 'search_tools') {
-    const query = typeof args['query'] === 'string' ? args['query'] : '';
-    const limit = typeof args['limit'] === 'number' ? args['limit'] : 10;
+    const query = typeof args.query === 'string' ? args.query : '';
+    const limit = typeof args.limit === 'number' ? args.limit : 10;
     const results = catalog.search(query, limit);
     return {
       handled: true,
@@ -263,7 +263,7 @@ export function handleFacadeRequest(
   }
 
   if (name === 'get_tool_schema') {
-    const toolName = typeof args['name'] === 'string' ? args['name'] : '';
+    const toolName = typeof args.name === 'string' ? args.name : '';
     const schema = catalog.getSchema(toolName);
     if (!schema) {
       return {
@@ -281,7 +281,7 @@ export function handleFacadeRequest(
   }
 
   if (name === 'call_tool') {
-    const toolName = typeof args['name'] === 'string' ? args['name'] : '(unknown)';
+    const toolName = typeof args.name === 'string' ? args.name : '(unknown)';
     const schema = catalog.getSchema(toolName);
     // DOCUMENTED LIMITATION: bidirectional tool-result interception is not
     // available in the current StdioClientTransport / McpServer setup.
@@ -326,40 +326,40 @@ interface ExtractedToolCall {
  * @returns Extracted call or null.
  */
 function extractToolCall(body: Record<string, unknown>): ExtractedToolCall | null {
-  if (!Array.isArray(body['messages'])) return null;
-  const msgs = body['messages'] as Array<Record<string, unknown>>;
+  if (!Array.isArray(body.messages)) return null;
+  const msgs = body.messages as Array<Record<string, unknown>>;
 
   for (let i = msgs.length - 1; i >= 0; i--) {
     const msg = msgs[i];
     if (!msg) continue;
 
     // Anthropic: content blocks with type:"tool_use"
-    if (Array.isArray(msg['content'])) {
-      for (const block of msg['content'] as Array<Record<string, unknown>>) {
-        if (block['type'] === 'tool_use' && typeof block['name'] === 'string') {
-          return { name: block['name'], args: (block['input'] as Record<string, unknown>) ?? {} };
+    if (Array.isArray(msg.content)) {
+      for (const block of msg.content as Array<Record<string, unknown>>) {
+        if (block.type === 'tool_use' && typeof block.name === 'string') {
+          return { name: block.name, args: (block.input as Record<string, unknown>) ?? {} };
         }
       }
     }
 
     // OpenAI: tool_calls[].function
-    if (Array.isArray(msg['tool_calls'])) {
-      const calls = msg['tool_calls'] as Array<Record<string, unknown>>;
+    if (Array.isArray(msg.tool_calls)) {
+      const calls = msg.tool_calls as Array<Record<string, unknown>>;
       const last = calls[calls.length - 1];
       if (last) {
-        const fn = last['function'] as Record<string, unknown> | undefined;
-        if (fn && typeof fn['name'] === 'string') {
+        const fn = last.function as Record<string, unknown> | undefined;
+        if (fn && typeof fn.name === 'string') {
           let args: Record<string, unknown> = {};
-          if (typeof fn['arguments'] === 'string') {
+          if (typeof fn.arguments === 'string') {
             try {
-              args = JSON.parse(fn['arguments']) as Record<string, unknown>;
+              args = JSON.parse(fn.arguments) as Record<string, unknown>;
             } catch {
               /* pass */
             }
-          } else if (fn['arguments'] && typeof fn['arguments'] === 'object') {
-            args = fn['arguments'] as Record<string, unknown>;
+          } else if (fn.arguments && typeof fn.arguments === 'object') {
+            args = fn.arguments as Record<string, unknown>;
           }
-          return { name: fn['name'], args };
+          return { name: fn.name, args };
         }
       }
     }

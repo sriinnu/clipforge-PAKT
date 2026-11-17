@@ -110,7 +110,7 @@ function writeSessionFile(
   if (opts?.withFooter) {
     lines.push(JSON.stringify({ t: 'f', endedAt: Date.now(), totalCalls: records.length }));
   }
-  writeFileSync(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf8');
+  writeFileSync(join(dir, `${sessionId}.jsonl`), `${lines.join('\n')}\n`, 'utf8');
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +141,7 @@ afterEach(() => {
     delete (process.stdin as NodeJS.ReadStream & { isTTY?: boolean }).isTTY;
   }
 
+  // biome-ignore lint/performance/noDelete: assigning undefined would set the string 'undefined'
   delete process.env.PAKT_STATS_DIR;
   resetStatsDir();
   rmSync(tempDir, { recursive: true, force: true });
@@ -165,8 +166,7 @@ describe('pakt stats --json — zero state (empty stats dir)', () => {
     expect(trimmed).toMatch(/^\{/);
     expect(trimmed).toMatch(/\}$/);
     // No ANSI escape codes
-    // eslint-disable-next-line no-control-regex
-    expect(trimmed).not.toMatch(/\[/);
+    expect(trimmed.includes('\u001b[')).toBe(false);
   });
 
   it('includes schemaVersion: 1', async () => {
@@ -274,8 +274,8 @@ describe('pakt stats --json — populated stats', () => {
 
     expect(parsed.byFormat).toHaveProperty('json');
     expect(parsed.byFormat).toHaveProperty('yaml');
-    expect(parsed.byFormat['json']?.calls).toBe(2);
-    expect(parsed.byFormat['yaml']?.calls).toBe(1);
+    expect(parsed.byFormat.json?.calls).toBe(2);
+    expect(parsed.byFormat.yaml?.calls).toBe(1);
   });
 
   it('topFormat is the format with the most calls', async () => {

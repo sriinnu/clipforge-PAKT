@@ -91,13 +91,15 @@ function stripNullsShallow(obj: Record<string, unknown>): Record<string, unknown
 function stripRedundantSchemaFields(schema: Record<string, unknown>): void {
   // Drop additionalProperties:false — it is the default assumption and adds no
   // information in a one-way (send-only, never-echo) tool definition.
-  if (schema['additionalProperties'] === false) {
-    delete schema['additionalProperties'];
+  if (schema.additionalProperties === false) {
+    // biome-ignore lint/performance/noDelete: key must be absent from the slimmed schema, not undefined
+    delete schema.additionalProperties;
   }
   // Drop type:"object" at this schema level — the object shape is already
   // implied by the presence of a `properties` map.
-  if (schema['type'] === 'object') {
-    delete schema['type'];
+  if (schema.type === 'object') {
+    // biome-ignore lint/performance/noDelete: key must be absent from the slimmed schema, not undefined
+    delete schema.type;
   }
 }
 
@@ -121,6 +123,7 @@ function slimProperty(prop: ToolSchemaProperty, cap: number): ToolSchemaProperty
     stripped.description = truncateAtSentence(stripped.description, cap);
   } else {
     // Remove empty descriptions to save bytes.
+    // biome-ignore lint/performance/noDelete: key must be absent from the slimmed schema, not undefined
     delete stripped.description;
   }
 
@@ -189,8 +192,10 @@ export function slimTool(tool: ProviderTool, opts: SlimToolOptions = {}): Provid
   // Slim description.
   if (typeof out.description === 'string') {
     out.description = truncateAtSentence(out.description, cap);
+    // biome-ignore lint/performance/noDelete: key must be absent from the slimmed schema, not undefined
     if (out.description.length === 0) delete out.description;
   } else if (out.description === null || out.description === undefined) {
+    // biome-ignore lint/performance/noDelete: key must be absent from the slimmed schema, not undefined
     delete out.description;
   }
 
@@ -257,11 +262,11 @@ export function applySlimMode(
     savedPercent: 0,
   };
 
-  if (!Array.isArray(body['tools']) || (body['tools'] as unknown[]).length === 0) {
+  if (!Array.isArray(body.tools) || (body.tools as unknown[]).length === 0) {
     return zero;
   }
 
-  const { slimmedTools, savings } = slimTools(body['tools'] as ProviderTool[], opts);
-  body['tools'] = slimmedTools;
+  const { slimmedTools, savings } = slimTools(body.tools as ProviderTool[], opts);
+  body.tools = slimmedTools;
   return savings;
 }

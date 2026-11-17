@@ -14,7 +14,10 @@ const OUT = dirname(fileURLToPath(import.meta.url));
 
 // Deterministic LCG so re-running reproduces the exact same files.
 let seed = 1337;
-const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+const rnd = () => {
+  seed = (seed * 1103515245 + 12345) % 2147483648;
+  return seed / 2147483648;
+};
 const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
 const int = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
 
@@ -75,7 +78,9 @@ const PLANS = ['free', 'free', 'free', 'pro', 'pro', 'enterprise'];
 const users = [];
 const seen = new Set();
 for (let id = 1; id <= 50; id++) {
-  let fn, ln, key;
+  let fn;
+  let ln;
+  let key;
   do {
     fn = pick(FIRST);
     ln = pick(LAST);
@@ -101,7 +106,7 @@ const cityCount = {};
 for (const u of users) cityCount[u.city] = (cityCount[u.city] || 0) + 1;
 const sortedCities = Object.entries(cityCount).sort((a, b) => b[1] - a[1]);
 if (sortedCities[0][1] === sortedCities[1][1]) users[4].city = sortedCities[0][0];
-writeFileSync(join(OUT, 'tabular-users.json'), JSON.stringify(users, null, 2) + '\n');
+writeFileSync(join(OUT, 'tabular-users.json'), `${JSON.stringify(users, null, 2)}\n`);
 
 // ---------- nested-config.json: hand-authored nested service config ----------
 const config = {
@@ -170,7 +175,7 @@ const config = {
     },
   },
 };
-writeFileSync(join(OUT, 'nested-config.json'), JSON.stringify(config, null, 2) + '\n');
+writeFileSync(join(OUT, 'nested-config.json'), `${JSON.stringify(config, null, 2)}\n`);
 
 // ---------- logs.json: 80 structured entries with repeated keys/values ----------
 const SERVICES = ['api-gateway', 'auth', 'billing', 'search', 'notifications'];
@@ -232,7 +237,7 @@ for (let i = 0; i < 80; i++) {
 let maxIdx = 0;
 for (let i = 1; i < logs.length; i++) if (logs[i].latency_ms >= logs[maxIdx].latency_ms) maxIdx = i;
 logs[maxIdx].latency_ms = 2873;
-writeFileSync(join(OUT, 'logs.json'), JSON.stringify(logs, null, 2) + '\n');
+writeFileSync(join(OUT, 'logs.json'), `${JSON.stringify(logs, null, 2)}\n`);
 
 // Sanity summary printed for the human running this once.
 const errs = logs.filter((l) => l.level === 'ERROR');
