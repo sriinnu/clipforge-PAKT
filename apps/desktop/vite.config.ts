@@ -18,8 +18,9 @@ export default defineConfig({
   envPrefix: ['VITE_', 'TAURI_'],
 
   build: {
-    // Tauri uses Chromium on Windows and WebKit on macOS/Linux
-    target: process.env.TAURI_PLATFORM === 'windows' ? 'chrome105' : 'safari14',
+    // Tauri uses Chromium on Windows and WebKit on macOS/Linux.
+    // safari16 = macOS 13 Ventura, matching bundle.macOS.minimumSystemVersion (#61).
+    target: process.env.TAURI_PLATFORM === 'windows' ? 'chrome105' : 'safari16',
     minify: 'esbuild',
     cssMinify: 'esbuild',
     sourcemap: false,
