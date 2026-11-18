@@ -32,6 +32,8 @@ export interface BashSpillConfig {
   thresholdTokens: number;
   headLines: number;
   tailLines: number;
+  /** Claude Code's own Bash output cap (`BASH_MAX_OUTPUT_LENGTH`, default 30000). */
+  hostCap: number;
 }
 
 export function bashSpillConfig(env: NodeJS.ProcessEnv = process.env): BashSpillConfig {
@@ -45,6 +47,7 @@ export function bashSpillConfig(env: NodeJS.ProcessEnv = process.env): BashSpill
     thresholdTokens: num(env.PAKT_SPILL_THRESHOLD, 1000, 200, 50_000),
     headLines: num(env.PAKT_SPILL_HEAD, 15, 0, 200),
     tailLines: num(env.PAKT_SPILL_TAIL, 15, 0, 200),
+    hostCap: num(env.BASH_MAX_OUTPUT_LENGTH, 30_000, 1, 1e9),
   };
 }
 
@@ -130,10 +133,13 @@ export function bashSpill(
   }
   // Shadow mode spills into memory only: nothing reaches disk but the ledger row.
   const store = cfg.mode === 'live' ? new FileSpillStore() : new MemorySpillStore();
+  // Output at Claude Code's cap was already cut before we saw it: its last
+  // lines are not the real end, so showing them as a tail would mislead.
+  const cut = stdout.length >= cfg.hostCap - 16;
   const r = spill(stdout, store, {
     thresholdTokens: cfg.thresholdTokens,
     headLines: cfg.headLines,
-    tailLines: cfg.tailLines,
+    tailLines: cut ? 0 : cfg.tailLines,
   });
   if (!r.spilled) {
     log({ ...base, action: 'skip', reason: 'small', tokens: r.originalTokens });
@@ -145,13 +151,16 @@ export function bashSpill(
     id: r.id,
     tokens: r.originalTokens,
     gistTokens: r.tokens,
+    ...(cut ? { cut: true } : {}),
   });
   if (cfg.mode !== 'live') return '';
   return JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PostToolUse',
       updatedToolOutput: {
-        stdout: r.content,
+        stdout: cut
+          ? `${r.content}\n[pakt: Claude Code cut this output at ${cfg.hostCap} chars before pakt saw it, so the text above does not reach the real end. Re-run with a filter (| tail -n 50, | grep) to see the end.]`
+          : r.content,
         stderr: String(input.tool_response?.stderr ?? ''),
         interrupted: false,
         isImage: false,
