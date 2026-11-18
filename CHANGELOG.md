@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-18
+
+### Fixed
+
+- **Bash spill showed a fake tail when Claude Code had already cut the output.** The hook only gets Bash output after Claude Code has cut it at `BASH_MAX_OUTPUT_LENGTH`. In that case the last lines are not the real end, and a live test showed the gist presenting them as if they were. Output at that cap now spills with the head only, plus a note saying it was cut before pakt saw it. Recommended: raise `BASH_MAX_OUTPUT_LENGTH` (for example to 100000) so that pakt does the shrinking and the tail it keeps is the real one.
+
 ## [0.13.0] - 2026-11-17
 
 ### Added
