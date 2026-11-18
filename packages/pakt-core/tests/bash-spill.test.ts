@@ -113,6 +113,26 @@ describe('bash spill hook', () => {
     expect(bashSpill(input(big), { ...live, mode: 'off' })).toBe('');
   });
 
+  it('output already cut at the host cap gets no fake tail and says it was cut', () => {
+    // planted: the real bug from the live test (seq 1 3000 cut at 20000 chars mid-line)
+    const full = Array.from({ length: 3000 }, (_, i) => `row ${i + 1}`).join('\n');
+    const cut = full.slice(0, 20_000);
+    const cfg = bashSpillConfig({ PAKT_SPILL_MODE: 'live', BASH_MAX_OUTPUT_LENGTH: '20000' });
+    const u = JSON.parse(bashSpill(input(cut), cfg)).hookSpecificOutput.updatedToolOutput;
+    const lastShown = u.stdout
+      .split('\n')
+      .filter((l: string) => l.startsWith('row '))
+      .pop();
+    expect(lastShown).toBe('row 15'); // head only: no tail from the cut-off end
+    expect(u.stdout).toContain('cut this output at 20000 chars');
+    expect(ledger().pop()).toMatchObject({ action: 'spill', cut: true });
+    // same size under a higher cap is complete output: keeps its real tail
+    const ok = JSON.parse(bashSpill(input(cut), { ...cfg, hostCap: 100_000 })).hookSpecificOutput
+      .updatedToolOutput;
+    expect(ok.stdout).not.toContain('cut this output');
+    expect(ok.stdout.trimEnd().split('\n').pop()).toBe(cut.split('\n').pop());
+  });
+
   it('fails open on garbage and clamps bad env values to defaults', () => {
     expect(runHook('post-tool-use', 'not json').stdout).toBe('');
     expect(runHook('post-tool-use', '{"tool_name":"Bash","tool_response":7}').stdout).toBe('');
@@ -121,6 +141,12 @@ describe('bash spill hook', () => {
       PAKT_SPILL_THRESHOLD: '-5',
       PAKT_SPILL_TAIL: 'NaN',
     });
-    expect(c).toEqual({ mode: 'shadow', thresholdTokens: 1000, headLines: 15, tailLines: 15 });
+    expect(c).toEqual({
+      mode: 'shadow',
+      thresholdTokens: 1000,
+      headLines: 15,
+      tailLines: 15,
+      hostCap: 30_000,
+    });
   });
 });
