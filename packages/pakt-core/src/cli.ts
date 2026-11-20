@@ -38,7 +38,8 @@ import {
 import { startProxy } from './cli-proxy.js';
 import { startServe } from './cli-serve.js';
 import { runDoctor } from './doctor/claude-code.js';
-import { formatDoctor } from './doctor/format.js';
+import { formatDoctor, formatRibhuDoctor } from './doctor/format.js';
+import { runRibhuDoctor } from './doctor/ribhu.js';
 import { runHook } from './hooks/index.js';
 import { VERSION } from './index.js';
 import type { PaktLayers } from './types.js';
@@ -86,6 +87,7 @@ Usage:
   pakt stats --reset                Clear all stats
   pakt report                       Human-readable savings report
   pakt doctor [--days N] [--json]   Where Claude Code tokens go + recommendations
+  pakt doctor ribhu [--include-eval] Where Ribhu tokens go (~/.ribhu/usage)
   pakt hook <event>                 Claude Code hook (pre-compact | session-start); JSON on stdin
   pakt report --model <model>       Report with cost estimates for a specific model
   pakt --version                    Print version
@@ -343,6 +345,17 @@ async function main(): Promise<void> {
       break;
     case 'doctor': {
       const days = Number(args.options.get('days') ?? 30);
+      if (args.file === 'ribhu') {
+        const rr = runRibhuDoctor({
+          days: Number.isFinite(days) && days > 0 ? days : 30,
+          includeEval: args.flags.has('include-eval'),
+          ...(args.options.get('root') ? { root: args.options.get('root') } : {}),
+        });
+        process.stdout.write(
+          args.flags.has('json') ? `${JSON.stringify(rr, null, 2)}\n` : formatRibhuDoctor(rr),
+        );
+        return;
+      }
       const report = await runDoctor({
         days: Number.isFinite(days) && days > 0 ? days : 30,
         ...(args.options.get('root') ? { root: args.options.get('root') } : {}),

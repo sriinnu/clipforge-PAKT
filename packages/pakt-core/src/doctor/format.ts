@@ -5,6 +5,7 @@
  */
 
 import type { DoctorReport } from './claude-code.js';
+import type { RibhuDoctorReport } from './ribhu.js';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const k = (x: number) => `${Math.round(x / 1000)}K`;
@@ -95,6 +96,102 @@ export function formatDoctor(r: DoctorReport, currentWindow?: number): string {
       `  ${x.name.padEnd(28)} ${String(x.results).padStart(7)} results  avg ${String(x.avgTokens).padStart(5)} tok  ${pct(x.residentShare).padStart(6)}`,
     );
   const rec = recommendations(r, currentWindow);
+  if (rec.length) {
+    L.push('');
+    L.push('Recommendations (proposals; pakt never edits your settings)');
+    for (const x of rec) L.push(`  - ${x}`);
+  }
+  return `${L.join('\n')}\n`;
+}
+
+// ---------------------------------------------------------------------------
+// pakt doctor ribhu
+// ---------------------------------------------------------------------------
+
+const range = (lo: number, hi: number, f: (x: number) => string) =>
+  f(lo) === f(hi) ? f(lo) : `${f(lo)}–${f(hi)}`;
+
+export function ribhuRecommendations(r: RibhuDoctorReport): string[] {
+  const out: string[] = [];
+  const n = r.rows.kept || 1;
+  if (r.conventions.ambiguous / n > 0.05) {
+    out.push(
+      `${pct(r.conventions.ambiguous / n)} of rows can't say whether input_tokens includes the cache: have Ribhu's usage log write the whole-prompt count (metered_input_tokens) so uncached input is exact.`,
+    );
+  }
+  if (r.trees.subagentShare > 0.3) {
+    out.push(
+      `Subagents are ${pct(r.trees.subagentShare)} of prompt tokens: check what context each child starts with.`,
+    );
+  }
+  for (const p of r.byProvider) {
+    const cached = p.read + p.write;
+    const prompt = p.uncachedHigh + cached;
+    // Only routes that report cache reads; small routes are noise.
+    if (p.read === 0 || prompt < 1e6) continue;
+    const hit = p.read / prompt;
+    if (hit >= 0.5) continue;
+    const perSession = p.requests / (p.sessions || 1);
+    // Writes outweighing reads over short sessions is cold starts, not a prefix break.
+    out.push(
+      p.write > p.read && perSession < 3
+        ? `${p.provider}: ${pct(hit)} cache hit, mostly cold starts (${p.requests} calls over ${p.sessions} sessions, each re-writing its prompt). Reuse a session for follow-up calls.`
+        : `${p.provider}: only ${pct(hit)} of prompt tokens hit the cache. Keep the prompt prefix stable (no per-turn system-prompt edits, no history rewrite).`,
+    );
+  }
+  const breaks = Object.entries(r.cacheBreaks).sort((a, b) => b[1] - a[1])[0];
+  if (breaks && breaks[1] >= 5) out.push(`Most common cache break: ${breaks[0]} (${breaks[1]}x).`);
+  return out;
+}
+
+export function formatRibhuDoctor(r: RibhuDoctorReport): string {
+  const L: string[] = [];
+  const t = r.totals;
+  L.push('pakt doctor ribhu — Ribhu token spend (~/.ribhu/usage, aggregates only)');
+  L.push(
+    `${r.rows.kept} responses, ${r.sessions} sessions, ${r.files} processes${r.rows.eval ? ` (${r.rows.eval} eval-harness rows left out; --include-eval to add)` : ''}`,
+  );
+  if (!r.rows.kept) return `${L.join('\n')}\n`;
+  L.push('');
+  L.push(
+    `Tokens   uncached ${range(t.uncachedLow, t.uncachedHigh, m)}, cache read ${m(t.read)}, cache write ${m(t.write)}, output ${m(t.output)}`,
+  );
+  L.push(`Cache hit ${range(r.cacheHit[0], r.cacheHit[1], pct)} of prompt tokens`);
+  const c = r.conventions;
+  L.push(
+    `input_tokens convention: disjoint ${c.disjoint}, inclusive ${c.inclusive}, no cache buckets ${c['no-cache']}, ambiguous ${c.ambiguous}${r.rows.unreportedInput ? `; ${r.rows.unreportedInput} rows with input unreported` : ''}`,
+  );
+  L.push('');
+  L.push('By provider (tokens; providers price differently, so no shared cost)');
+  for (const p of r.byProvider) {
+    L.push(
+      `  ${p.provider.padEnd(14)} ${String(p.requests).padStart(6)} req  uncached ${range(p.uncachedLow, p.uncachedHigh, m).padStart(11)}  read ${m(p.read).padStart(7)}  write ${m(p.write).padStart(7)}  out ${m(p.output).padStart(6)}  ${p.models.slice(0, 3).join(', ')}`,
+    );
+  }
+  L.push('');
+  L.push('By agent');
+  for (const [agent, b] of Object.entries(r.byAgent).sort(
+    (a, b2) => b2[1].requests - a[1].requests,
+  )) {
+    L.push(
+      `  ${agent.padEnd(14)} ${String(b.requests).padStart(6)} req  read ${m(b.read).padStart(7)}  out ${m(b.output).padStart(6)}`,
+    );
+  }
+  L.push('');
+  L.push(
+    `Subagent trees: ${r.trees.withSubagents} processes spawned subagents; subagents are ${pct(r.trees.subagentShare)} of all prompt tokens`,
+  );
+  for (const x of r.trees.top) {
+    L.push(
+      `  ${x.file.padEnd(28)} ${String(x.requests).padStart(5)} req (${x.subagentRequests} subagent)  prompt ${m(x.promptTokens).padStart(7)}  subagents ${pct(x.subagentShare)}`,
+    );
+  }
+  const breaks = Object.entries(r.cacheBreaks);
+  if (breaks.length) {
+    L.push('');
+    L.push(`Cache breaks: ${breaks.map(([k2, v]) => `${k2} ${v}`).join(', ')}`);
+  }
+  const rec = ribhuRecommendations(r);
   if (rec.length) {
     L.push('');
     L.push('Recommendations (proposals; pakt never edits your settings)');
