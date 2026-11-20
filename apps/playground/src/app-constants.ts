@@ -24,7 +24,7 @@ export const DECOMPRESS_FORMATS: PaktFormat[] = ['json', 'yaml', 'csv', 'markdow
 export type Action = 'compress' | 'decompress' | null;
 
 /** The top-level views the playground renders. */
-export type ViewMode = 'playground' | 'compare' | 'context' | 'packer';
+export type ViewMode = 'playground' | 'compare' | 'context' | 'packer' | 'spill';
 
 /**
  * One model entry in the target-model dropdown. The `tokenizerMatch`

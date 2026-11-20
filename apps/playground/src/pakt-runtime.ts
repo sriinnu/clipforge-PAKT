@@ -16,6 +16,8 @@ import type {
   PackerRunItem,
   PackerRunResult,
   PreviewResult,
+  SpillPreviewConfig,
+  SpillPreviewResult,
 } from './pakt-service';
 
 type WorkerMessage =
@@ -38,7 +40,8 @@ type WorkerMessage =
     }
   | { type: 'scanPii'; text: string }
   | { type: 'redactPii'; text: string }
-  | { type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string };
+  | { type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string }
+  | { type: 'spillPreview'; text: string; config: SpillPreviewConfig };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -218,6 +221,13 @@ export async function runPacker(
   return callWorker<PackerRunResult>({ type: 'runPacker', items, budget, model });
 }
 
+export async function spillPreview(
+  text: string,
+  config: SpillPreviewConfig,
+): Promise<SpillPreviewResult> {
+  return callWorker<SpillPreviewResult>({ type: 'spillPreview', text, config });
+}
+
 export type {
   ComparisonItem,
   ComparisonState,
@@ -231,5 +241,7 @@ export type {
   PackerRunItem,
   PackerRunResult,
   PreviewResult,
+  SpillPreviewConfig,
+  SpillPreviewResult,
 } from './pakt-service';
 export type { CompressibilityResult, PIIMatch, PaktLayerProfileId };

@@ -34,6 +34,7 @@ import { ControlsCard } from './components/ControlsCard';
 import { NotesAndWorkflowCards } from './components/NotesAndWorkflowCards';
 import { PackerView } from './components/PackerView';
 import { PlaygroundWorkspace } from './components/PlaygroundWorkspace';
+import { SpillView } from './components/SpillView';
 import {
   type ComparisonState,
   compressSource,
@@ -366,7 +367,7 @@ export default function App() {
         onViewModeChange={setViewMode}
       />
 
-      {viewMode !== 'context' ? (
+      {viewMode !== 'context' && viewMode !== 'spill' ? (
         <>
           <ControlsCard
             samples={samples}
@@ -432,6 +433,8 @@ export default function App() {
         />
       ) : viewMode === 'packer' ? (
         <PackerView />
+      ) : viewMode === 'spill' ? (
+        <SpillView />
       ) : (
         <ContextEngineView />
       )}

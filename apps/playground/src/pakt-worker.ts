@@ -4,6 +4,7 @@ import type {
   ContextDemoMessage,
   ContextEngineDemoConfig,
   PackerRunItem,
+  SpillPreviewConfig,
 } from './pakt-service';
 import {
   analyzePreview,
@@ -16,6 +17,7 @@ import {
   redactPiiText,
   runPacker,
   scanPii,
+  spillPreview,
 } from './pakt-service';
 
 type WorkerRequest =
@@ -52,7 +54,8 @@ type WorkerRequest =
     }
   | { id: number; type: 'scanPii'; text: string }
   | { id: number; type: 'redactPii'; text: string }
-  | { id: number; type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string };
+  | { id: number; type: 'runPacker'; items: PackerRunItem[]; budget: number; model: string }
+  | { id: number; type: 'spillPreview'; text: string; config: SpillPreviewConfig };
 
 type WorkerResponse =
   | { id: number; ok: true; payload: unknown }
@@ -134,6 +137,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
           id: message.id,
           ok: true,
           payload: await runPacker(message.items, message.budget, message.model),
+        });
+        return;
+      case 'spillPreview':
+        respond({
+          id: message.id,
+          ok: true,
+          payload: await spillPreview(message.text, message.config),
         });
         return;
       default: {
