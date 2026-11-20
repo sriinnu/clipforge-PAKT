@@ -310,7 +310,7 @@ Add 5 lines to your MCP config. This is the agent integration path for stdio-bas
 }
 ```
 
-Your AI agent gets seven tools automatically:
+Your AI agent gets eight tools automatically:
 
 | Tool | Purpose |
 |------|---------|
@@ -321,6 +321,7 @@ Your AI agent gets seven tools automatically:
 | `pakt_explain` | Per-layer breakdown of what each layer saved on a given input |
 | `pakt_savings` | Concise dollar-amount savings summary at the configured model's pricing |
 | `pakt_dashboard` | Rich view: format breakdown, dedup efficiency, rolling-dict reuse, latency, lossy (0.10) |
+| `pakt_recall` | Full text of a spilled tool result, by its `sp_…` id (0.13) |
 
 The compress / auto tools accept `semanticBudget` for opt-in lossy L4, `piiMode` for redaction, and `target` for cache-control hints (0.10).
 
@@ -355,6 +356,11 @@ pakt stats --today                                              # filter to toda
 pakt serve --stdio                                              # start MCP server
 pakt serve --stdio --tools slim                                 # slim upstream tool schemas
 pakt serve --stdio --tools search                               # 3-tool catalog facade
+pakt doctor                                                     # where Claude Code tokens go
+pakt doctor ribhu                                               # where Ribhu tokens go
+pakt hook pre-compact                                           # Claude Code hooks (JSON on stdin):
+pakt hook session-start                                         #   compaction state in and out
+pakt hook post-tool-use                                         #   Bash spill (PAKT_SPILL_MODE)
 ```
 
 ---
