@@ -11,6 +11,15 @@ let dir = '';
 const env = { ...process.env };
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pakt-bash-spill-'));
+  // The suite asserts defaults: a developer's own spill settings must not leak in.
+  for (const k of [
+    'PAKT_SPILL_MODE',
+    'PAKT_SPILL_THRESHOLD',
+    'PAKT_SPILL_HEAD',
+    'PAKT_SPILL_TAIL',
+    'BASH_MAX_OUTPUT_LENGTH',
+  ])
+    delete process.env[k];
   process.env.PAKT_LEDGER_DIR = join(dir, 'ledger');
   process.env.PAKT_SPILL_DIR = join(dir, 'spill');
 });

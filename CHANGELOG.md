@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`pakt doctor ribhu`: where Ribhu's tokens go.** Reads Ribhu's per-response usage log (`~/.ribhu/usage`) and reports tokens by provider, agent and process, the cache hit rate, cache-break causes and how much of the spend comes from subagent trees. Rows from Ribhu's eval harness are left out unless you pass `--include-eval`. The log doesn't say whether `input_tokens` includes the cache buckets, and both conventions appear in it, so each row is worked out from evidence (input smaller than the cache buckets, or the next call's cache read in the same session). A row that can't be settled is shown as a range, not a guess. Providers price differently, so tokens are never summed into one cost.
+
+### Fixed
+
+- **The Bash spill tests no longer read the developer's own spill settings.** A live `PAKT_SPILL_MODE` (or a custom threshold) in the environment made the default-mode assertions fail.
+
 ## [0.13.1] - 2026-11-18
 
 ### Fixed
