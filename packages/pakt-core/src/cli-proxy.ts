@@ -31,11 +31,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { VERSION } from './index.js';
 import { createPaktInterceptor } from './middleware/interceptor.js';
 import type { PaktInterceptor } from './middleware/interceptor.js';
 import { FACADE_TOOL_DEFINITIONS, ToolCatalog, slimTool, slimTools } from './proxy/index.js';
 import type { ProviderTool } from './proxy/index.js';
+import { VERSION } from './universal.js';
 
 // ---------------------------------------------------------------------------
 // Public types
