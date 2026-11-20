@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The playground worker crashed on load ("process is not defined").** Since 0.10 the package root re-exported `startProxy`, which pulled `node:child_process` and the MCP stdio transports into browser bundles. The cross-spawn code in there reads `process.platform` when it loads, so every playground tab failed. The runtime-neutral API now lives in `universal.ts`, and a `browser` export condition resolves `@sriinnu/pakt` to it for bundlers. Node imports are unchanged: `startProxy`, `FileSpillStore` and `defaultSpillDir` are still exported from the root, and only browser builds go without them. A test walks the browser entry's import graph and fails on any Node import that hasn't been reviewed.
+
 ### Added
 
 - **`pakt doctor ribhu`: where Ribhu's tokens go.** Reads Ribhu's per-response usage log (`~/.ribhu/usage`) and reports tokens by provider, agent and process, the cache hit rate, cache-break causes and how much of the spend comes from subagent trees. Rows from Ribhu's eval harness are left out unless you pass `--include-eval`. The log doesn't say whether `input_tokens` includes the cache buckets, and both conventions appear in it, so each row is worked out from evidence (input smaller than the cache buckets, or the next call's cache read in the same session). A row that can't be settled is shown as a range, not a guess. Providers price differently, so tokens are never summed into one cost.
