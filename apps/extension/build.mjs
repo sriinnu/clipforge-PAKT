@@ -48,7 +48,10 @@ await build({
       writeBundle() {
         const dist = resolve(__dirname, 'dist');
 
-        copyFileSync(resolve(__dirname, 'manifest.json'), resolve(dist, 'manifest.json'));
+        // Stamp the version from package.json so a release bump can't miss it (#70).
+        const manifest = JSON.parse(readFileSync(resolve(__dirname, 'manifest.json'), 'utf8'));
+        manifest.version = APP_VERSION;
+        writeFileSync(resolve(dist, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
         writeFileSync(
           resolve(dist, 'popup.html'),
