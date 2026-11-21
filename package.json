@@ -9,6 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "verify:versions": "node scripts/release/verify-versions.mjs",
     "build": "turbo run build && pnpm verify:release-artifacts",
     "build:all": "turbo run build && pnpm verify:release-artifacts",
     "build:core": "pnpm --filter @sriinnu/pakt build",

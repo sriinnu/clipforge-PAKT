@@ -32,6 +32,9 @@ jobs:
 
       - run: pnpm lint
 
+      # Every shipped manifest (crate, extension, tauri) matches package.json (#70).
+      - run: pnpm verify:versions
+
       # Apps resolve @sriinnu/pakt types from its built dist.
       - run: pnpm build:core
 
