@@ -759,3 +759,35 @@ button:disabled {
   color: var(--success);
   border-color: color-mix(in srgb, var(--success) 30%, transparent);
 }
+
+/* ---- Bash Spill ---- */
+
+.spill-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  margin-top: 18px;
+}
+
+.spill-card .packer-config-row {
+  padding: 0;
+}
+
+.spill-card .inline-control {
+  display: grid;
+  gap: 6px;
+}
+
+.spill-card input[type="number"] {
+  width: 140px;
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: var(--panel-strong);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font: inherit;
+}
+
+.spill-card .workflow-code {
+  margin: 0;
+}

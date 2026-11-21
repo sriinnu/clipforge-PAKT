@@ -124,6 +124,14 @@ export function AppHero({
         >
           Context Packer
         </button>
+        <button
+          className={`tab-button ${viewMode === 'spill' ? 'active' : ''}`}
+          type="button"
+          aria-pressed={viewMode === 'spill'}
+          onClick={() => onViewModeChange('spill')}
+        >
+          Bash Spill
+        </button>
       </fieldset>
     </>
   );

@@ -269,6 +269,49 @@ export interface ContextOptimizeResult {
  * breakdown, and the optimized messages. Heavy (loads the engine), so it runs
  * in the worker like the other actions.
  */
+/** Options for the Bash spill preview; defaults match `pakt hook post-tool-use`. */
+export interface SpillPreviewConfig {
+  thresholdTokens: number;
+  headLines: number;
+  tailLines: number;
+  targetModel?: string;
+}
+
+export interface SpillPreviewResult {
+  spilled: boolean;
+  /** `sp_…` id the model would pass to `pakt_recall`; set when spilled. */
+  id?: string;
+  originalTokens: number;
+  /** Tokens of what the model sees (the gist, or the original). */
+  tokens: number;
+  /** What the model sees. */
+  content: string;
+}
+
+/**
+ * Run the same `spill()` the Bash hook runs, with an in-memory store, so the
+ * page shows exactly what the model would get. Nothing leaves the browser.
+ */
+export async function spillPreview(
+  text: string,
+  config: SpillPreviewConfig,
+): Promise<SpillPreviewResult> {
+  const pakt = await loadPakt();
+  const r = pakt.spill(text, new pakt.MemorySpillStore(), {
+    thresholdTokens: config.thresholdTokens,
+    headLines: config.headLines,
+    tailLines: config.tailLines,
+    model: config.targetModel ?? 'gpt-4o',
+  });
+  return {
+    spilled: r.spilled,
+    ...(r.id ? { id: r.id } : {}),
+    originalTokens: r.originalTokens,
+    tokens: r.tokens,
+    content: r.content,
+  };
+}
+
 export async function optimizeContext(
   messages: ContextDemoMessage[],
   config: ContextEngineDemoConfig,

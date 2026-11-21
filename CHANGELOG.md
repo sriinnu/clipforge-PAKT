@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Playground: Bash Spill tab.** Paste a long command output to see what `pakt hook post-tool-use` would hand the model: the head and tail lines, the `pakt_recall` marker, and the token savings. It runs the same `spill()` as the hook, with the hook's defaults (a 1000-token threshold, 15 head and 15 tail lines), entirely in the browser.
+
 ### Fixed
 
 - **The playground worker crashed on load ("process is not defined").** Since 0.10 the package root re-exported `startProxy`, which pulled `node:child_process` and the MCP stdio transports into browser bundles. The cross-spawn code in there reads `process.platform` when it loads, so every playground tab failed. The runtime-neutral API now lives in `universal.ts`, and a `browser` export condition resolves `@sriinnu/pakt` to it for bundlers. Node imports are unchanged: `startProxy`, `FileSpillStore` and `defaultSpillDir` are still exported from the root, and only browser builds go without them. A test walks the browser entry's import graph and fails on any Node import that hasn't been reviewed.
