@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **PAKT can read its own YAML back (#69).**
+  - **Reader:** it now handles flow collections (`[a, b]`, `{k: v}`, nested, and spread over several lines), quoted scalars with their escapes (`"a\"b"`, `'it''s'`), `- - x` nested block sequences, `- key: v` items with sibling keys, and sequences written at their key's indent. Before, `x: [1, 2]` came back as the string `"[1, 2]"`.
+  - **Writer:** it now quotes flow indicators inside flow collections, so `["a, b"]` no longer becomes `[a, b]`. It also quotes keys that contain `:` or other special characters, quotes strings starting with `:`, and escapes every control character. Empty containers are written as `[]` / `{}` instead of a bare `key:` (which read back as `null`), and an empty document as `{}`.
+  - **Guard:** a fast-check property drives JSON → PAKT → YAML → PAKT → JSON over arbitrary printable-ASCII keys and strings, plus a deeper generator with nested arrays and unicode. It fails on the old reader and writer, and passes 30,000-run rounds with the fix.
+
 ### Added
 
 - **Playground: Bash Spill tab.** Paste a long command output to see what `pakt hook post-tool-use` would hand the model: the head and tail lines, the `pakt_recall` marker, and the token savings. It runs the same `spill()` as the hook, with the hook's defaults (a 1000-token threshold, 15 head and 15 tail lines), entirely in the browser.

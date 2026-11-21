@@ -233,6 +233,78 @@ describe('property: JSON compress → decompress roundtrip', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Property 1b — PAKT's own YAML reads back (#69)
+// ---------------------------------------------------------------------------
+
+/** json → pakt → yaml → pakt → json, through PAKT's own YAML writer and reader. */
+function viaYaml(data: unknown): { yaml: string; back: unknown } {
+  const yaml = decompress(compress(JSON.stringify(data)).compressed, 'yaml').text;
+  const back = JSON.parse(
+    decompress(compress(yaml, { fromFormat: 'yaml' }).compressed, 'json').text,
+  ) as unknown;
+  return { yaml, back };
+}
+
+describe('property: JSON → PAKT → YAML → PAKT → JSON roundtrip (#69)', () => {
+  it('deep-equals the original for any JSON object', () => {
+    fc.assert(
+      fc.property(jsonValue(), (data) => {
+        // Root scalars become text, not YAML; objects and arrays are the contract.
+        if (data === null || typeof data !== 'object') return;
+        expect(viaYaml(data).back).toEqual(data);
+      }),
+      { numRuns: JSON_RUNS },
+    );
+  });
+
+  it('deep-equals for nested arrays and unicode too, whenever JSON itself round-trips', () => {
+    const anyString = fc.oneof(jsonSafeString(), fc.string({ unit: 'grapheme', maxLength: 6 }));
+    const deep = fc.letrec((tie) => ({
+      leaf: fc.oneof(fc.constant(null), fc.boolean(), fc.integer(), anyString),
+      value: fc.oneof(
+        { maxDepth: 4 },
+        { arbitrary: tie('leaf'), weight: 3 },
+        { arbitrary: fc.array(tie('value'), { maxLength: 4 }), weight: 2 },
+        { arbitrary: fc.dictionary(anyString, tie('value'), { maxKeys: 4 }), weight: 2 },
+      ),
+    })).value;
+    fc.assert(
+      fc.property(deep, (data) => {
+        if (data === null || typeof data !== 'object') return;
+        const text = JSON.stringify(data);
+        const viaJson = decompress(compress(text).compressed, 'json');
+        fc.pre(viaJson.format !== 'text' && JSON.stringify(JSON.parse(viaJson.text)) === text);
+        expect(viaYaml(data).back).toEqual(data);
+      }),
+      { numRuns: JSON_RUNS },
+    );
+  });
+
+  it('reads flow collections, quoted escapes and nested block sequences', () => {
+    const cases: [string, unknown][] = [
+      ['x: [1, 2]', { x: [1, 2] }],
+      ['x:\n  - - 1\n    - 2\n  - {}', { x: [[1, 2], {}] }],
+      ["x: {a: 1, 'b c': [y, 'it''s', \"t\\tz\"]}", { x: { a: 1, 'b c': ['y', "it's", 't\tz'] } }],
+      ['x: [\n  1,\n  {k: v}\n]\ny: 2', { x: [1, { k: 'v' }], y: 2 }],
+      ['x:\n- a\n- b\ny: 1', { x: ['a', 'b'], y: 1 }],
+      ['- a: 1\n  b: [2]\n- c', [{ a: 1, b: [2] }, 'c']],
+    ];
+    for (const [yaml, want] of cases) {
+      const got = JSON.parse(
+        decompress(compress(yaml, { fromFormat: 'yaml' }).compressed, 'json').text,
+      );
+      expect(got, yaml).toEqual(want);
+    }
+  });
+
+  it('quotes flow indicators, colons in keys and control characters', () => {
+    const ctrl = `a\rb${String.fromCharCode(1)}`;
+    const data = { 'a: b': ['x, y', '[z]', '{w}'], 'k#': { 'e,': ctrl }, e: [], f: {} };
+    expect(viaYaml(data).back).toEqual(data);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Property 2 — CSV roundtrip
 // ---------------------------------------------------------------------------
 
