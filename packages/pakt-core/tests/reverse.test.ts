@@ -350,7 +350,8 @@ describe('toYaml', () => {
   });
 
   it('should handle empty body', () => {
-    expect(toYaml([])).toBe('');
+    // An empty body decodes to {} (as toJson does); empty YAML would read back as null (#69).
+    expect(toYaml([])).toBe('{}\n');
   });
 
   it('should skip comments', () => {

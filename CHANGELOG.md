@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **PAKT can read its own YAML back (#69).**
+  - **Reader:** it now handles flow collections (`[a, b]`, `{k: v}`, nested, and spread over several lines), quoted scalars with their escapes (`"a\"b"`, `'it''s'`), `- - x` nested block sequences, `- key: v` items with sibling keys, and sequences written at their key's indent. Before, `x: [1, 2]` came back as the string `"[1, 2]"`.
+  - **Writer:** it now quotes flow indicators inside flow collections, so `["a, b"]` no longer becomes `[a, b]`. It also quotes keys that contain `:` or other special characters, quotes strings starting with `:`, and escapes every control character. Empty containers are written as `[]` / `{}` instead of a bare `key:` (which read back as `null`), and an empty document as `{}`.
+  - **Guard:** a fast-check property drives JSON → PAKT → YAML → PAKT → JSON over arbitrary printable-ASCII keys and strings, plus a deeper generator with nested arrays and unicode. It fails on the old reader and writer, and passes 30,000-run rounds with the fix.
 - **The desktop app and extension shipped as 0.10.0 (#70).** `Cargo.toml`, `Cargo.lock`, `tauri.conf.json` and the extension's `manifest.json` were never bumped after 0.10, so a desktop build came out as `ClipForge PAKT_0.10.0_x64.dmg` and the extension reported 0.10.0. Now:
   - `tauri.conf.json` reads its version from `apps/desktop/package.json`;
   - the extension build stamps `manifest.json` from its `package.json`;

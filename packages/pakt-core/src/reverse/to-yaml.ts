@@ -48,7 +48,9 @@ const INDENT = '  ';
 export function toYaml(body: BodyNode[]): string {
   const lines: string[] = [];
   emitBodyNodes(body, lines, 0);
-  return lines.join('\n') + (lines.length > 0 ? '\n' : '');
+  // An empty body decodes to {} (see bodyToValue); say so rather than emit nothing.
+  if (lines.length === 0) return '{}\n';
+  return `${lines.join('\n')}\n`;
 }
 
 /** Emit all body nodes at a given depth. */
@@ -86,13 +88,17 @@ function emitBodyNode(node: BodyNode, lines: string[], depth: number): void {
 function emitKeyValue(node: KeyValueNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const value = formatYamlScalar(node.value);
-  lines.push(`${prefix}${node.key}: ${value}`);
+  lines.push(`${prefix}${formatYamlKey(node.key)}: ${value}`);
 }
 
 /** Emit a nested object with indented children. */
 function emitObject(node: ObjectNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
-  lines.push(`${prefix}${node.key}:`);
+  if (node.children.length === 0) {
+    lines.push(`${prefix}${formatYamlKey(node.key)}: {}`);
+    return;
+  }
+  lines.push(`${prefix}${formatYamlKey(node.key)}:`);
   emitBodyNodes(node.children, lines, depth + 1);
 }
 
@@ -100,7 +106,11 @@ function emitObject(node: ObjectNode, lines: string[], depth: number): void {
 function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const items = tabularToArray(node);
-  lines.push(`${prefix}${node.key}:`);
+  if (items.length === 0) {
+    lines.push(`${prefix}${formatYamlKey(node.key)}: []`);
+    return;
+  }
+  lines.push(`${prefix}${formatYamlKey(node.key)}:`);
   for (const item of items) {
     emitYamlMapping(item, lines, depth + 1);
   }
@@ -110,15 +120,19 @@ function emitTabularArray(node: TabularArrayNode, lines: string[], depth: number
 function emitInlineArray(node: InlineArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const values = inlineToArray(node);
-  const formatted = values.map((val) => formatYamlValue(val));
-  lines.push(`${prefix}${node.key}: [${formatted.join(', ')}]`);
+  const formatted = values.map((val) => formatYamlValue(val, true));
+  lines.push(`${prefix}${formatYamlKey(node.key)}: [${formatted.join(', ')}]`);
 }
 
 /** Emit a list array as a YAML sequence of mappings. */
 function emitListArray(node: ListArrayNode, lines: string[], depth: number): void {
   const prefix = indent(depth);
   const items = listToArray(node);
-  lines.push(`${prefix}${node.key}:`);
+  if (items.length === 0) {
+    lines.push(`${prefix}${formatYamlKey(node.key)}: []`);
+    return;
+  }
+  lines.push(`${prefix}${formatYamlKey(node.key)}:`);
   for (const item of items) {
     if (isPlainRecord(item) && Object.keys(item).length > 0) {
       emitYamlMapping(item, lines, depth + 1);
@@ -135,26 +149,21 @@ function emitListArray(node: ListArrayNode, lines: string[], depth: number): voi
  */
 function emitYamlMapping(obj: Record<string, unknown>, lines: string[], depth: number): void {
   const prefix = indent(depth);
-  const keys = Object.keys(obj);
-
-  for (let i = 0; i < keys.length; i++) {
-    // biome-ignore lint/style/noNonNullAssertion: index guaranteed within bounds by loop condition
-    const key = keys[i]!;
-    const val = obj[key];
-    if (i === 0) {
-      lines.push(`${prefix}- ${key}: ${formatYamlValue(val)}`);
-    } else {
-      lines.push(`${prefix}  ${key}: ${formatYamlValue(val)}`);
-    }
+  let first = true;
+  for (const [k, val] of Object.entries(obj)) {
+    const lead = first ? '- ' : '  ';
+    lines.push(`${prefix}${lead}${formatYamlKey(k)}: ${formatYamlValue(val)}`);
+    first = false;
   }
 }
 
 /**
  * Format a JS value for YAML output.
- * Numbers, booleans, and null are emitted bare.
- * Strings are quoted if they need YAML escaping.
+ * Numbers, booleans, and null are emitted bare; arrays and objects as flow
+ * collections. Strings are quoted if they need YAML escaping, and inside a
+ * flow collection also when they hold a flow indicator (`, [ ] { }`).
  */
-function formatYamlValue(value: unknown): string {
+function formatYamlValue(value: unknown, inFlow = false): string {
   if (value === null) {
     return 'null';
   }
@@ -165,14 +174,14 @@ function formatYamlValue(value: unknown): string {
     return String(value);
   }
   if (typeof value === 'string') {
-    return formatYamlString(value);
+    return inFlow && FLOW_INDICATOR.test(value) ? quoteYamlString(value) : formatYamlString(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map(formatYamlValue).join(', ')}]`;
+    return `[${value.map((v) => formatYamlValue(v, true)).join(', ')}]`;
   }
   if (isPlainRecord(value)) {
     const pairs = Object.entries(value).map(
-      ([k, v]) => `${formatYamlString(k)}: ${formatYamlValue(v)}`,
+      ([k, v]) => `${formatYamlKey(k, true)}: ${formatYamlValue(v, true)}`,
     );
     return `{${pairs.join(', ')}}`;
   }
@@ -215,11 +224,25 @@ function formatYamlString(value: string): string {
   return value;
 }
 
+/** Characters that end a plain scalar inside a flow collection. */
+const FLOW_INDICATOR = /[,[\]{}]/;
+
+/**
+ * Format a mapping key. Quoted when it would need quoting as a value, or when
+ * it holds any `:` (the reader splits a plain key at its first colon).
+ */
+function formatYamlKey(key: string, inFlow = false): string {
+  if (needsYamlQuoting(key) || key.includes(':') || (inFlow && FLOW_INDICATOR.test(key))) {
+    return quoteYamlString(key);
+  }
+  return key;
+}
+
 /** Check whether a string value needs YAML quoting. */
 function needsYamlQuoting(value: string): boolean {
   if (value.length === 0) return true;
   if (value !== value.trim()) return true;
-  if (value.includes('\n')) return true;
+  if (hasControlChar(value)) return true;
 
   // Colon followed by space or at end
   if (/: /.test(value) || value.endsWith(':')) return true;
@@ -228,7 +251,7 @@ function needsYamlQuoting(value: string): boolean {
   if (value.includes('#')) return true;
 
   // YAML special start characters
-  if (/^[&*!|>'"%@`{[\-?]/.test(value)) return true;
+  if (/^[&*!|>'"%@`{[\-?:]/.test(value)) return true;
 
   // Would be misinterpreted as YAML boolean/null
   const lower = value.toLowerCase();
@@ -244,6 +267,16 @@ function needsYamlQuoting(value: string): boolean {
   return false;
 }
 
+/** C0 controls and DEL; YAML double-quoted strings must escape them. */
+function isControl(code: number): boolean {
+  return code < 0x20 || code === 0x7f;
+}
+
+function hasControlChar(value: string): boolean {
+  for (let i = 0; i < value.length; i++) if (isControl(value.charCodeAt(i))) return true;
+  return false;
+}
+
 /** Quote a string with double quotes for YAML, escaping special characters. */
 function quoteYamlString(value: string): string {
   const escaped = value
@@ -251,7 +284,12 @@ function quoteYamlString(value: string): string {
     .replace(/"/g, '\\"')
     .replace(/\n/g, '\\n')
     .replace(/\t/g, '\\t');
-  return `"${escaped}"`;
+  let out = '';
+  for (const ch of escaped) {
+    const code = ch.charCodeAt(0);
+    out += isControl(code) ? `\\x${code.toString(16).padStart(2, '0')}` : ch;
+  }
+  return `"${out}"`;
 }
 
 /** Generate an indentation string for the given depth. */
