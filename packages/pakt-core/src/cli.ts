@@ -88,7 +88,7 @@ Usage:
   pakt report                       Human-readable savings report
   pakt doctor [--days N] [--json]   Where Claude Code tokens go + recommendations
   pakt doctor ribhu [--include-eval] Where Ribhu tokens go (~/.ribhu/usage)
-  pakt hook <event>                 Claude Code hook (pre-compact | session-start); JSON on stdin
+  pakt hook <event>                 Claude Code hook (pre-compact | session-start | post-tool-use); JSON on stdin
   pakt report --model <model>       Report with cost estimates for a specific model
   pakt --version                    Print version
   pakt --help                       Show this help

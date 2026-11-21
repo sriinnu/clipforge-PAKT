@@ -104,10 +104,30 @@ Compression is layered. Each app and CLI surface exposes the same profiles:
 
 These are opt-in and aimed at agent loops. The lossless paths are on by default; the lossy ones are off until you enable them.
 
-- **MCP server** — `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, `pakt_stats`, `pakt_explain`, `pakt_savings`, `pakt_dashboard`. Same logic as the CLI and library.
+- **MCP server** — `pakt serve --stdio` exposes `pakt_compress`, `pakt_auto`, `pakt_inspect`, `pakt_stats`, `pakt_explain`, `pakt_savings`, `pakt_dashboard`, `pakt_recall`. Same logic as the CLI and library.
 - **Context engine** — `createContextEngine()` compresses tool results, dedupes content across turns, ages old output to a tail, and shares a cross-message `@shared` dictionary (default on, lossless). Two passes are opt-in and **lossy** — extractive line selection (`extractive`) and code compaction (`compactCode`); their live-model comprehension impact is unmeasured, so treat them as experimental.
 - **Optional neural tier** — `combineWithGuarantee()` lets you plug in a neural compressor (you supply the model) and keeps its output only when it is smaller *and* passes your fidelity check; otherwise it falls back to the deterministic result. The combined output is never larger than the deterministic baseline. No model is bundled.
 - **Prompt-cache cooperation** — PAKT keeps the `@dict` prefix byte-stable across turns and emits a cache-breakpoint hint, so a provider's own prefix cache can reuse it. The cost reduction there comes from the provider's cache; PAKT's part is making the prefix stable.
+
+## Claude Code: compaction, Bash spill, doctor
+
+`pakt` also plugs into Claude Code itself (global install: `npm install -g @sriinnu/pakt`). None of this changes your settings for you.
+
+- **`pakt doctor`**: where your Claude Code tokens go, read from the local transcripts (main sessions and subagents, aggregates only). It splits cost into cache reads, cache writes, uncached input and output, finds cache rewrites after idle gaps, simulates `CLAUDE_CODE_AUTO_COMPACT_WINDOW` values and lists which tool results stay resident longest. Its recommendations are proposals only. `pakt doctor ribhu` does the same for Ribhu's usage log.
+- **Compaction state**: the `pre-compact` hook tells the summariser what to keep, and `session-start` (matcher `compact`) re-injects a snapshot after it: files edited and read, your recent requests, the last reply and spill ids (`~/.pakt/state`, 0600).
+- **Bash spill**: the `post-tool-use` hook replaces a long Bash output with its first and last lines plus a `pakt_recall` id, and the full text stays local in `~/.pakt/spill` (files 0600). The default is `PAKT_SPILL_MODE=shadow`, which only records what it would have spilled (`~/.pakt/ledger/spill.jsonl`). `live` rewrites the output, and `off` disables it.
+
+```json
+{
+  "hooks": {
+    "PreCompact": [{ "hooks": [{ "type": "command", "command": "pakt hook pre-compact", "timeout": 10 }] }],
+    "SessionStart": [{ "matcher": "compact", "hooks": [{ "type": "command", "command": "pakt hook session-start", "timeout": 5 }] }],
+    "PostToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "pakt hook post-tool-use", "timeout": 5 }] }]
+  }
+}
+```
+
+Add the MCP server too (`pakt serve --stdio`), so the model can call `pakt_recall` for the full text of a spilled output.
 
 ## Why not …
 
@@ -144,6 +164,7 @@ See the **[pakt-core README](./packages/pakt-core/README.md)** for the full API,
 - `pakt-client` (Python) is a subprocess wrapper, not a port, and is not yet on PyPI.
 - `L4` semantic mode, extractive selection, and code compaction are lossy and off by default.
 - The comprehension result above is one suite through one harness; broader validation is open work.
+- Bash spill in `live` mode rewrites every Bash output it spills, including output that a script (rather than the model) reads as data. Keep it on `shadow` if your agent runs scripts through Bash.
 
 ## Credits
 
@@ -153,4 +174,4 @@ Relevant research: LLMLingua-2 ([arXiv:2403.12968](https://arxiv.org/abs/2403.12
 
 ## License
 
-[MIT](./LICENSE) — Srinivas Pendela. Independently maintained; sponsorship is optional ([GitHub Sponsors](https://github.com/sponsors/sriinnu)).
+[MIT](./LICENSE) — Srinivas Pendela.
