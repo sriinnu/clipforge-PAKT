@@ -461,7 +461,7 @@ dependencies = [
 
 [[package]]
 name = "clipforge-desktop"
-version = "0.10.0"
+version = "0.13.1"
 dependencies = [
  "serde",
  "serde_json",

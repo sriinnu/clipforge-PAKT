@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The desktop app and extension shipped as 0.10.0 (#70).** `Cargo.toml`, `Cargo.lock`, `tauri.conf.json` and the extension's `manifest.json` were never bumped after 0.10, so a desktop build came out as `ClipForge PAKT_0.10.0_x64.dmg` and the extension reported 0.10.0. Now:
+  - `tauri.conf.json` reads its version from `apps/desktop/package.json`;
+  - the extension build stamps `manifest.json` from its `package.json`;
+  - the crate is synced to 0.13.1;
+  - `pnpm verify:versions`, which runs in the required CI check, fails if any shipped manifest disagrees with the root version.
+
 ### Added
 
 - **Playground: Bash Spill tab.** Paste a long command output to see what `pakt hook post-tool-use` would hand the model: the head and tail lines, the `pakt_recall` marker, and the token savings. It runs the same `spill()` as the hook, with the hook's defaults (a 1000-token threshold, 15 head and 15 tail lines), entirely in the browser.
